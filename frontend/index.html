@@ -15,6 +15,50 @@
   <main>
     <section id="kpi-cards" class="kpi-grid"></section>
 
+    <section class="charts-grid">
+      <div class="chart-card">
+        <h3>Antigüedad de saldos</h3>
+        <div class="donut-wrap">
+          <div id="saldos-donut"></div>
+          <div id="saldos-legend" class="legend"></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Segmentación</h3>
+        <div id="segmentation-bar" class="seg-bar"></div>
+        <div id="segmentation-legend" class="legend"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Embudo de gestión</h3>
+        <div id="funnel-bars" class="funnel-bars"></div>
+        <div id="funnel-rates" class="rates"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Distribución de estatus</h3>
+        <p id="dist-sub" class="muted"></p>
+        <div id="dist-list" class="dist-list"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Cobertura del mes</h3>
+        <div class="meter-lg"><div class="fill" id="coverage-fill" style="width:0%"></div></div>
+        <p class="muted"><span id="coverage-gestionados"></span>/<span id="coverage-total"></span> clientes gestionados este mes (<span id="coverage-pct"></span>)</p>
+      </div>
+
+      <div class="chart-card wide">
+        <h3>Recuperación mensual</h3>
+        <div id="line-chart"></div>
+      </div>
+
+      <div class="chart-card wide">
+        <h3>Tendencia de cartera vencida</h3>
+        <div id="line-chart-vencida"></div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-header">
         <h2>Clientes</h2>

@@ -1,4 +1,13 @@
 import { api } from "./api.js";
+import {
+  renderDonut,
+  renderFunnel,
+  renderDistribucion,
+  renderSegmentacion,
+  renderCoverage,
+  buildLineChartRecuperado,
+  buildLineChartVencida,
+} from "./charts.js";
 
 const FRANQUICIAS = [
   { id: "todas", label: "Todas" },
@@ -85,6 +94,35 @@ async function loadDashboard() {
     card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div>`;
     cards.appendChild(card);
   }
+
+  renderCharts(data);
+}
+
+function renderCharts(data) {
+  const donut = renderDonut(data.saldos, { incluirCorriente: true });
+  document.getElementById("saldos-donut").innerHTML = donut.svg;
+  document.getElementById("saldos-legend").innerHTML = donut.legend;
+
+  const seg = renderSegmentacion(data.segmentacion);
+  document.getElementById("segmentation-bar").innerHTML = seg.bar;
+  document.getElementById("segmentation-legend").innerHTML = seg.legend;
+
+  const funnel = renderFunnel(data.funnel, data.expectativaCobro);
+  document.getElementById("funnel-bars").innerHTML = funnel.bars;
+  document.getElementById("funnel-rates").innerHTML = funnel.rates;
+
+  const dist = renderDistribucion(data.distribucion);
+  document.getElementById("dist-sub").textContent = dist.sub;
+  document.getElementById("dist-list").innerHTML = dist.rows;
+
+  const coverage = renderCoverage(data.gestion);
+  document.getElementById("coverage-fill").style.width = `${coverage.pct}%`;
+  document.getElementById("coverage-total").textContent = coverage.total;
+  document.getElementById("coverage-gestionados").textContent = coverage.gestionados;
+  document.getElementById("coverage-pct").textContent = coverage.pctLabel;
+
+  document.getElementById("line-chart").innerHTML = buildLineChartRecuperado(data.historico);
+  document.getElementById("line-chart-vencida").innerHTML = buildLineChartVencida(data.historicoVencida);
 }
 
 async function loadClientes() {
