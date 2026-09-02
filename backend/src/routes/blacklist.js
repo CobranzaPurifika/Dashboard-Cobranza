@@ -1,0 +1,75 @@
+import { Router } from "express";
+import { pool } from "../db/pool.js";
+
+export const blacklistRouter = Router();
+
+// GET /api/blacklist
+blacklistRouter.get("/", async (_req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `select b.*, c.name, c.franchise_id
+       from blacklist b join clientes c on c.id = b.id
+       order by b.fecha desc nulls last`
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/clientes/:id/blacklist  body: { motivo }
+blacklistRouter.post("/clientes/:id/blacklist", async (req, res, next) => {
+  const { id } = req.params;
+  const { motivo } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const hoy = new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
+
+    await client.query(
+      `insert into blacklist (id, motivo, fecha) values ($1, $2, $3)
+       on conflict (id) do update set motivo = excluded.motivo, fecha = excluded.fecha`,
+      [id, motivo ?? null, hoy]
+    );
+    const updated = await client.query(
+      `update clientes set is_blacklisted = true, updated_at = now() where id = $1 returning *`,
+      [id]
+    );
+    if (updated.rows.length === 0) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+    await client.query("commit");
+    res.status(201).json(updated.rows[0]);
+  } catch (err) {
+    await client.query("rollback");
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/clientes/:id/blacklist
+blacklistRouter.delete("/clientes/:id/blacklist", async (req, res, next) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query(`delete from blacklist where id = $1`, [id]);
+    const updated = await client.query(
+      `update clientes set is_blacklisted = false, updated_at = now() where id = $1 returning *`,
+      [id]
+    );
+    if (updated.rows.length === 0) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+    await client.query("commit");
+    res.json(updated.rows[0]);
+  } catch (err) {
+    await client.query("rollback");
+    next(err);
+  } finally {
+    client.release();
+  }
+});

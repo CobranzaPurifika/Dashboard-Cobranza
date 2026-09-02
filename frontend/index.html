@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cobranza Purifika</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Cobranza Purifika</h1>
+    <nav id="franchise-tabs" class="tabs"></nav>
+  </header>
+
+  <main>
+    <section id="kpi-cards" class="kpi-grid"></section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Clientes</h2>
+        <div class="filters">
+          <select id="filter-tramo">
+            <option value="">Todos los tramos</option>
+            <option value="good">Al corriente</option>
+            <option value="warning">1-30 días</option>
+            <option value="serious">31-60 días</option>
+            <option value="critical">+60 días</option>
+          </select>
+          <input id="filter-q" type="search" placeholder="Buscar cliente..." />
+        </div>
+      </div>
+      <table id="clientes-table">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Franquicia</th>
+            <th>Segmento</th>
+            <th>Saldo</th>
+            <th>Tramo</th>
+            <th>Estatus</th>
+          </tr>
+        </thead>
+        <tbody id="clientes-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <aside id="detail-panel" class="detail-panel hidden">
+    <button id="close-detail" class="close-btn">&times;</button>
+    <div id="detail-content"></div>
+  </aside>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
