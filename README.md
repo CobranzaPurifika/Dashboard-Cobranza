@@ -13,8 +13,10 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   que cada noche avanza los días de vencido de las facturas y reclasifica el tramo de cada
   cliente — reemplaza el republish-manual-del-artifact + respaldo en Airtable del proyecto original.
 - **`frontend/`** — SPA estática (HTML/CSS/JS sin build step) que consume la API. Cubre KPIs,
-  tabla de clientes filtrable y bitácora de gestión por cliente. Los charts (dona, funnel,
-  segmentación) del dashboard original todavía no están portados — ver sección siguiente.
+  las gráficas del dashboard original (dona de antigüedad de saldos, embudo de gestión,
+  distribución de estatus, segmentación, cobertura del mes, recuperación mensual y tendencia
+  de cartera vencida — ver `frontend/src/charts.js`), tabla de clientes filtrable y bitácora
+  de gestión por cliente.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
   `vencida_snapshots`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
@@ -33,8 +35,6 @@ npx serve .         # o cualquier servidor estático; el frontend apunta a local
 
 ## Pendiente (siguiente sesión)
 
-- Portar las gráficas (dona de saldos, funnel de gestión, segmentación) del artifact original
-  al frontend nuevo — hoy solo hay tarjetas KPI y tabla.
 - Endpoint/UI para blacklist y agenda de seguimiento (ya existen en el backend, falta cablear
   el frontend).
 - Definir la regla real de vencimiento por franquicia/cliente en `recalcularVencidos.js`
