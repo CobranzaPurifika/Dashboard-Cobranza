@@ -1,4 +1,5 @@
 import { api } from "./api.js";
+import { authConfigurationError, clearSession, hasSession, signIn, signOut } from "./auth.js";
 import {
   renderDonut,
   renderFunnel,
@@ -28,14 +29,17 @@ let state = {
   tramo: "",
   q: "",
   statusCatalog: [],
+  user: null,
+  franchises: [],
 };
 
 const fmtMoney = (n) => "$" + Number(n ?? 0).toLocaleString("es-MX", { maximumFractionDigits: 0 });
 const fmtDate = (iso) => (iso ? String(iso).slice(0, 10) : "");
 
 async function init() {
-  renderTabs();
-  state.statusCatalog = await api.statusGestion().catch(() => []);
+  window.addEventListener("auth-required", () => showLogin("Tu sesión terminó. Ingresa nuevamente."));
+  document.getElementById("login-form").addEventListener("submit", handleLogin);
+  document.getElementById("logout-button").addEventListener("click", handleLogout);
   document.getElementById("filter-tramo").addEventListener("change", (e) => {
     state.tramo = e.target.value;
     loadClientes();
@@ -46,13 +50,96 @@ async function init() {
   }, 300));
   document.getElementById("close-detail").addEventListener("click", closeDetail);
 
+  const configurationError = authConfigurationError();
+  if (configurationError) {
+    showLogin(configurationError);
+    return;
+  }
+
+  if (!hasSession()) {
+    showLogin();
+    return;
+  }
+
+  await openAuthenticatedApp().catch((error) => {
+    clearSession();
+    showLogin(error.message);
+  });
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const submit = document.getElementById("login-submit");
+  const errorBox = document.getElementById("login-error");
+  submit.disabled = true;
+  submit.textContent = "Ingresando…";
+  errorBox.textContent = "";
+
+  try {
+    await signIn(
+      document.getElementById("login-email").value,
+      document.getElementById("login-password").value
+    );
+    await openAuthenticatedApp();
+    document.getElementById("login-password").value = "";
+  } catch (error) {
+    clearSession();
+    showLogin(error.message);
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Iniciar sesión";
+  }
+}
+
+async function openAuthenticatedApp() {
+  state.user = await api.me();
+  state.franchises = franchisesForUser(state.user);
+
+  if (state.franchises.length === 0) {
+    throw new Error("Tu cuenta todavía no tiene franquicias asignadas");
+  }
+
+  state.franchise = "todas";
+  state.statusCatalog = await api.statusGestion();
+  renderAccount();
+  renderTabs();
+  document.getElementById("login-view").classList.add("hidden");
+  document.getElementById("app-shell").classList.remove("hidden");
   await Promise.all([loadDashboard(), loadClientes()]);
+}
+
+async function handleLogout() {
+  await signOut();
+  state.user = null;
+  closeDetail();
+  showLogin();
+}
+
+function showLogin(error = "") {
+  document.getElementById("app-shell").classList.add("hidden");
+  document.getElementById("login-view").classList.remove("hidden");
+  document.getElementById("login-error").textContent = error;
+}
+
+function franchisesForUser(user) {
+  if (user.allFranchises) return FRANQUICIAS;
+
+  const assigned = new Set(user.franchise_ids ?? []);
+  const choices = FRANQUICIAS.filter((item) => item.id !== "todas" && assigned.has(item.id));
+  if (choices.length === 0) return [];
+  return [{ id: "todas", label: "Mis franquicias" }, ...choices];
+}
+
+function renderAccount() {
+  const roleLabels = { admin: "Administrador", gestor: "Gestor", lector: "Solo lectura" };
+  document.getElementById("account-name").textContent = state.user.display_name || state.user.email;
+  document.getElementById("account-role").textContent = roleLabels[state.user.role] ?? state.user.role;
 }
 
 function renderTabs() {
   const nav = document.getElementById("franchise-tabs");
   nav.innerHTML = "";
-  for (const f of FRANQUICIAS) {
+  for (const f of state.franchises) {
     const btn = document.createElement("button");
     btn.textContent = f.label;
     btn.className = "tab" + (f.id === state.franchise ? " active" : "");
@@ -157,17 +244,22 @@ async function openDetail(id) {
     .map((s) => `<option value="${s.value}" ${s.value === c.estatus_value ? "selected" : ""}>${s.label}</option>`)
     .join("");
 
+  const canManage = ["admin", "gestor"].includes(state.user.role);
+  const gestionBlock = canManage
+    ? `<h3>Guardar gestión</h3>
+      <form id="gestion-form">
+        <select id="gestion-estatus">${statusOptions}</select>
+        <textarea id="gestion-comentario" placeholder="Comentario (opcional)"></textarea>
+        <button type="submit">Guardar</button>
+      </form>`
+    : `<div class="readonly-notice">Consulta de solo lectura</div>`;
+
   content.innerHTML = `
     <h2>${escapeHtml(c.name)}</h2>
     <p class="muted">${escapeHtml(c.franchise_id)} · ${escapeHtml(c.segment_label)} · RFC ${escapeHtml(c.rfc ?? "N/A")}</p>
     <p class="saldo">${fmtMoney(c.saldo)} <span class="badge badge-${c.tramo}">${TRAMO_LABEL[c.tramo] ?? c.tramo}</span></p>
 
-    <h3>Guardar gestión</h3>
-    <form id="gestion-form">
-      <select id="gestion-estatus">${statusOptions}</select>
-      <textarea id="gestion-comentario" placeholder="Comentario (opcional)"></textarea>
-      <button type="submit">Guardar</button>
-    </form>
+    ${gestionBlock}
 
     <h3>Facturas (${c.invoices.length})</h3>
     <ul class="mini-list">
@@ -197,14 +289,16 @@ async function openDetail(id) {
     </ul>
   `;
 
-  document.getElementById("gestion-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const estatusValue = document.getElementById("gestion-estatus").value;
-    const comentario = document.getElementById("gestion-comentario").value;
-    await api.guardarGestion(id, { estatusValue, comentario });
-    await openDetail(id);
-    await loadClientes();
-  });
+  if (canManage) {
+    document.getElementById("gestion-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const estatusValue = document.getElementById("gestion-estatus").value;
+      const comentario = document.getElementById("gestion-comentario").value;
+      await api.guardarGestion(id, { estatusValue, comentario });
+      await openDetail(id);
+      await loadClientes();
+    });
+  }
 
   panel.classList.remove("hidden");
 }

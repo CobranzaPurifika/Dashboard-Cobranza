@@ -14,7 +14,7 @@ import { startImportSchedules } from "./imports/scheduler.js";
 import { authenticate } from "./auth/authorization.js";
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "*" }));
+app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));

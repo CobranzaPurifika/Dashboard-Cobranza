@@ -16,7 +16,9 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   las gráficas del dashboard original (dona de antigüedad de saldos, embudo de gestión,
   distribución de estatus, segmentación, cobertura del mes, recuperación mensual y tendencia
   de cartera vencida — ver `frontend/src/charts.js`), tabla de clientes filtrable y bitácora
-  de gestión por cliente.
+  de gestión por cliente. El acceso usa correo y contraseña de Supabase Auth; no hay registro
+  público. Administradores y lectores consultan todas las franquicias, mientras que cada gestor
+  solo consulta y opera las que tenga asignadas.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
   `vencida_snapshots`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
@@ -30,11 +32,19 @@ npm install
 npm run dev        # API en :3001
 
 cd ../frontend
-npx serve .         # o cualquier servidor estático; el frontend apunta a localhost:3001/api
+cp config.example.js config.js  # completar URL y anon key públicas de Supabase
+npx serve -l 5173 . # o cualquier servidor estático; el frontend apunta a localhost:3001/api
 ```
+
+Las cuentas se crean por invitación desde Supabase Auth y después se registran en `app_users` con
+su rol. Para gestores, las franquicias permitidas se agregan en `user_franchises`. Un usuario de
+Auth sin registro activo en `app_users` no puede entrar a la aplicación.
+En Supabase Auth debe mantenerse deshabilitado el registro público; las cuentas se crean o
+invitan desde administración.
 
 ## Pendiente (siguiente sesión)
 
+- Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.
 - Endpoint/UI para blacklist y agenda de seguimiento (ya existen en el backend, falta cablear
   el frontend).
 - Implementar las importaciones idempotentes de BDD y Pagos sobre Supabase.

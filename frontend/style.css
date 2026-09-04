@@ -35,6 +35,65 @@ body {
   color: var(--ink);
 }
 
+.hidden { display: none !important; }
+
+.login-view {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(37, 202, 210, 0.18), transparent 34%),
+    linear-gradient(145deg, #eefbfc 0%, var(--paper) 55%, #e9f4f7 100%);
+}
+.login-card {
+  width: min(100%, 390px);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 32px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(27, 53, 80, 0.12);
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--accent);
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+}
+.login-card h1 { margin: 8px 0 0; font-size: 24px; color: var(--ink); }
+.login-card > p { margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.login-card label { margin-top: 5px; font-size: 14px; font-weight: 600; }
+.login-card input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  font: inherit;
+}
+.login-card input:focus { outline: 3px solid rgba(37, 202, 210, 0.18); border-color: var(--accent-ink); }
+.login-card button {
+  min-height: 44px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent-ink);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.login-card button:disabled { opacity: 0.65; cursor: wait; }
+.login-card .form-error { min-height: 21px; margin: 2px 0 0; color: var(--critical); font-size: 13px; }
+
 .topbar {
   display: flex;
   align-items: center;
@@ -45,6 +104,10 @@ body {
 }
 
 .topbar h1 { font-size: 18px; margin: 0; color: var(--accent-ink); }
+
+.account { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; }
+.account-role { padding: 4px 8px; border-radius: 999px; background: var(--card-alt); color: var(--accent-ink); }
+.account button { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 6px 9px; cursor: pointer; }
 
 .tabs { display: flex; gap: 8px; }
 .tab {
@@ -157,6 +220,17 @@ tbody tr:hover { background: #f4fbfb; }
   font-weight: 600;
 }
 
+.readonly-notice {
+  margin: 18px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-accent);
+  border-radius: 8px;
+  background: var(--card-alt);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .mini-list { list-style: none; padding: 0; margin: 8px 0; font-size: 12px; }
 .mini-list li { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .timeline .dot {
@@ -236,3 +310,17 @@ tbody tr:hover { background: #f4fbfb; }
 .lc-endlabel { font-size: 11px; font-weight: 700; fill: var(--ink); }
 .lc-goal { stroke: var(--critical); stroke-width: 1.4; stroke-dasharray: 4,3; }
 .lc-goal-label { font-size: 9px; fill: var(--critical-text); }
+
+@media (max-width: 760px) {
+  .topbar { align-items: flex-start; flex-wrap: wrap; padding: 14px 16px; }
+  .tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .account { margin-left: auto; }
+  .account #account-name { display: none; }
+  main { padding: 16px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .panel { overflow-x: auto; }
+  .panel-header { align-items: flex-start; gap: 12px; flex-direction: column; }
+  .filters { width: 100%; flex-wrap: wrap; }
+  .filters input { flex: 1; min-width: 180px; }
+  .detail-panel { width: 100%; }
+}
