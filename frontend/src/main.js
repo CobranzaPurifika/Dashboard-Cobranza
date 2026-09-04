@@ -1,5 +1,5 @@
 import { api } from "./api.js";
-import { authConfigurationError, clearSession, hasSession, signIn, signOut } from "./auth.js";
+import { clearSession, hasSession, signIn, signOut } from "./auth.js";
 import {
   renderDonut,
   renderFunnel,
@@ -39,7 +39,8 @@ const fmtDate = (iso) => (iso ? String(iso).slice(0, 10) : "");
 async function init() {
   window.addEventListener("auth-required", () => showLogin("Tu sesión terminó. Ingresa nuevamente."));
   document.getElementById("login-form").addEventListener("submit", handleLogin);
-  document.getElementById("logout-button").addEventListener("click", handleLogout);
+  document.getElementById("account-action").addEventListener("click", handleAccountAction);
+  document.getElementById("cancel-login").addEventListener("click", () => openAuthenticatedApp());
   document.getElementById("filter-tramo").addEventListener("change", (e) => {
     state.tramo = e.target.value;
     loadClientes();
@@ -50,20 +51,13 @@ async function init() {
   }, 300));
   document.getElementById("close-detail").addEventListener("click", closeDetail);
 
-  const configurationError = authConfigurationError();
-  if (configurationError) {
-    showLogin(configurationError);
-    return;
-  }
-
-  if (!hasSession()) {
-    showLogin();
-    return;
-  }
-
   await openAuthenticatedApp().catch((error) => {
-    clearSession();
-    showLogin(error.message);
+    if (hasSession()) {
+      clearSession();
+      showLogin(error.message);
+    } else {
+      showLogin("No fue posible cargar el tablero");
+    }
   });
 }
 
@@ -112,7 +106,16 @@ async function handleLogout() {
   await signOut();
   state.user = null;
   closeDetail();
-  showLogin();
+  await openAuthenticatedApp();
+}
+
+async function handleAccountAction() {
+  if (state.user?.isAnonymous) {
+    showLogin();
+    document.getElementById("login-email").focus();
+    return;
+  }
+  await handleLogout();
 }
 
 function showLogin(error = "") {
@@ -132,8 +135,12 @@ function franchisesForUser(user) {
 
 function renderAccount() {
   const roleLabels = { admin: "Administrador", gestor: "Gestor", lector: "Solo lectura" };
-  document.getElementById("account-name").textContent = state.user.display_name || state.user.email;
+  const action = document.getElementById("account-action");
+  document.getElementById("account-name").textContent = state.user.isAnonymous
+    ? "Acceso por enlace"
+    : state.user.display_name || state.user.email;
   document.getElementById("account-role").textContent = roleLabels[state.user.role] ?? state.user.role;
+  action.textContent = state.user.isAnonymous ? "Acceso administrador" : "Salir";
 }
 
 function renderTabs() {

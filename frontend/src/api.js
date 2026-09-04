@@ -4,17 +4,14 @@ const API_BASE = window.__APP_CONFIG__?.apiBase ?? "http://localhost:3001/api";
 
 async function request(path, options = {}) {
   const token = await getValidAccessToken();
-  if (!token) {
-    notifyAuthenticationRequired();
-    throw new Error("Autenticación requerida");
-  }
 
   const { headers: optionHeaders, ...fetchOptions } = options;
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await fetch(`${API_BASE}${path}`, {
     ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...authHeaders,
       ...optionHeaders,
     },
   });

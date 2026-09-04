@@ -9,7 +9,18 @@ let cachedIssuer;
 export async function authenticate(req, res, next) {
   try {
     const token = parseBearer(req.get("authorization"));
-    if (!token) return res.status(401).json({ error: "Autenticación requerida" });
+    if (!token) {
+      req.user = {
+        id: null,
+        email: null,
+        display_name: "Lector",
+        role: "lector",
+        active: true,
+        franchise_ids: [],
+        isAnonymous: true,
+      };
+      return next();
+    }
 
     const { payload } = await verifySupabaseToken(token);
     const { rows } = await pool.query(
@@ -26,7 +37,7 @@ export async function authenticate(req, res, next) {
       return res.status(403).json({ error: "El usuario no tiene acceso a esta aplicación" });
     }
 
-    req.user = rows[0];
+    req.user = { ...rows[0], isAnonymous: false };
     next();
   } catch (_error) {
     res.status(401).json({ error: "Sesión inválida o vencida" });
