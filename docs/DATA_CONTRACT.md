@@ -20,6 +20,9 @@ dominio.
 6. Una carga BDD preserva pagos y todos los datos de gestión de la aplicación.
 7. Guardar una gestión debe insertar el evento y actualizar al cliente en una sola transacción.
 8. Airtable es un respaldo transitorio de la etapa Artifact; no será fuente de verdad de la app.
+9. El botón manual relee los mismos archivos de Drive; no admite archivos alternos.
+10. Toda fuente se valida completa antes de escribir RAW. Un error deja intacto el consolidado.
+11. RAW es acumulativo: una fila idéntica no se duplica y una versión modificada se conserva.
 
 ## Consecuencia operativa
 
