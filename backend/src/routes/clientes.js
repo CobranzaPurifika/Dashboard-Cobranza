@@ -4,6 +4,84 @@ import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 
 export const clientesRouter = Router();
 
+// GET /api/clientes/prioridad?franchise=cancun&segment=comercial&q=cliente-o-folio
+// Orden confirmado en el Artifact: no gestionados hoy primero; después urgencia por tramo
+// y saldo. Las promesas vigentes salen de la lista normal, pero una búsqueda explícita sí
+// puede encontrarlas.
+clientesRouter.get("/prioridad", async (req, res, next) => {
+  try {
+    const { franchise, segment, q } = req.query;
+    const allowed = resolveFranchiseScope(req.user, franchise || "todas");
+    const params = [allowed];
+    const conditions = ["c.franchise_id = any($1::text[])"];
+
+    if (segment) {
+      params.push(segment);
+      conditions.push(`c.segment = $${params.length}`);
+    }
+
+    const search = String(q ?? "").trim();
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(
+        c.name ilike $${params.length}
+        or exists (
+          select 1 from facturas f
+          where f.cliente_id = c.id and f.folio ilike $${params.length}
+        )
+      )`);
+    } else {
+      conditions.push(`not (
+        c.estatus_value = 'promesa_pago'
+        and c.promise_deadline_iso >= (now() at time zone 'America/Mexico_City')::date
+        and not exists (
+          select 1 from pagos p
+          where p.cliente_id = c.id
+            and p.fecha_iso between c.promise_gestion_iso and c.promise_deadline_iso
+        )
+      )`);
+    }
+
+    const where = `where ${conditions.join(" and ")}`;
+    const [priority, total] = await Promise.all([
+      pool.query(
+        `select c.id, c.name, c.franchise_id, c.segment, c.segment_label,
+                c.saldo::float, c.tramo, c.tramo_label, c.estatus_value,
+                c.last_gestion_iso, c.promise_deadline_iso, c.is_blacklisted,
+                s.label as estatus_label, s.bg as estatus_bg,
+                (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date)
+                  as managed_today
+         from clientes c
+         left join status_gestion s on s.value = c.estatus_value
+         ${where}
+         order by
+           (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date) asc,
+           case c.tramo
+             when 'critical' then 4
+             when 'serious' then 3
+             when 'warning' then 2
+             when 'good' then 1
+             else 0
+           end desc,
+           c.saldo desc,
+           c.name asc
+         limit 1000`,
+        params
+      ),
+      pool.query(
+        `select count(*)::int as total
+         from clientes c
+         where c.franchise_id = any($1::text[])`,
+        [allowed]
+      ),
+    ]);
+
+    res.json({ rows: priority.rows, shown: priority.rows.length, total: total.rows[0].total });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/clientes?franchise=aguascalientes&tramo=critical&segment=comercial&q=texto
 clientesRouter.get("/", async (req, res, next) => {
   try {

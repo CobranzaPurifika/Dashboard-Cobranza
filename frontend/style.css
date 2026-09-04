@@ -111,6 +111,29 @@ body {
 
 .topbar h1 { font-size: 18px; margin: 0; color: var(--accent-ink); }
 
+.primary-nav { display: flex; gap: 6px; align-self: stretch; }
+.primary-link {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 0 10px;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.primary-link.active { color: var(--accent-ink); }
+.primary-link.active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: -16px;
+  left: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
 .account { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; }
 .account-role { padding: 4px 8px; border-radius: 999px; background: var(--card-alt); color: var(--accent-ink); }
 .account button { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 6px 9px; cursor: pointer; white-space: nowrap; }
@@ -150,6 +173,97 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
   border-radius: 10px;
   overflow: hidden;
 }
+
+.priority-card {
+  max-width: 780px;
+  min-height: 620px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.priority-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.priority-heading h2 { margin: 0; font-size: 17px; }
+.priority-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.segment-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line-accent);
+  border-radius: 999px;
+  background: var(--card-alt);
+}
+.segment-tabs button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 16px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.segment-tabs button.active { background: var(--ink); color: white; }
+.priority-tools { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.priority-tools input {
+  min-width: 0;
+  flex: 1;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--card-alt);
+  font: inherit;
+}
+.priority-tools input:focus { outline: 2px solid rgba(37, 202, 210, 0.22); border-color: var(--accent); }
+.priority-tools .muted { flex: none; }
+.priority-list { max-height: 500px; overflow-y: auto; border-top: 1px solid var(--line); }
+.priority-row {
+  display: grid;
+  grid-template-columns: 10px minmax(180px, 1fr) auto 100px auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+.priority-row.managed-today { opacity: 0.58; }
+.segment-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.segment-comercial { background: var(--seg-comercial); }
+.segment-residencial { background: var(--seg-residencial); }
+.priority-name {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.priority-row strong { text-align: right; }
+.manage-button {
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.manage-button:hover { border-color: var(--accent); color: var(--accent-ink); }
+.priority-empty { margin: 36px 0; color: var(--muted); text-align: center; }
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -320,6 +434,8 @@ tbody tr:hover { background: #f4fbfb; }
 @media (max-width: 760px) {
   .topbar { align-items: flex-start; flex-wrap: wrap; padding: 14px 16px; }
   .tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .primary-nav { order: 2; height: 32px; }
+  .primary-link.active::after { bottom: -9px; }
   .account { margin-left: auto; }
   .account #account-name { display: none; }
   main { padding: 16px; }
@@ -329,4 +445,12 @@ tbody tr:hover { background: #f4fbfb; }
   .filters { width: 100%; flex-wrap: wrap; }
   .filters input { flex: 1; min-width: 180px; }
   .detail-panel { width: 100%; }
+  .priority-card { min-height: 0; padding: 14px; }
+  .priority-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .priority-tools { align-items: flex-start; flex-direction: column; }
+  .priority-tools input { width: 100%; }
+  .priority-row { grid-template-columns: 8px minmax(120px, 1fr) auto auto; gap: 7px; padding: 5px 0; }
+  .priority-row .badge { display: none; }
+  .priority-row strong { font-size: 12px; }
+  .manage-button { padding: 6px 8px; }
 }

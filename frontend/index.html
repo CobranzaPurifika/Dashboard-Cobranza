@@ -25,6 +25,10 @@
   <div id="app-shell" class="hidden">
     <header class="topbar">
       <h1>Cobranza Purifika</h1>
+      <nav class="primary-nav" aria-label="Secciones">
+        <button id="dashboard-nav" class="primary-link" type="button">Dashboard</button>
+        <button id="management-nav" class="primary-link" type="button">Gestión</button>
+      </nav>
       <nav id="franchise-tabs" class="tabs" aria-label="Franquicias"></nav>
       <div class="account">
         <span id="account-name"></span>
@@ -34,9 +38,10 @@
     </header>
 
     <main>
-    <section id="kpi-cards" class="kpi-grid"></section>
+    <section id="dashboard-view">
+      <section id="kpi-cards" class="kpi-grid"></section>
 
-    <section class="charts-grid">
+      <section class="charts-grid">
       <div class="chart-card">
         <h3>Antigüedad de saldos</h3>
         <div class="donut-wrap">
@@ -78,9 +83,9 @@
         <h3>Tendencia de cartera vencida</h3>
         <div id="line-chart-vencida"></div>
       </div>
-    </section>
+      </section>
 
-    <section id="clients-panel" class="panel">
+      <section id="clients-panel" class="panel">
       <div class="panel-header">
         <h2>Clientes</h2>
         <div class="filters">
@@ -107,6 +112,26 @@
         </thead>
         <tbody id="clientes-tbody"></tbody>
       </table>
+      </section>
+    </section>
+
+    <section id="management-view" class="hidden">
+      <section class="priority-card">
+        <div class="priority-heading">
+          <h2>Prioridad de contacto</h2>
+          <p>Ordenado por urgencia (tramo + monto) · gestionados hoy bajan al final</p>
+        </div>
+        <div id="priority-segments" class="segment-tabs" aria-label="Segmento">
+          <button class="active" type="button" data-segment="">Todos</button>
+          <button type="button" data-segment="comercial">Comercial</button>
+          <button type="button" data-segment="residencial">Residencial</button>
+        </div>
+        <div class="priority-tools">
+          <input id="priority-q" type="search" placeholder="Buscar por cliente o folio — incluye promesas vigentes…" />
+          <span id="priority-count" class="muted"></span>
+        </div>
+        <div id="priority-list" class="priority-list"></div>
+      </section>
     </section>
     </main>
 

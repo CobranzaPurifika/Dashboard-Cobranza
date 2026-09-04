@@ -18,8 +18,8 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   de cartera vencida — ver `frontend/src/charts.js`), tabla de clientes filtrable y bitácora
   de gestión por cliente. Quien tenga el enlace entra sin cuenta y solo puede consultar métricas
   agregadas de todas las franquicias, sin clientes identificables. El administrador inicia sesión
-  con correo y contraseña de Supabase Auth para habilitar detalle y operación; su perfil incluye
-  las tareas de gestor.
+  con correo y contraseña de Supabase Auth y entra directamente a Prioridad de contacto; su perfil
+  incluye las tareas de gestor.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
   `vencida_snapshots`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
@@ -46,6 +46,11 @@ reciben el perfil público `lector`, pero únicamente `/api/me` y `/api/dashboar
 disponibles. La respuesta pública del dashboard elimina nombres y filas de pagos. Clientes, RFC,
 facturas, pagos, agenda, lista negra, catálogos operativos y todos los endpoints de escritura
 exigen una sesión activa en el backend.
+
+La prioridad usa la regla del dashboard original: clientes no gestionados en la fecha actual de
+`America/Mexico_City` primero; luego tramo (`+60`, `31-60`, `1-30`, al corriente) y saldo de mayor
+a menor. Las promesas vigentes y aún no cumplidas no aparecen en la lista normal, pero sí se
+incluyen cuando se busca explícitamente por cliente o folio.
 
 ## Pendiente (siguiente sesión)
 

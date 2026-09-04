@@ -31,6 +31,9 @@ let state = {
   statusCatalog: [],
   user: null,
   franchises: [],
+  view: "dashboard",
+  prioritySegment: "",
+  priorityQ: "",
 };
 
 const fmtMoney = (n) => "$" + Number(n ?? 0).toLocaleString("es-MX", { maximumFractionDigits: 0 });
@@ -41,6 +44,19 @@ async function init() {
   document.getElementById("login-form").addEventListener("submit", handleLogin);
   document.getElementById("account-action").addEventListener("click", handleAccountAction);
   document.getElementById("cancel-login").addEventListener("click", () => openAuthenticatedApp());
+  document.getElementById("dashboard-nav").addEventListener("click", () => setView("dashboard"));
+  document.getElementById("management-nav").addEventListener("click", () => setView("management"));
+  document.getElementById("priority-segments").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-segment]");
+    if (!button) return;
+    state.prioritySegment = button.dataset.segment;
+    renderPrioritySegments();
+    loadPriority();
+  });
+  document.getElementById("priority-q").addEventListener("input", debounce((event) => {
+    state.priorityQ = event.target.value;
+    loadPriority();
+  }, 300));
   document.getElementById("filter-tramo").addEventListener("change", (e) => {
     state.tramo = e.target.value;
     loadClientes();
@@ -94,15 +110,16 @@ async function openAuthenticatedApp() {
   }
 
   state.franchise = "todas";
+  state.view = state.user.isAnonymous ? "dashboard" : "management";
   const clientsPanel = document.getElementById("clients-panel");
   clientsPanel.classList.toggle("hidden", state.user.isAnonymous);
   state.statusCatalog = state.user.isAnonymous ? [] : await api.statusGestion();
   renderAccount();
+  renderPrimaryNav();
   renderTabs();
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
-  await loadDashboard();
-  if (!state.user.isAnonymous) await loadClientes();
+  await loadActiveView();
 }
 
 async function handleLogout() {
@@ -146,6 +163,33 @@ function renderAccount() {
   action.textContent = state.user.isAnonymous ? "Acceso administrador" : "Salir";
 }
 
+function renderPrimaryNav() {
+  const dashboardButton = document.getElementById("dashboard-nav");
+  const managementButton = document.getElementById("management-nav");
+  managementButton.classList.toggle("hidden", state.user.isAnonymous);
+  dashboardButton.classList.toggle("active", state.view === "dashboard");
+  managementButton.classList.toggle("active", state.view === "management");
+  document.getElementById("dashboard-view").classList.toggle("hidden", state.view !== "dashboard");
+  document.getElementById("management-view").classList.toggle("hidden", state.view !== "management");
+}
+
+async function setView(view) {
+  if (view === "management" && state.user.isAnonymous) return;
+  state.view = view;
+  closeDetail();
+  renderPrimaryNav();
+  await loadActiveView();
+}
+
+async function loadActiveView() {
+  if (state.view === "management") {
+    await loadPriority();
+    return;
+  }
+  await loadDashboard();
+  if (!state.user.isAnonymous) await loadClientes();
+}
+
 function renderTabs() {
   const nav = document.getElementById("franchise-tabs");
   nav.innerHTML = "";
@@ -156,10 +200,47 @@ function renderTabs() {
     btn.addEventListener("click", () => {
       state.franchise = f.id;
       renderTabs();
-      loadDashboard();
-      loadClientes();
+      loadActiveView();
     });
     nav.appendChild(btn);
+  }
+}
+
+function renderPrioritySegments() {
+  for (const button of document.querySelectorAll("#priority-segments button")) {
+    button.classList.toggle("active", button.dataset.segment === state.prioritySegment);
+  }
+}
+
+async function loadPriority() {
+  const result = await api.prioridad({
+    franchise: state.franchise,
+    segment: state.prioritySegment,
+    q: state.priorityQ,
+  });
+  const list = document.getElementById("priority-list");
+  document.getElementById("priority-count").textContent = `${result.shown} de ${result.total} contactos`;
+  list.innerHTML = "";
+
+  if (result.rows.length === 0) {
+    list.innerHTML = '<p class="priority-empty">No hay contactos para estos filtros.</p>';
+    return;
+  }
+
+  for (const client of result.rows) {
+    const row = document.createElement("article");
+    row.className = "priority-row" + (client.managed_today ? " managed-today" : "");
+    row.innerHTML = `
+      <span class="segment-dot segment-${escapeAttr(client.segment)}" aria-hidden="true"></span>
+      <button class="priority-name" type="button">${escapeHtml(client.name)}</button>
+      <span class="badge badge-${escapeAttr(client.tramo)}">${escapeHtml(client.tramo_label ?? TRAMO_LABEL[client.tramo] ?? client.tramo)}</span>
+      <strong>${fmtMoney(client.saldo)}</strong>
+      <button class="manage-button" type="button">Gestionar</button>
+    `;
+    for (const button of row.querySelectorAll("button")) {
+      button.addEventListener("click", () => openDetail(client.id));
+    }
+    list.appendChild(row);
   }
 }
 
@@ -306,7 +387,8 @@ async function openDetail(id) {
       const comentario = document.getElementById("gestion-comentario").value;
       await api.guardarGestion(id, { estatusValue, comentario });
       await openDetail(id);
-      await loadClientes();
+      if (state.view === "management") await loadPriority();
+      else await loadClientes();
     });
   }
 

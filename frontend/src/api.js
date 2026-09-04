@@ -33,6 +33,10 @@ function notifyAuthenticationRequired() {
 export const api = {
   me: () => request("/me"),
   dashboard: (franchise) => request(`/dashboard/${franchise}`),
+  prioridad: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
+    return request(`/clientes/prioridad?${qs}`);
+  },
   clientes: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
     return request(`/clientes?${qs}`);
