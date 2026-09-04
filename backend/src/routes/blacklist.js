@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
+import { requireRole } from "../auth/authorization.js";
 
 export const blacklistRouter = Router();
 
@@ -18,7 +19,7 @@ blacklistRouter.get("/", async (_req, res, next) => {
 });
 
 // POST /api/clientes/:id/blacklist  body: { motivo }
-blacklistRouter.post("/clientes/:id/blacklist", async (req, res, next) => {
+blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), async (req, res, next) => {
   const { id } = req.params;
   const { motivo } = req.body;
   const client = await pool.connect();
@@ -27,9 +28,10 @@ blacklistRouter.post("/clientes/:id/blacklist", async (req, res, next) => {
     const hoy = new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
 
     await client.query(
-      `insert into blacklist (id, motivo, fecha) values ($1, $2, $3)
-       on conflict (id) do update set motivo = excluded.motivo, fecha = excluded.fecha`,
-      [id, motivo ?? null, hoy]
+      `insert into blacklist (id, motivo, fecha, created_by) values ($1, $2, $3, $4)
+       on conflict (id) do update
+         set motivo = excluded.motivo, fecha = excluded.fecha, created_by = excluded.created_by`,
+      [id, motivo ?? null, hoy, req.user.id]
     );
     const updated = await client.query(
       `update clientes set is_blacklisted = true, updated_at = now() where id = $1 returning *`,
@@ -50,7 +52,7 @@ blacklistRouter.post("/clientes/:id/blacklist", async (req, res, next) => {
 });
 
 // DELETE /api/clientes/:id/blacklist
-blacklistRouter.delete("/clientes/:id/blacklist", async (req, res, next) => {
+blacklistRouter.delete("/clientes/:id/blacklist", requireRole("admin", "gestor"), async (req, res, next) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {

@@ -24,6 +24,15 @@ dominio.
 10. Toda fuente se valida completa antes de escribir RAW. Un error deja intacto el consolidado.
 11. RAW es acumulativo: una fila idéntica no se duplica y una versión modificada se conserva.
 
+## Perfiles y permisos
+
+- `admin`: consulta, gestiona clientes, configura y ejecuta sincronizaciones manuales.
+- `gestor`: consulta y captura gestión, agenda y lista negra.
+- `lector`: consulta el dashboard y el detalle, sin operaciones de escritura.
+
+Toda gestión nueva conserva el usuario que la registró. La sincronización automática se ejecuta
+como proceso interno y no suplanta a un usuario.
+
 ## Consecuencia operativa
 
 Si una factura se liquida y deja de aparecer en BDD, desaparece de la cartera vigente en la

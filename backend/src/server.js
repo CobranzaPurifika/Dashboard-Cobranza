@@ -11,12 +11,15 @@ import { statusGestionRouter } from "./routes/statusGestion.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { importacionesRouter } from "./routes/importaciones.js";
 import { startImportSchedules } from "./imports/scheduler.js";
+import { authenticate } from "./auth/authorization.js";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "*" }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.use("/api", authenticate);
+app.get("/api/me", (req, res) => res.json(req.user));
 
 app.use("/api/clientes", clientesRouter);
 app.use("/api/clientes", gestionRouter);

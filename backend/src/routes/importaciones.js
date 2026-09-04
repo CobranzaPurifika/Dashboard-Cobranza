@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { timingSafeEqual } from "node:crypto";
 import { pool } from "../db/pool.js";
 import { runRawImport } from "../imports/rawImport.js";
+import { requireRole } from "../auth/authorization.js";
 
 export const importacionesRouter = Router();
-importacionesRouter.use(requireImportKey);
+importacionesRouter.use(requireRole("admin"));
 
 importacionesRouter.get("/", async (_req, res, next) => {
   try {
@@ -34,21 +34,3 @@ importacionesRouter.post("/:sourceType/sync", async (req, res, next) => {
     next(error);
   }
 });
-
-function requireImportKey(req, res, next) {
-  const expected = process.env.IMPORT_MANUAL_KEY;
-  const provided = req.get("x-import-key");
-  if (!expected) {
-    return res.status(503).json({ error: "La sincronización manual todavía no está configurada" });
-  }
-  if (!provided || !safeEqual(provided, expected)) {
-    return res.status(401).json({ error: "No autorizado" });
-  }
-  next();
-}
-
-function safeEqual(left, right) {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
