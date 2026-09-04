@@ -38,6 +38,7 @@ export const api = {
     return request(`/clientes/prioridad?${qs}`);
   },
   seguimiento: (franchise) => request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`),
+  blacklist: (franchise) => request(`/blacklist?franchise=${encodeURIComponent(franchise)}`),
   clientes: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
     return request(`/clientes?${qs}`);
@@ -46,4 +47,7 @@ export const api = {
   statusGestion: () => request(`/status-gestion`),
   guardarGestion: (id, body) =>
     request(`/clientes/${id}/gestion`, { method: "POST", body: JSON.stringify(body) }),
+  agregarBlacklist: (id, motivo) =>
+    request(`/clientes/${id}/blacklist`, { method: "POST", body: JSON.stringify({ motivo }) }),
+  quitarBlacklist: (id) => request(`/clientes/${id}/blacklist`, { method: "DELETE" }),
 };

@@ -134,17 +134,27 @@
           <div id="priority-list" class="priority-list"></div>
         </section>
 
-        <aside class="followup-card">
-          <h2>Seguimiento</h2>
-          <section class="followup-section">
-            <h3><span class="followup-dot overdue"></span>Promesas incumplidas</h3>
-            <div id="overdue-list" class="followup-list"></div>
-          </section>
-          <section class="followup-section">
-            <h3><span class="followup-dot scheduled"></span>Agendados</h3>
-            <div id="scheduled-list" class="followup-list"></div>
-          </section>
-        </aside>
+        <div class="management-side">
+          <aside class="followup-card">
+            <h2>Seguimiento</h2>
+            <section class="followup-section">
+              <h3><span class="followup-dot overdue"></span>Promesas incumplidas</h3>
+              <div id="overdue-list" class="followup-list"></div>
+            </section>
+            <section class="followup-section">
+              <h3><span class="followup-dot scheduled"></span>Agendados</h3>
+              <div id="scheduled-list" class="followup-list"></div>
+            </section>
+          </aside>
+
+          <aside class="blacklist-card">
+            <div class="blacklist-heading">
+              <h2>Lista negra</h2>
+              <span id="blacklist-count" class="muted"></span>
+            </div>
+            <div id="blacklist-list" class="blacklist-list"></div>
+          </aside>
+        </div>
       </div>
     </section>
     </main>

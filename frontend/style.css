@@ -180,6 +180,7 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
   align-items: start;
   gap: 14px;
 }
+.management-side { display: flex; min-width: 0; flex-direction: column; gap: 14px; }
 .priority-card {
   min-height: 620px;
   padding: 20px;
@@ -281,7 +282,7 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
 .manage-button:hover { border-color: var(--accent); color: var(--accent-ink); }
 .priority-empty { margin: 36px 0; color: var(--muted); text-align: center; }
 
-.followup-card {
+.followup-card, .blacklist-card {
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -318,6 +319,26 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
 .followup-item span { color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
 .followup-item small { color: var(--muted); font-size: 11px; text-transform: uppercase; }
 .followup-empty { margin: 14px 0; color: var(--muted); font-size: 12px; }
+.blacklist-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.blacklist-heading h2 { margin: 0; font-size: 17px; }
+.blacklist-list { max-height: 250px; margin-top: 10px; overflow-y: auto; }
+.blacklist-item {
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.blacklist-item span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.blacklist-item strong { font-size: 13px; }
+.blacklist-item small { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.blacklist-item p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+.blacklist-empty { margin: 14px 0; color: var(--muted); font-size: 12px; }
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -393,6 +414,43 @@ tbody tr:hover { background: #f4fbfb; }
   cursor: pointer;
   font-weight: 600;
 }
+
+.blacklist-form { display: flex; flex-direction: column; gap: 7px; }
+.blacklist-form label { color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.blacklist-form textarea {
+  min-height: 64px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.blacklist-form .danger-action {
+  align-self: flex-start;
+  border: 1px solid var(--critical);
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: var(--card);
+  color: var(--critical);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.blacklist-state { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.icon-action {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--critical);
+  cursor: pointer;
+}
+.icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .agenda-fields {
   margin: 2px 0;

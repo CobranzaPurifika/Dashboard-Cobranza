@@ -10,6 +10,7 @@ import {
   isCallLaterStatus,
   validateAgenda,
 } from "../src/domain/agenda.js";
+import { normalizeBlacklistReason } from "../src/domain/blacklist.js";
 
 test("extrae únicamente tokens Bearer", () => {
   assert.equal(parseBearer("Bearer token-seguro"), "token-seguro");
@@ -61,6 +62,12 @@ test("Llamar más tarde exige una agenda válida y reconoce el catálogo editabl
     buildAgendaDetail({ fechaISO: "2026-09-04", hora: "17:00", nota: "Confirmar factura" }),
     "Contactar el 04 sep, 17:00 hrs — Confirmar factura"
   );
+});
+
+test("Lista negra exige un motivo con contenido real", () => {
+  assert.equal(normalizeBlacklistReason("  Sin respuesta después de varios intentos  "), "Sin respuesta después de varios intentos");
+  assert.equal(normalizeBlacklistReason("   "), null);
+  assert.equal(normalizeBlacklistReason(null), null);
 });
 
 test("administradores y lectores pueden consultar todas las franquicias", () => {

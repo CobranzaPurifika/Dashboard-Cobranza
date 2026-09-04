@@ -230,7 +230,7 @@ async function setView(view) {
 
 async function loadActiveView() {
   if (state.view === "management") {
-    await Promise.all([loadPriority(), loadSeguimiento()]);
+    await Promise.all([loadPriority(), loadSeguimiento(), loadBlacklist()]);
     return;
   }
   await loadDashboard();
@@ -250,6 +250,30 @@ async function loadSeguimiento() {
     data.scheduled,
     (client) => client.agenda_detail || `Contactar el ${fmtShortDate(client.agenda_fecha_iso)}`
   );
+}
+
+async function loadBlacklist() {
+  const rows = await api.blacklist(state.franchise);
+  const list = document.getElementById("blacklist-list");
+  document.getElementById("blacklist-count").textContent = `${rows.length} ${rows.length === 1 ? "cliente" : "clientes"}`;
+  list.innerHTML = "";
+
+  if (rows.length === 0) {
+    list.innerHTML = '<p class="blacklist-empty">No hay clientes en esta lista.</p>';
+    return;
+  }
+
+  for (const client of rows) {
+    const item = document.createElement("button");
+    item.className = "blacklist-item";
+    item.type = "button";
+    item.innerHTML = `
+      <span><strong>${escapeHtml(client.name)}</strong><small>${escapeHtml(client.franchise_id)}</small></span>
+      <p>${escapeHtml(client.motivo)}</p>
+    `;
+    item.addEventListener("click", () => openDetail(client.id));
+    list.appendChild(item);
+  }
 }
 
 function renderFollowupList(container, rows, detail) {
@@ -462,12 +486,37 @@ async function openDetail(id) {
       </form>`
     : `<div class="readonly-notice">Consulta de solo lectura</div>`;
 
+  const blacklistBlock = canManage
+    ? c.is_blacklisted
+      ? `<h3>Lista negra</h3>
+        <div class="blacklist-state">
+          <span class="blacklist-badge">En Lista negra</span>
+          <button id="blacklist-remove" class="icon-action" type="button" aria-label="Quitar de Lista negra" title="Quitar de Lista negra">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="9" cy="7" r="3"></circle>
+              <path d="M3.5 18c.6-3.1 2.5-4.8 5.5-4.8s4.9 1.7 5.5 4.8"></path>
+              <path d="M16 12h5"></path>
+            </svg>
+          </button>
+        </div>`
+      : `<h3>Lista negra</h3>
+        <form id="blacklist-form" class="blacklist-form">
+          <label for="blacklist-motivo">Motivo</label>
+          <textarea id="blacklist-motivo" placeholder="Explica por qué se agrega" required></textarea>
+          <button class="danger-action" type="submit">Agregar a Lista negra</button>
+        </form>`
+    : c.is_blacklisted
+      ? '<p><span class="blacklist-badge">En Lista negra</span></p>'
+      : "";
+
   content.innerHTML = `
     <h2>${escapeHtml(c.name)}</h2>
     <p class="muted">${escapeHtml(c.franchise_id)} · ${escapeHtml(c.segment_label)} · RFC ${escapeHtml(c.rfc ?? "N/A")}</p>
     <p class="saldo">${fmtMoney(c.saldo)} <span class="badge badge-${c.tramo}">${TRAMO_LABEL[c.tramo] ?? c.tramo}</span></p>
 
     ${gestionBlock}
+
+    ${blacklistBlock}
 
     <h3>Facturas (${c.invoices.length})</h3>
     <ul class="mini-list">
@@ -528,13 +577,42 @@ async function openDetail(id) {
         };
       }
       await api.guardarGestion(id, body);
-      await openDetail(id);
-      if (state.view === "management") await Promise.all([loadPriority(), loadSeguimiento()]);
-      else await loadClientes();
+      await refreshClientContext(id);
     });
+
+    if (c.is_blacklisted) {
+      document.getElementById("blacklist-remove").addEventListener("click", async () => {
+        if (!window.confirm(`¿Quitar a ${c.name} de Lista negra?`)) return;
+        await api.quitarBlacklist(id);
+        await refreshClientContext(id);
+      });
+    } else {
+      document.getElementById("blacklist-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const field = document.getElementById("blacklist-motivo");
+        const motivo = field.value.trim();
+        if (!motivo) {
+          field.setCustomValidity("Escribe el motivo para continuar");
+          field.reportValidity();
+          return;
+        }
+        field.setCustomValidity("");
+        await api.agregarBlacklist(id, motivo);
+        await refreshClientContext(id);
+      });
+    }
   }
 
   panel.classList.remove("hidden");
+}
+
+async function refreshClientContext(id) {
+  await openDetail(id);
+  if (state.view === "management") {
+    await Promise.all([loadPriority(), loadSeguimiento(), loadBlacklist()]);
+  } else {
+    await loadClientes();
+  }
 }
 
 function closeDetail() {

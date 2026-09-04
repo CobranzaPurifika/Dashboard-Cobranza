@@ -59,10 +59,12 @@ Los clientes en Lista negra se excluyen de la cola normal de Prioridad, pero sig
 al buscar explícitamente por nombre o folio y el resultado se identifica con una etiqueta.
 Al enviarlos a Lista negra se desactivan la agenda y la promesa activa para retirarlos de
 Seguimiento; las entradas históricas de gestión no se modifican ni se borran.
+El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
+el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
 ## Pendiente (siguiente sesión)
 
 - Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.
-- Completar la UI de lista negra y las interacciones restantes de Seguimiento.
+- Completar las interacciones restantes de Seguimiento.
 - Decidir hosting (Vercel/Render para el backend + estático para el frontend, o ambos juntos)
   y configurar CI/CD.

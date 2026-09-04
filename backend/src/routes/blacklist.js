@@ -2,13 +2,14 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireClientAccess, requireRole } from "../auth/authorization.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
+import { normalizeBlacklistReason } from "../domain/blacklist.js";
 
 export const blacklistRouter = Router();
 
 // GET /api/blacklist
 blacklistRouter.get("/blacklist", async (req, res, next) => {
   try {
-    const allowed = resolveFranchiseScope(req.user, "todas");
+    const allowed = resolveFranchiseScope(req.user, req.query.franchise || "todas");
     const { rows } = await pool.query(
       `select b.*, c.name, c.franchise_id
        from blacklist b join clientes c on c.id = b.id
@@ -25,7 +26,9 @@ blacklistRouter.get("/blacklist", async (req, res, next) => {
 // POST /api/clientes/:id/blacklist  body: { motivo }
 blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), requireClientAccess(), async (req, res, next) => {
   const { id } = req.params;
-  const { motivo } = req.body;
+  const motivo = normalizeBlacklistReason(req.body?.motivo);
+  if (!motivo) return res.status(400).json({ error: "El motivo es obligatorio" });
+
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -35,7 +38,7 @@ blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), 
       `insert into blacklist (id, motivo, fecha, created_by) values ($1, $2, $3, $4)
        on conflict (id) do update
          set motivo = excluded.motivo, fecha = excluded.fecha, created_by = excluded.created_by`,
-      [id, motivo ?? null, hoy, req.user.id]
+      [id, motivo, hoy, req.user.id]
     );
     const updated = await client.query(
       `update clientes
