@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
+import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 
 export const clientesRouter = Router();
 
@@ -8,12 +9,8 @@ clientesRouter.get("/", async (req, res, next) => {
   try {
     const { franchise, tramo, segment, q } = req.query;
     const conditions = [];
-    const params = [];
-
-    if (franchise && franchise !== "todas") {
-      params.push(franchise);
-      conditions.push(`c.franchise_id = $${params.length}`);
-    }
+    const params = [resolveFranchiseScope(req.user, franchise || "todas")];
+    conditions.push("c.franchise_id = any($1::text[])");
     if (tramo) {
       params.push(tramo);
       conditions.push(`c.tramo = $${params.length}`);
@@ -46,12 +43,13 @@ clientesRouter.get("/", async (req, res, next) => {
 clientesRouter.get("/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
+    const allowed = resolveFranchiseScope(req.user, "todas");
     const [cliente, facturas, pagos, timeline] = await Promise.all([
       pool.query(
         `select c.*, s.label as estatus_label, s.bg as estatus_bg, s.fg as estatus_fg
          from clientes c left join status_gestion s on s.value = c.estatus_value
-         where c.id = $1`,
-        [id]
+         where c.id = $1 and c.franchise_id = any($2::text[])`,
+        [id, allowed]
       ),
       pool.query(
         `select * from facturas where cliente_id = $1 order by fecha_facturacion desc nulls last`,

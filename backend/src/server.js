@@ -19,7 +19,9 @@ app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", authenticate);
-app.get("/api/me", (req, res) => res.json(req.user));
+app.get("/api/me", (req, res) =>
+  res.json({ ...req.user, allFranchises: req.user.role !== "gestor" })
+);
 
 app.use("/api/clientes", clientesRouter);
 app.use("/api/clientes", gestionRouter);
@@ -31,8 +33,11 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/importaciones", importacionesRouter);
 
 app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ error: "Error interno del servidor" });
+  const statusCode = err.statusCode ?? 500;
+  if (statusCode >= 500) console.error(err);
+  res.status(statusCode).json({
+    error: statusCode >= 500 ? "Error interno del servidor" : err.message,
+  });
 });
 
 const port = process.env.PORT ?? 3001;

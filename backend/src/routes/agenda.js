@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
-import { requireRole } from "../auth/authorization.js";
+import { requireClientAccess, requireRole } from "../auth/authorization.js";
 
 export const agendaRouter = Router();
 
 // POST /api/clientes/:id/agenda  body: { fechaISO, hora, nota }
-agendaRouter.post("/:id/agenda", requireRole("admin", "gestor"), async (req, res, next) => {
+agendaRouter.post("/:id/agenda", requireRole("admin", "gestor"), requireClientAccess(), async (req, res, next) => {
   const { id } = req.params;
   const { fechaISO, hora, nota } = req.body;
   if (!fechaISO) {
@@ -34,7 +34,7 @@ agendaRouter.post("/:id/agenda", requireRole("admin", "gestor"), async (req, res
 });
 
 // DELETE /api/clientes/:id/agenda
-agendaRouter.delete("/:id/agenda", requireRole("admin", "gestor"), async (req, res, next) => {
+agendaRouter.delete("/:id/agenda", requireRole("admin", "gestor"), requireClientAccess(), async (req, res, next) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(

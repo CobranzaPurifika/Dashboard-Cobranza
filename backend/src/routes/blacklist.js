@@ -1,16 +1,20 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
-import { requireRole } from "../auth/authorization.js";
+import { requireClientAccess, requireRole } from "../auth/authorization.js";
+import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 
 export const blacklistRouter = Router();
 
 // GET /api/blacklist
-blacklistRouter.get("/", async (_req, res, next) => {
+blacklistRouter.get("/blacklist", async (req, res, next) => {
   try {
+    const allowed = resolveFranchiseScope(req.user, "todas");
     const { rows } = await pool.query(
       `select b.*, c.name, c.franchise_id
        from blacklist b join clientes c on c.id = b.id
-       order by b.fecha desc nulls last`
+       where c.franchise_id = any($1::text[])
+       order by b.fecha desc nulls last`,
+      [allowed]
     );
     res.json(rows);
   } catch (err) {
@@ -19,7 +23,7 @@ blacklistRouter.get("/", async (_req, res, next) => {
 });
 
 // POST /api/clientes/:id/blacklist  body: { motivo }
-blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), async (req, res, next) => {
+blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), requireClientAccess(), async (req, res, next) => {
   const { id } = req.params;
   const { motivo } = req.body;
   const client = await pool.connect();
@@ -52,7 +56,7 @@ blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), 
 });
 
 // DELETE /api/clientes/:id/blacklist
-blacklistRouter.delete("/clientes/:id/blacklist", requireRole("admin", "gestor"), async (req, res, next) => {
+blacklistRouter.delete("/clientes/:id/blacklist", requireRole("admin", "gestor"), requireClientAccess(), async (req, res, next) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {

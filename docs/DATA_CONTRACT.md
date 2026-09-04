@@ -30,6 +30,9 @@ dominio.
 - `gestor`: consulta y captura gestión, agenda y lista negra.
 - `lector`: consulta el dashboard y el detalle, sin operaciones de escritura.
 
+Administradores y lectores consultan Aguascalientes, Cancún y Mérida. Cada gestor solo puede
+consultar y modificar clientes de las franquicias registradas en `user_franchises`.
+
 Toda gestión nueva conserva el usuario que la registró. La sincronización automática se ejecuta
 como proceso interno y no suplanta a un usuario.
 
