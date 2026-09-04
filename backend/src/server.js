@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import cron from "node-cron";
 
 import { clientesRouter } from "./routes/clientes.js";
 import { gestionRouter } from "./routes/gestion.js";
@@ -10,7 +9,6 @@ import { blacklistRouter } from "./routes/blacklist.js";
 import { agendaRouter } from "./routes/agenda.js";
 import { statusGestionRouter } from "./routes/statusGestion.js";
 import { dashboardRouter } from "./routes/dashboard.js";
-import { recalcularVencidos } from "./jobs/recalcularVencidos.js";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "*" }));
@@ -34,10 +32,4 @@ app.use((err, _req, res, _next) => {
 const port = process.env.PORT ?? 3001;
 app.listen(port, () => {
   console.log(`Cobranza Purifika API escuchando en :${port}`);
-});
-
-// Tarea programada real (reemplaza la reconciliación manual del artifact original):
-// todos los días a la 01:00 se recalculan días de vencido y tramo de cada cliente.
-cron.schedule("0 1 * * *", () => {
-  recalcularVencidos().catch(() => {});
 });

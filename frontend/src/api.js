@@ -22,6 +22,4 @@ export const api = {
   statusGestion: () => request(`/status-gestion`),
   guardarGestion: (id, body) =>
     request(`/clientes/${id}/gestion`, { method: "POST", body: JSON.stringify(body) }),
-  aplicarPago: (id, body) =>
-    request(`/clientes/${id}/pagos`, { method: "POST", body: JSON.stringify(body) }),
 };
