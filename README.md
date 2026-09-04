@@ -53,6 +53,8 @@ a menor. Las promesas vigentes y aún no cumplidas no aparecen en la lista norma
 incluyen cuando se busca explícitamente por cliente o folio. Al vencer sin un pago dentro de su
 ventana, el cliente vuelve a Prioridad y aparece simultáneamente en Seguimiento como promesa
 incumplida. Seguimiento también presenta los contactos agendados de la franquicia seleccionada.
+El estatus “Llamar más tarde” mantiene al cliente en Prioridad y activa su fila en Agendados;
+guardar cualquier otro estatus limpia esa agenda dentro de la misma transacción.
 
 ## Pendiente (siguiente sesión)
 

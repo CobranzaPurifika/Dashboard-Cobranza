@@ -2,11 +2,16 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireClientAccess, requireRole } from "../auth/authorization.js";
 import { addCalendarDays, mexicoTodayISO } from "../domain/dates.js";
+import {
+  buildAgendaDetail,
+  isCallLaterStatus,
+  validateAgenda,
+} from "../domain/agenda.js";
 
 export const gestionRouter = Router();
 
 // POST /api/clientes/:id/gestion
-// body: { estatusValue, comentario }
+// body: { estatusValue, comentario, agenda?: { fechaISO, hora, nota } }
 // Reemplaza el flujo del artifact (mutar CLIENTS en memoria + republicar todo el HTML):
 // una sola transacción que inserta el evento en la bitácora y actualiza el estado vivo del cliente.
 gestionRouter.post(
@@ -15,7 +20,7 @@ gestionRouter.post(
   requireClientAccess(),
   async (req, res, next) => {
     const { id } = req.params;
-    const { estatusValue, comentario } = req.body;
+    const { estatusValue, comentario, agenda } = req.body;
 
     if (!estatusValue) {
       return res.status(400).json({ error: "estatusValue es requerido" });
@@ -33,11 +38,23 @@ gestionRouter.post(
         await client.query("rollback");
         return res.status(400).json({ error: "estatusValue desconocido" });
       }
-      const { label, bg, efectiva } = status.rows[0];
+      const selectedStatus = status.rows[0];
+      const { label, bg, efectiva } = selectedStatus;
 
       const nowISO = mexicoTodayISO();
       const isPaymentPromise = estatusValue === "promesa_pago" && efectiva === true;
       const promiseDeadlineISO = isPaymentPromise ? addCalendarDays(nowISO, 4) : null;
+      const isCallLater = isCallLaterStatus(selectedStatus);
+      const agendaError = isCallLater ? validateAgenda(agenda) : null;
+      if (agendaError) {
+        await client.query("rollback");
+        return res.status(400).json({ error: agendaError });
+      }
+      if (isCallLater && agenda.fechaISO < nowISO) {
+        await client.query("rollback");
+        return res.status(400).json({ error: "La fecha para contactar no puede estar vencida" });
+      }
+      const agendaDetail = isCallLater ? buildAgendaDetail(agenda) : null;
       const descripcion = comentario ? `${label} — ${comentario}` : label;
 
       await client.query(
@@ -50,8 +67,11 @@ gestionRouter.post(
         `update clientes
          set estatus_value = $1, last_gestion_iso = $2,
              promise_gestion_iso = $3, promise_deadline_iso = $4,
-             notas = coalesce($5, notas), updated_at = now()
-         where id = $6
+             notas = coalesce($5, notas),
+             agenda_active = $6, agenda_fecha_iso = $7, agenda_hora = $8,
+             agenda_nota = $9, agenda_detail = $10, agenda_updated_by = $11,
+             updated_at = now()
+         where id = $12
          returning *`,
         [
           estatusValue,
@@ -59,6 +79,12 @@ gestionRouter.post(
           isPaymentPromise ? nowISO : null,
           promiseDeadlineISO,
           comentario ?? null,
+          isCallLater,
+          isCallLater ? agenda.fechaISO : null,
+          isCallLater ? agenda.hora : null,
+          isCallLater ? agenda.nota ?? null : null,
+          agendaDetail,
+          req.user.id,
           id,
         ]
       );

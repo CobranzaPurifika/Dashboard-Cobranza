@@ -5,6 +5,11 @@ import { hasRole, isAuthenticatedUser, parseBearer } from "../src/auth/roles.js"
 import { canAccessFranchise, resolveFranchiseScope } from "../src/auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../src/domain/publicDashboard.js";
 import { addCalendarDays, mexicoTodayISO } from "../src/domain/dates.js";
+import {
+  buildAgendaDetail,
+  isCallLaterStatus,
+  validateAgenda,
+} from "../src/domain/agenda.js";
 
 test("extrae únicamente tokens Bearer", () => {
   assert.equal(parseBearer("Bearer token-seguro"), "token-seguro");
@@ -43,6 +48,19 @@ test("el dashboard público elimina nombres y pagos individuales", () => {
 test("las fechas operativas usan Ciudad de México y días naturales", () => {
   assert.equal(mexicoTodayISO(new Date("2026-09-05T03:30:00.000Z")), "2026-09-04");
   assert.equal(addCalendarDays("2026-09-04", 4), "2026-09-08");
+});
+
+test("Llamar más tarde exige una agenda válida y reconoce el catálogo editable", () => {
+  assert.equal(isCallLaterStatus({ value: "llamar_mas_tarde", label: "Otro texto" }), true);
+  assert.equal(isCallLaterStatus({ value: "otro", label: "Llamar más tarde" }), true);
+  assert.equal(isCallLaterStatus({ value: "promesa_pago", label: "Promesa de pago" }), false);
+  assert.equal(validateAgenda({ fechaISO: "2026-09-04", hora: "17:00" }), null);
+  assert.match(validateAgenda({ fechaISO: "2026-02-30", hora: "17:00" }), /fecha válida/);
+  assert.match(validateAgenda({ fechaISO: "2026-09-04", hora: "17:30" }), /bloque/);
+  assert.equal(
+    buildAgendaDetail({ fechaISO: "2026-09-04", hora: "17:00", nota: "Confirmar factura" }),
+    "Contactar el 04 sep, 17:00 hrs — Confirmar factura"
+  );
 });
 
 test("administradores y lectores pueden consultar todas las franquicias", () => {

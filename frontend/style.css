@@ -382,6 +382,19 @@ tbody tr:hover { background: #f4fbfb; }
   font-weight: 600;
 }
 
+.agenda-fields {
+  margin: 2px 0;
+  padding: 12px;
+  border: 1px solid var(--line-accent);
+  border-radius: 8px;
+  background: var(--card-alt);
+}
+.agenda-fields.hidden { display: none; }
+.agenda-fields legend { padding: 0 5px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.agenda-fields label { display: flex; flex: 1; flex-direction: column; gap: 5px; color: var(--ink-soft); font-size: 12px; }
+.agenda-fields input, .agenda-fields select, .agenda-fields textarea { background: var(--card); }
+.agenda-row { display: flex; gap: 8px; margin-bottom: 8px; }
+
 .readonly-notice {
   margin: 18px 0;
   padding: 10px 12px;

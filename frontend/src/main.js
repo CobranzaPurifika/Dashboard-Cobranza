@@ -24,6 +24,8 @@ const TRAMO_LABEL = {
   critical: "+60 días",
 };
 
+const AGENDA_HOURS = Array.from({ length: 10 }, (_, index) => `${String(index + 9).padStart(2, "0")}:00`);
+
 let state = {
   franchise: "todas",
   tramo: "",
@@ -43,8 +45,46 @@ const fmtShortDate = (iso) => {
   const [year, month, day] = String(iso).slice(0, 10).split("-").map(Number);
   return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", timeZone: "UTC" })
     .format(new Date(Date.UTC(year, month - 1, day)))
-    .replace(".", "");
+    .replace(".", "")
+    .replace(/[-/]/g, " ");
 };
+
+function normalized(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isCallLaterStatus(status) {
+  const value = normalized(status?.value).replace(/[^a-z0-9]+/g, "_");
+  return value === "llamar_mas_tarde" || normalized(status?.label) === "llamar mas tarde";
+}
+
+function mexicoDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+}
+
+function mexicoTodayISO(date = new Date()) {
+  const { year, month, day } = mexicoDateParts(date);
+  return `${year}-${month}-${day}`;
+}
+
+function suggestedAgendaHour(date = new Date()) {
+  const { hour, minute } = mexicoDateParts(date);
+  const roundedHour = Math.round((Number(hour) * 60 + Number(minute) + 180) / 60);
+  return `${String(Math.max(9, Math.min(18, roundedHour))).padStart(2, "0")}:00`;
+}
 
 async function init() {
   window.addEventListener("auth-required", () => showLogin("Tu sesión terminó. Ingresa nuevamente."));
@@ -375,8 +415,35 @@ async function openDetail(id) {
   const content = document.getElementById("detail-content");
 
   const statusOptions = state.statusCatalog
-    .map((s) => `<option value="${s.value}" ${s.value === c.estatus_value ? "selected" : ""}>${s.label}</option>`)
+    .map(
+      (s) =>
+        `<option value="${escapeAttribute(s.value)}" ${s.value === c.estatus_value ? "selected" : ""}>${escapeHtml(s.label)}</option>`
+    )
     .join("");
+
+  const currentStatus = state.statusCatalog.find((status) => status.value === c.estatus_value);
+  const hasActiveAgenda = c.agenda_active === true && isCallLaterStatus(currentStatus);
+  const agendaDate = hasActiveAgenda && fmtDate(c.agenda_fecha_iso) ? fmtDate(c.agenda_fecha_iso) : mexicoTodayISO();
+  const agendaHour = hasActiveAgenda && AGENDA_HOURS.includes(c.agenda_hora)
+    ? c.agenda_hora
+    : suggestedAgendaHour();
+  const agendaHourOptions = AGENDA_HOURS.map(
+    (hour) => `<option value="${hour}" ${hour === agendaHour ? "selected" : ""}>${hour}</option>`
+  ).join("");
+  const agendaFields = `<fieldset id="agenda-fields" class="agenda-fields ${isCallLaterStatus(currentStatus) ? "" : "hidden"}">
+        <legend>Agendar llamada</legend>
+        <div class="agenda-row">
+          <label>Fecha para contactar
+            <input id="agenda-fecha" type="date" min="${mexicoTodayISO()}" value="${agendaDate}" />
+          </label>
+          <label>Hora
+            <select id="agenda-hora">${agendaHourOptions}</select>
+          </label>
+        </div>
+        <label>Nota para seguimiento
+          <textarea id="agenda-nota" placeholder="Pendiente o acuerdo (opcional)">${escapeHtml(hasActiveAgenda ? c.agenda_nota ?? "" : "")}</textarea>
+        </label>
+      </fieldset>`;
 
   const canManage = ["admin", "gestor"].includes(state.user.role);
   const gestionBlock = canManage
@@ -384,6 +451,7 @@ async function openDetail(id) {
       <form id="gestion-form">
         <select id="gestion-estatus">${statusOptions}</select>
         <textarea id="gestion-comentario" placeholder="Comentario (opcional)"></textarea>
+        ${agendaFields}
         <button type="submit">Guardar</button>
       </form>`
     : `<div class="readonly-notice">Consulta de solo lectura</div>`;
@@ -424,11 +492,36 @@ async function openDetail(id) {
   `;
 
   if (canManage) {
+    const statusSelect = document.getElementById("gestion-estatus");
+    const agendaFieldset = document.getElementById("agenda-fields");
+    const agendaInputs = agendaFieldset.querySelectorAll("input, select, textarea");
+    const syncAgendaFields = () => {
+      const selected = state.statusCatalog.find((status) => status.value === statusSelect.value);
+      const active = isCallLaterStatus(selected);
+      agendaFieldset.classList.toggle("hidden", !active);
+      agendaInputs.forEach((input) => {
+        input.disabled = !active;
+      });
+      document.getElementById("agenda-fecha").required = active;
+      document.getElementById("agenda-hora").required = active;
+    };
+    statusSelect.addEventListener("change", syncAgendaFields);
+    syncAgendaFields();
+
     document.getElementById("gestion-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const estatusValue = document.getElementById("gestion-estatus").value;
       const comentario = document.getElementById("gestion-comentario").value;
-      await api.guardarGestion(id, { estatusValue, comentario });
+      const selected = state.statusCatalog.find((status) => status.value === estatusValue);
+      const body = { estatusValue, comentario };
+      if (isCallLaterStatus(selected)) {
+        body.agenda = {
+          fechaISO: document.getElementById("agenda-fecha").value,
+          hora: document.getElementById("agenda-hora").value,
+          nota: document.getElementById("agenda-nota").value,
+        };
+      }
+      await api.guardarGestion(id, body);
       await openDetail(id);
       if (state.view === "management") await Promise.all([loadPriority(), loadSeguimiento()]);
       else await loadClientes();
@@ -458,6 +551,15 @@ function escapeHtml(str) {
 
 function escapeAttr(str) {
   return String(str ?? "").replace(/[^#a-zA-Z0-9]/g, "");
+}
+
+function escapeAttribute(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 init();
