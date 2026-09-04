@@ -38,8 +38,15 @@ blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), 
       [id, motivo ?? null, hoy, req.user.id]
     );
     const updated = await client.query(
-      `update clientes set is_blacklisted = true, updated_at = now() where id = $1 returning *`,
-      [id]
+      `update clientes
+       set is_blacklisted = true,
+           agenda_active = false, agenda_fecha_iso = null, agenda_hora = null,
+           agenda_nota = null, agenda_detail = null, agenda_updated_by = $2,
+           promise_gestion_iso = null, promise_deadline_iso = null,
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [id, req.user.id]
     );
     if (updated.rows.length === 0) {
       await client.query("rollback");

@@ -17,6 +17,7 @@ seguimientoRouter.get("/", async (req, res, next) => {
                 c.promise_deadline_iso, (${today} - c.promise_deadline_iso)::int as days_overdue
          from clientes c
          where c.franchise_id = any($1::text[])
+           and c.is_blacklisted is not true
            and c.promise_gestion_iso is not null
            and c.promise_deadline_iso < ${today}
            and not exists (
@@ -32,6 +33,7 @@ seguimientoRouter.get("/", async (req, res, next) => {
                 c.agenda_hora, c.agenda_nota, c.agenda_detail
          from clientes c
          where c.franchise_id = any($1::text[])
+           and c.is_blacklisted is not true
            and c.agenda_active = true
          order by c.agenda_fecha_iso asc nulls last, c.agenda_hora asc nulls last, c.name asc`,
         params
