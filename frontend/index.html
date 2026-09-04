@@ -7,15 +7,41 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>Cobranza Purifika</h1>
-    <nav id="franchise-tabs" class="tabs"></nav>
-  </header>
+  <section id="login-view" class="login-view hidden">
+    <form id="login-form" class="login-card">
+      <div class="brand-mark" aria-hidden="true">P</div>
+      <h1>Cobranza Purifika</h1>
+      <p>Ingresa con la cuenta asignada por el administrador.</p>
+      <label for="login-email">Correo</label>
+      <input id="login-email" name="email" type="email" autocomplete="username" required />
+      <label for="login-password">Contraseña</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+      <p id="login-error" class="form-error" role="alert" aria-live="polite"></p>
+      <button id="login-submit" type="submit">Iniciar sesión</button>
+      <button id="cancel-login" class="secondary" type="button">Volver al tablero</button>
+    </form>
+  </section>
 
-  <main>
-    <section id="kpi-cards" class="kpi-grid"></section>
+  <div id="app-shell" class="hidden">
+    <header class="topbar">
+      <h1>Cobranza Purifika</h1>
+      <nav class="primary-nav" aria-label="Secciones">
+        <button id="dashboard-nav" class="primary-link" type="button">Dashboard</button>
+        <button id="management-nav" class="primary-link" type="button">Gestión</button>
+      </nav>
+      <nav id="franchise-tabs" class="tabs" aria-label="Franquicias"></nav>
+      <div class="account">
+        <span id="account-name"></span>
+        <span id="account-role" class="account-role"></span>
+        <button id="account-action" type="button"></button>
+      </div>
+    </header>
 
-    <section class="charts-grid">
+    <main>
+    <section id="dashboard-view">
+      <section id="kpi-cards" class="kpi-grid"></section>
+
+      <section class="charts-grid">
       <div class="chart-card">
         <h3>Antigüedad de saldos</h3>
         <div class="donut-wrap">
@@ -57,9 +83,9 @@
         <h3>Tendencia de cartera vencida</h3>
         <div id="line-chart-vencida"></div>
       </div>
-    </section>
+      </section>
 
-    <section class="panel">
+      <section id="clients-panel" class="panel">
       <div class="panel-header">
         <h2>Clientes</h2>
         <div class="filters">
@@ -86,14 +112,60 @@
         </thead>
         <tbody id="clientes-tbody"></tbody>
       </table>
+      </section>
     </section>
-  </main>
 
-  <aside id="detail-panel" class="detail-panel hidden">
-    <button id="close-detail" class="close-btn">&times;</button>
-    <div id="detail-content"></div>
-  </aside>
+    <section id="management-view" class="hidden">
+      <div class="management-grid">
+        <section class="priority-card">
+          <div class="priority-heading">
+            <h2>Prioridad de contacto</h2>
+            <p>Ordenado por urgencia (tramo + monto) · gestionados hoy bajan al final</p>
+          </div>
+          <div id="priority-segments" class="segment-tabs" aria-label="Segmento">
+            <button class="active" type="button" data-segment="">Todos</button>
+            <button type="button" data-segment="comercial">Comercial</button>
+            <button type="button" data-segment="residencial">Residencial</button>
+          </div>
+          <div class="priority-tools">
+            <input id="priority-q" type="search" placeholder="Buscar por cliente o folio — incluye promesas y lista negra…" />
+            <span id="priority-count" class="muted"></span>
+          </div>
+          <div id="priority-list" class="priority-list"></div>
+        </section>
 
+        <div class="management-side">
+          <aside class="followup-card">
+            <h2>Seguimiento</h2>
+            <section class="followup-section">
+              <h3><span class="followup-dot overdue"></span>Promesas incumplidas</h3>
+              <div id="overdue-list" class="followup-list"></div>
+            </section>
+            <section class="followup-section">
+              <h3><span class="followup-dot scheduled"></span>Agendados</h3>
+              <div id="scheduled-list" class="followup-list"></div>
+            </section>
+          </aside>
+
+          <aside class="blacklist-card">
+            <div class="blacklist-heading">
+              <h2>Lista negra</h2>
+              <span id="blacklist-count" class="muted"></span>
+            </div>
+            <div id="blacklist-list" class="blacklist-list"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+    </main>
+
+    <aside id="detail-panel" class="detail-panel hidden">
+      <button id="close-detail" class="close-btn" aria-label="Cerrar detalle">&times;</button>
+      <div id="detail-content"></div>
+    </aside>
+  </div>
+
+  <script src="./config.js"></script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

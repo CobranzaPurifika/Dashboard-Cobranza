@@ -5,13 +5,17 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "csv-parse": "^7.0.2",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "node-cron": "^3.0.3",
+    "google-auth-library": "^11.0.2",
+    "jose": "^6.2.11",
+    "node-cron": "^4.6.0",
     "pg": "^8.12.0"
   }
 }

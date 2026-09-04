@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
+import { resolveFranchiseScope } from "../auth/franchiseScope.js";
+import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
 
 export const dashboardRouter = Router();
 
@@ -11,12 +13,12 @@ export const dashboardRouter = Router();
 // computeActivePromisesTotal) se reimplementan aquí en SQL.
 dashboardRouter.get("/:franchise", async (req, res, next) => {
   const { franchise } = req.params;
-  const franchiseFilter = franchise === "todas" ? null : franchise;
 
   try {
-    const params = franchiseFilter ? [franchiseFilter] : [];
-    const whereClientes = franchiseFilter ? "where franchise_id = $1" : "";
-    const andClientes = franchiseFilter ? "and c.franchise_id = $1" : "";
+    const allowed = resolveFranchiseScope(req.user, franchise);
+    const params = [allowed];
+    const whereClientes = "where franchise_id = any($1::text[])";
+    const andClientes = "and c.franchise_id = any($1::text[])";
 
     const [
       portfolio,
@@ -72,24 +74,29 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         params
       ),
       pool.query(
-        franchiseFilter
-          ? `select month, monto_recuperado, pct_cobertura, weeks from kpi_snapshots where franchise_id = $1 order by month`
-          : `select month, sum(monto_recuperado)::float as monto_recuperado, avg(pct_cobertura)::float as pct_cobertura, max(weeks) as weeks
-             from kpi_snapshots group by month order by month`,
+        franchise !== "todas"
+          ? `select month, monto_recuperado, pct_cobertura, weeks
+             from kpi_snapshots where franchise_id = any($1::text[]) order by month`
+          : `select month, sum(monto_recuperado)::float as monto_recuperado,
+                    avg(pct_cobertura)::float as pct_cobertura, max(weeks) as weeks
+             from kpi_snapshots where franchise_id = any($1::text[])
+             group by month order by month`,
         params
       ),
       pool.query(
-        franchiseFilter
-          ? `select month, pct, provisional from vencida_snapshots where franchise_id = $1 order by month`
+        franchise !== "todas"
+          ? `select month, pct, provisional
+             from vencida_snapshots where franchise_id = any($1::text[]) order by month`
           : `select month, avg(pct)::float as pct, bool_or(provisional) as provisional
-             from vencida_snapshots group by month order by month`,
+             from vencida_snapshots where franchise_id = any($1::text[])
+             group by month order by month`,
         params
       ),
       pool.query(
         `select p.cliente_id, c.name, c.franchise_id, p.fecha_iso, p.monto
          from pagos p join clientes c on c.id = p.cliente_id
          where p.fecha_iso >= (current_date - interval '7 days')
-         ${franchiseFilter ? "and c.franchise_id = $1" : ""}
+         and c.franchise_id = any($1::text[])
          order by p.fecha_iso desc`,
         params
       ),
@@ -100,7 +107,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            count(c.id)::int as count,
            coalesce(array_agg(c.name order by c.name) filter (where c.id is not null), '{}') as names
          from status_gestion s
-         left join clientes c on c.estatus_value = s.value ${franchiseFilter ? "and c.franchise_id = $1" : ""}
+         left join clientes c on c.estatus_value = s.value
+           and c.franchise_id = any($1::text[])
          group by s.value, s.label, s.bg, s.efectiva, s.sort_order
          order by s.sort_order`,
         params
@@ -127,7 +135,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            from clientes c
            where c.estatus_value = 'promesa_pago'
              and c.promise_deadline_iso is not null
-             and c.promise_deadline_iso >= current_date
+             and c.promise_deadline_iso >= (now() at time zone 'America/Mexico_City')::date
              and not exists (
                select 1 from pagos p
                where p.cliente_id = c.id
@@ -164,7 +172,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
     const efectiva = distribucion.rows.filter((r) => r.efectiva).reduce((s, r) => s + r.count, 0);
     const acordadas = distRows.find((r) => r.key === "promesa_pago")?.count ?? 0;
 
-    res.json({
+    const response = {
       portfolio: portfolio.rows[0],
       kpi: {
         alCorriente: { pct: round1((kpiRow.al_corriente_monto / total) * 100), monto: kpiRow.al_corriente_monto },
@@ -192,7 +200,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         count: recuperadoSemanal.rows.length,
         rows: recuperadoSemanal.rows,
       },
-    });
+    };
+    res.json(sanitizeDashboardForViewer(response, req.user));
   } catch (err) {
     next(err);
   }
