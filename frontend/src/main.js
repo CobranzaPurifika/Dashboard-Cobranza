@@ -312,11 +312,17 @@ async function loadPriority() {
 
   for (const client of result.rows) {
     const row = document.createElement("article");
-    row.className = "priority-row" + (client.managed_today ? " managed-today" : "");
+    row.className =
+      "priority-row" +
+      (client.managed_today ? " managed-today" : "") +
+      (client.is_blacklisted ? " blacklisted-result" : "");
     row.innerHTML = `
       <span class="segment-dot segment-${escapeAttr(client.segment)}" aria-hidden="true"></span>
       <button class="priority-name" type="button">${escapeHtml(client.name)}</button>
-      <span class="badge badge-${escapeAttr(client.tramo)}">${escapeHtml(client.tramo_label ?? TRAMO_LABEL[client.tramo] ?? client.tramo)}</span>
+      <span class="priority-badges">
+        <span class="badge badge-${escapeAttr(client.tramo)}">${escapeHtml(client.tramo_label ?? TRAMO_LABEL[client.tramo] ?? client.tramo)}</span>
+        ${client.is_blacklisted ? '<span class="blacklist-badge">Lista negra</span>' : ""}
+      </span>
       <strong>${fmtMoney(client.saldo)}</strong>
       <button class="manage-button" type="button">Gestionar</button>
     `;

@@ -55,6 +55,8 @@ ventana, el cliente vuelve a Prioridad y aparece simultáneamente en Seguimiento
 incumplida. Seguimiento también presenta los contactos agendados de la franquicia seleccionada.
 El estatus “Llamar más tarde” mantiene al cliente en Prioridad y activa su fila en Agendados;
 guardar cualquier otro estatus limpia esa agenda dentro de la misma transacción.
+Los clientes en Lista negra se excluyen de la cola normal de Prioridad, pero siguen disponibles
+al buscar explícitamente por nombre o folio y el resultado se identifica con una etiqueta.
 
 ## Pendiente (siguiente sesión)
 

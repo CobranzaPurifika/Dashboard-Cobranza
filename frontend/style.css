@@ -238,6 +238,7 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
   border-bottom: 1px solid var(--line);
 }
 .priority-row.managed-today { opacity: 0.58; }
+.priority-row.blacklisted-result { background: rgba(24, 35, 46, 0.035); }
 .segment-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .segment-comercial { background: var(--seg-comercial); }
 .segment-residencial { background: var(--seg-residencial); }
@@ -255,6 +256,17 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
   cursor: pointer;
 }
 .priority-row strong { text-align: right; }
+.priority-badges { display: flex; align-items: center; gap: 5px; }
+.blacklist-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .manage-button {
   padding: 6px 10px;
   border: 1px solid var(--line-strong);

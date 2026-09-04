@@ -6,8 +6,8 @@ export const clientesRouter = Router();
 
 // GET /api/clientes/prioridad?franchise=cancun&segment=comercial&q=cliente-o-folio
 // Orden confirmado en el Artifact: no gestionados hoy primero; después urgencia por tramo
-// y saldo. Las promesas vigentes salen de la lista normal, pero una búsqueda explícita sí
-// puede encontrarlas.
+// y saldo. Las promesas vigentes y los clientes en lista negra salen de la lista normal,
+// pero una búsqueda explícita por cliente o folio sí puede encontrarlos.
 clientesRouter.get("/prioridad", async (req, res, next) => {
   try {
     const { franchise, segment, q } = req.query;
@@ -31,6 +31,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
         )
       )`);
     } else {
+      conditions.push("c.is_blacklisted is not true");
       conditions.push(`not (
         c.estatus_value = 'promesa_pago'
         and c.promise_deadline_iso >= (now() at time zone 'America/Mexico_City')::date
