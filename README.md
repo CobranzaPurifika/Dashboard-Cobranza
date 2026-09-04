@@ -59,8 +59,6 @@ guardar cualquier otro estatus limpia esa agenda dentro de la misma transacción
 ## Pendiente (siguiente sesión)
 
 - Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.
-- Endpoint/UI para blacklist y agenda de seguimiento (ya existen en el backend, falta cablear
-  el frontend).
-- Implementar las importaciones idempotentes de BDD y Pagos sobre Supabase.
+- Completar la UI de lista negra y las interacciones restantes de Seguimiento.
 - Decidir hosting (Vercel/Render para el backend + estático para el frontend, o ambos juntos)
   y configurar CI/CD.
