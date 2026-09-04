@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { hasRole, isAuthenticatedUser, parseBearer } from "../src/auth/roles.js";
 import { canAccessFranchise, resolveFranchiseScope } from "../src/auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../src/domain/publicDashboard.js";
+import { addCalendarDays, mexicoTodayISO } from "../src/domain/dates.js";
 
 test("extrae únicamente tokens Bearer", () => {
   assert.equal(parseBearer("Bearer token-seguro"), "token-seguro");
@@ -37,6 +38,11 @@ test("el dashboard público elimina nombres y pagos individuales", () => {
   assert.deepEqual(publicResult.recuperadoSemanal.rows, []);
   assert.equal(publicResult.recuperadoSemanal.total, 100);
   assert.equal(sanitizeDashboardForViewer(source, { isAnonymous: false }), source);
+});
+
+test("las fechas operativas usan Ciudad de México y días naturales", () => {
+  assert.equal(mexicoTodayISO(new Date("2026-09-05T03:30:00.000Z")), "2026-09-04");
+  assert.equal(addCalendarDays("2026-09-04", 4), "2026-09-08");
 });
 
 test("administradores y lectores pueden consultar todas las franquicias", () => {

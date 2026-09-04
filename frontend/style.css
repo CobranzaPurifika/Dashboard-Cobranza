@@ -174,10 +174,14 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
   overflow: hidden;
 }
 
+.management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 14px;
+}
 .priority-card {
-  max-width: 780px;
   min-height: 620px;
-  margin: 0 auto;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -264,6 +268,44 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
 }
 .manage-button:hover { border-color: var(--accent); color: var(--accent-ink); }
 .priority-empty { margin: 36px 0; color: var(--muted); text-align: center; }
+
+.followup-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.followup-card > h2 { margin: 0 0 18px; font-size: 17px; }
+.followup-section + .followup-section { margin-top: 20px; }
+.followup-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.followup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.followup-dot.overdue { background: var(--critical); }
+.followup-dot.scheduled { background: var(--accent); }
+.followup-list { max-height: 250px; overflow-y: auto; }
+.followup-item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.followup-item strong { font-size: 13px; }
+.followup-item span { color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+.followup-item small { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.followup-empty { margin: 14px 0; color: var(--muted); font-size: 12px; }
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -445,6 +487,7 @@ tbody tr:hover { background: #f4fbfb; }
   .filters { width: 100%; flex-wrap: wrap; }
   .filters input { flex: 1; min-width: 180px; }
   .detail-panel { width: 100%; }
+  .management-grid { grid-template-columns: 1fr; }
   .priority-card { min-height: 0; padding: 14px; }
   .priority-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
   .priority-tools { align-items: flex-start; flex-direction: column; }

@@ -135,7 +135,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            from clientes c
            where c.estatus_value = 'promesa_pago'
              and c.promise_deadline_iso is not null
-             and c.promise_deadline_iso >= current_date
+             and c.promise_deadline_iso >= (now() at time zone 'America/Mexico_City')::date
              and not exists (
                select 1 from pagos p
                where p.cliente_id = c.id

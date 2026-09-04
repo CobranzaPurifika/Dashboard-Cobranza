@@ -116,22 +116,36 @@
     </section>
 
     <section id="management-view" class="hidden">
-      <section class="priority-card">
-        <div class="priority-heading">
-          <h2>Prioridad de contacto</h2>
-          <p>Ordenado por urgencia (tramo + monto) · gestionados hoy bajan al final</p>
-        </div>
-        <div id="priority-segments" class="segment-tabs" aria-label="Segmento">
-          <button class="active" type="button" data-segment="">Todos</button>
-          <button type="button" data-segment="comercial">Comercial</button>
-          <button type="button" data-segment="residencial">Residencial</button>
-        </div>
-        <div class="priority-tools">
-          <input id="priority-q" type="search" placeholder="Buscar por cliente o folio — incluye promesas vigentes…" />
-          <span id="priority-count" class="muted"></span>
-        </div>
-        <div id="priority-list" class="priority-list"></div>
-      </section>
+      <div class="management-grid">
+        <section class="priority-card">
+          <div class="priority-heading">
+            <h2>Prioridad de contacto</h2>
+            <p>Ordenado por urgencia (tramo + monto) · gestionados hoy bajan al final</p>
+          </div>
+          <div id="priority-segments" class="segment-tabs" aria-label="Segmento">
+            <button class="active" type="button" data-segment="">Todos</button>
+            <button type="button" data-segment="comercial">Comercial</button>
+            <button type="button" data-segment="residencial">Residencial</button>
+          </div>
+          <div class="priority-tools">
+            <input id="priority-q" type="search" placeholder="Buscar por cliente o folio — incluye promesas vigentes…" />
+            <span id="priority-count" class="muted"></span>
+          </div>
+          <div id="priority-list" class="priority-list"></div>
+        </section>
+
+        <aside class="followup-card">
+          <h2>Seguimiento</h2>
+          <section class="followup-section">
+            <h3><span class="followup-dot overdue"></span>Promesas incumplidas</h3>
+            <div id="overdue-list" class="followup-list"></div>
+          </section>
+          <section class="followup-section">
+            <h3><span class="followup-dot scheduled"></span>Agendados</h3>
+            <div id="scheduled-list" class="followup-list"></div>
+          </section>
+        </aside>
+      </div>
     </section>
     </main>
 

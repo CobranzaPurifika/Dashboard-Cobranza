@@ -37,6 +37,7 @@ export const api = {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
     return request(`/clientes/prioridad?${qs}`);
   },
+  seguimiento: (franchise) => request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`),
   clientes: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
     return request(`/clientes?${qs}`);

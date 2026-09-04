@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireClientAccess, requireRole } from "../auth/authorization.js";
+import { addCalendarDays, mexicoTodayISO } from "../domain/dates.js";
 
 export const gestionRouter = Router();
 
 // POST /api/clientes/:id/gestion
-// body: { estatusValue, comentario, promiseDeadlineISO? }
+// body: { estatusValue, comentario }
 // Reemplaza el flujo del artifact (mutar CLIENTS en memoria + republicar todo el HTML):
 // una sola transacción que inserta el evento en la bitácora y actualiza el estado vivo del cliente.
 gestionRouter.post(
@@ -25,16 +26,18 @@ gestionRouter.post(
       await client.query("begin");
 
       const status = await client.query(
-        "select value, label, bg from status_gestion where value = $1",
+        "select value, label, bg, efectiva from status_gestion where value = $1",
         [estatusValue]
       );
       if (status.rows.length === 0) {
         await client.query("rollback");
         return res.status(400).json({ error: "estatusValue desconocido" });
       }
-      const { label, bg } = status.rows[0];
+      const { label, bg, efectiva } = status.rows[0];
 
-      const nowISO = new Date().toISOString().slice(0, 10);
+      const nowISO = mexicoTodayISO();
+      const isPaymentPromise = estatusValue === "promesa_pago" && efectiva === true;
+      const promiseDeadlineISO = isPaymentPromise ? addCalendarDays(nowISO, 4) : null;
       const descripcion = comentario ? `${label} — ${comentario}` : label;
 
       await client.query(
@@ -46,10 +49,18 @@ gestionRouter.post(
       const updated = await client.query(
         `update clientes
          set estatus_value = $1, last_gestion_iso = $2,
-             notas = coalesce($3, notas), updated_at = now()
-         where id = $4
+             promise_gestion_iso = $3, promise_deadline_iso = $4,
+             notas = coalesce($5, notas), updated_at = now()
+         where id = $6
          returning *`,
-        [estatusValue, nowISO, comentario ?? null, id]
+        [
+          estatusValue,
+          nowISO,
+          isPaymentPromise ? nowISO : null,
+          promiseDeadlineISO,
+          comentario ?? null,
+          id,
+        ]
       );
 
       if (updated.rows.length === 0) {

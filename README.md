@@ -50,7 +50,9 @@ exigen una sesión activa en el backend.
 La prioridad usa la regla del dashboard original: clientes no gestionados en la fecha actual de
 `America/Mexico_City` primero; luego tramo (`+60`, `31-60`, `1-30`, al corriente) y saldo de mayor
 a menor. Las promesas vigentes y aún no cumplidas no aparecen en la lista normal, pero sí se
-incluyen cuando se busca explícitamente por cliente o folio.
+incluyen cuando se busca explícitamente por cliente o folio. Al vencer sin un pago dentro de su
+ventana, el cliente vuelve a Prioridad y aparece simultáneamente en Seguimiento como promesa
+incumplida. Seguimiento también presenta los contactos agendados de la franquicia seleccionada.
 
 ## Pendiente (siguiente sesión)
 

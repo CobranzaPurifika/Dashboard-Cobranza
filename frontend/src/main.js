@@ -38,6 +38,13 @@ let state = {
 
 const fmtMoney = (n) => "$" + Number(n ?? 0).toLocaleString("es-MX", { maximumFractionDigits: 0 });
 const fmtDate = (iso) => (iso ? String(iso).slice(0, 10) : "");
+const fmtShortDate = (iso) => {
+  if (!iso) return "";
+  const [year, month, day] = String(iso).slice(0, 10).split("-").map(Number);
+  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", timeZone: "UTC" })
+    .format(new Date(Date.UTC(year, month - 1, day)))
+    .replace(".", "");
+};
 
 async function init() {
   window.addEventListener("auth-required", () => showLogin("Tu sesión terminó. Ingresa nuevamente."));
@@ -183,11 +190,47 @@ async function setView(view) {
 
 async function loadActiveView() {
   if (state.view === "management") {
-    await loadPriority();
+    await Promise.all([loadPriority(), loadSeguimiento()]);
     return;
   }
   await loadDashboard();
   if (!state.user.isAnonymous) await loadClientes();
+}
+
+async function loadSeguimiento() {
+  const data = await api.seguimiento(state.franchise);
+  renderFollowupList(
+    document.getElementById("overdue-list"),
+    data.overdue,
+    (client) =>
+      `Prometió pago el ${fmtShortDate(client.promise_deadline_iso)} — sin confirmación (${client.days_overdue} ${client.days_overdue === 1 ? "día" : "días"} de retraso).`
+  );
+  renderFollowupList(
+    document.getElementById("scheduled-list"),
+    data.scheduled,
+    (client) => client.agenda_detail || `Contactar el ${fmtShortDate(client.agenda_fecha_iso)}`
+  );
+}
+
+function renderFollowupList(container, rows, detail) {
+  container.innerHTML = "";
+  if (rows.length === 0) {
+    container.innerHTML = '<p class="followup-empty">Sin pendientes en esta sección.</p>';
+    return;
+  }
+
+  for (const client of rows) {
+    const item = document.createElement("button");
+    item.className = "followup-item";
+    item.type = "button";
+    item.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(detail(client))}</span>
+      <small>${escapeHtml(client.franchise_id)}</small>
+    `;
+    item.addEventListener("click", () => openDetail(client.id));
+    container.appendChild(item);
+  }
 }
 
 function renderTabs() {
@@ -387,7 +430,7 @@ async function openDetail(id) {
       const comentario = document.getElementById("gestion-comentario").value;
       await api.guardarGestion(id, { estatusValue, comentario });
       await openDetail(id);
-      if (state.view === "management") await loadPriority();
+      if (state.view === "management") await Promise.all([loadPriority(), loadSeguimiento()]);
       else await loadClientes();
     });
   }

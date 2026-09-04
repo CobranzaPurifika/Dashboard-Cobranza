@@ -10,6 +10,7 @@ import { agendaRouter } from "./routes/agenda.js";
 import { statusGestionRouter } from "./routes/statusGestion.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { importacionesRouter } from "./routes/importaciones.js";
+import { seguimientoRouter } from "./routes/seguimiento.js";
 import { startImportSchedules } from "./imports/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
@@ -34,6 +35,7 @@ app.use("/api/clientes", pagosRouter);
 app.use("/api", blacklistRouter);
 app.use("/api/clientes", agendaRouter);
 app.use("/api/status-gestion", statusGestionRouter);
+app.use("/api/seguimiento", seguimientoRouter);
 app.use("/api/importaciones", importacionesRouter);
 
 app.use((err, _req, res, _next) => {
