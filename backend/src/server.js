@@ -11,7 +11,7 @@ import { statusGestionRouter } from "./routes/statusGestion.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { importacionesRouter } from "./routes/importaciones.js";
 import { startImportSchedules } from "./imports/scheduler.js";
-import { authenticate } from "./auth/authorization.js";
+import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
@@ -22,6 +22,11 @@ app.use("/api", authenticate);
 app.get("/api/me", (req, res) =>
   res.json({ ...req.user, allFranchises: req.user.role !== "gestor" })
 );
+app.use("/api/dashboard", dashboardRouter);
+
+// El enlace público solo expone /api/me y métricas agregadas del dashboard.
+// A partir de aquí, clientes, facturas, pagos y operación requieren sesión.
+app.use("/api", requireAuthenticated);
 
 app.use("/api/clientes", clientesRouter);
 app.use("/api/clientes", gestionRouter);
@@ -29,7 +34,6 @@ app.use("/api/clientes", pagosRouter);
 app.use("/api", blacklistRouter);
 app.use("/api/clientes", agendaRouter);
 app.use("/api/status-gestion", statusGestionRouter);
-app.use("/api/dashboard", dashboardRouter);
 app.use("/api/importaciones", importacionesRouter);
 
 app.use((err, _req, res, _next) => {

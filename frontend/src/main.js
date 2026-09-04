@@ -94,12 +94,15 @@ async function openAuthenticatedApp() {
   }
 
   state.franchise = "todas";
-  state.statusCatalog = await api.statusGestion();
+  const clientsPanel = document.getElementById("clients-panel");
+  clientsPanel.classList.toggle("hidden", state.user.isAnonymous);
+  state.statusCatalog = state.user.isAnonymous ? [] : await api.statusGestion();
   renderAccount();
   renderTabs();
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
-  await Promise.all([loadDashboard(), loadClientes()]);
+  await loadDashboard();
+  if (!state.user.isAnonymous) await loadClientes();
 }
 
 async function handleLogout() {

@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { pool } from "../db/pool.js";
-import { hasRole, parseBearer } from "./roles.js";
+import { hasRole, isAuthenticatedUser, parseBearer } from "./roles.js";
 import { resolveFranchiseScope } from "./franchiseScope.js";
 
 let cachedJwks;
@@ -67,6 +67,13 @@ export function requireRole(...allowedRoles) {
     }
     next();
   };
+}
+
+export function requireAuthenticated(req, res, next) {
+  if (!isAuthenticatedUser(req.user)) {
+    return res.status(401).json({ error: "Inicia sesión para consultar esta información" });
+  }
+  next();
 }
 
 async function verifySupabaseToken(token) {

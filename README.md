@@ -16,9 +16,10 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   las gráficas del dashboard original (dona de antigüedad de saldos, embudo de gestión,
   distribución de estatus, segmentación, cobertura del mes, recuperación mensual y tendencia
   de cartera vencida — ver `frontend/src/charts.js`), tabla de clientes filtrable y bitácora
-  de gestión por cliente. Quien tenga el enlace entra sin cuenta como lector y puede consultar
-  todas las franquicias. El administrador inicia sesión con correo y contraseña de Supabase Auth
-  para habilitar gestiones e importaciones; su perfil incluye las operaciones de gestor.
+  de gestión por cliente. Quien tenga el enlace entra sin cuenta y solo puede consultar métricas
+  agregadas de todas las franquicias, sin clientes identificables. El administrador inicia sesión
+  con correo y contraseña de Supabase Auth para habilitar detalle y operación; su perfil incluye
+  las tareas de gestor.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
   `vencida_snapshots`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
@@ -40,9 +41,11 @@ La única cuenta operativa se crea desde Supabase Auth y después se registra en
 rol `admin`. Un usuario de Auth sin registro activo en `app_users` no obtiene permisos. En
 Supabase Auth debe mantenerse deshabilitado el registro público.
 
-El acceso por enlace es deliberadamente de solo lectura: las peticiones sin sesión reciben el
-perfil público `lector`; todos los endpoints de escritura siguen exigiendo una sesión activa con
-rol autorizado en el backend.
+El acceso por enlace es deliberadamente agregado y de solo lectura: las peticiones sin sesión
+reciben el perfil público `lector`, pero únicamente `/api/me` y `/api/dashboard/:franchise` están
+disponibles. La respuesta pública del dashboard elimina nombres y filas de pagos. Clientes, RFC,
+facturas, pagos, agenda, lista negra, catálogos operativos y todos los endpoints de escritura
+exigen una sesión activa en el backend.
 
 ## Pendiente (siguiente sesión)
 

@@ -6,3 +6,7 @@ export function parseBearer(header) {
 export function hasRole(role, allowedRoles) {
   return allowedRoles.includes(role);
 }
+
+export function isAuthenticatedUser(user) {
+  return Boolean(user?.id && !user.isAnonymous);
+}

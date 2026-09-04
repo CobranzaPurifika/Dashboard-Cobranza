@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
+import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
 
 export const dashboardRouter = Router();
 
@@ -171,7 +172,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
     const efectiva = distribucion.rows.filter((r) => r.efectiva).reduce((s, r) => s + r.count, 0);
     const acordadas = distRows.find((r) => r.key === "promesa_pago")?.count ?? 0;
 
-    res.json({
+    const response = {
       portfolio: portfolio.rows[0],
       kpi: {
         alCorriente: { pct: round1((kpiRow.al_corriente_monto / total) * 100), monto: kpiRow.al_corriente_monto },
@@ -199,7 +200,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         count: recuperadoSemanal.rows.length,
         rows: recuperadoSemanal.rows,
       },
-    });
+    };
+    res.json(sanitizeDashboardForViewer(response, req.user));
   } catch (err) {
     next(err);
   }
