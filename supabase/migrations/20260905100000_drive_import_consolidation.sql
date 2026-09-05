@@ -27,10 +27,12 @@ create table if not exists public.invoice_client_keys (
 );
 
 insert into public.invoice_client_keys (franchise_id, folio, cliente_id)
-select c.franchise_id, f.folio, f.cliente_id
+select distinct on (c.franchise_id, f.folio)
+  c.franchise_id, f.folio, f.cliente_id
 from public.facturas f
 join public.clientes c on c.id = f.cliente_id
 where nullif(trim(f.folio), '') is not null
+order by c.franchise_id, f.folio, f.fecha_facturacion desc nulls last, f.id desc
 on conflict (franchise_id, folio) do update
 set cliente_id = excluded.cliente_id, last_seen_at = now();
 
