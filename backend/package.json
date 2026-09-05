@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "check": "node --check src/server.js && node --check src/imports/rawImport.js && node --check src/imports/consolidation.js && node --check src/routes/dashboard.js && node --check ../frontend/src/main.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
