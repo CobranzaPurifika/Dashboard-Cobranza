@@ -79,9 +79,13 @@ folios abiertos tienen evidencia de pago; de lo contrario conserva su último sa
 `Pendiente de validar`. Al liquidarse sale de cartera, Seguimiento y Lista negra, pero conserva
 pagos, gestiones y notas.
 
+Para producción, el repositorio incluye un contenedor único que sirve frontend y API, además de
+verificación automática en cada pull request. La secuencia completa de migración, variables y
+primera carga controlada está en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 ## Pendiente (siguiente sesión)
 
 - Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.
 - Completar las interacciones restantes de Seguimiento.
 - Decidir hosting (Vercel/Render para el backend + estático para el frontend, o ambos juntos)
-  y configurar CI/CD.
+  y crear el servicio con las variables de producción.
