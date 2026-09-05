@@ -40,6 +40,11 @@ blacklistRouter.post("/clientes/:id/blacklist", requireRole("admin", "gestor"), 
          set motivo = excluded.motivo, fecha = excluded.fecha, created_by = excluded.created_by`,
       [id, motivo, hoy, req.user.id]
     );
+    await client.query(
+      `update payment_promises set status = 'cancelled'
+       where cliente_id = $1 and status = 'active'`,
+      [id]
+    );
     const updated = await client.query(
       `update clientes
        set is_blacklisted = true,

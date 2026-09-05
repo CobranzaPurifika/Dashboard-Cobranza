@@ -58,6 +58,21 @@ gestionRouter.post(
       const descripcion = comentario ? `${label} — ${comentario}` : label;
 
       await client.query(
+        `update payment_promises set status = 'cancelled'
+         where cliente_id = $1 and status = 'active'`,
+        [id]
+      );
+
+      if (isPaymentPromise) {
+        await client.query(
+          `insert into payment_promises
+             (cliente_id, gestion_iso, deadline_iso, created_by)
+           values ($1, $2, $3, $4)`,
+          [id, nowISO, promiseDeadlineISO, req.user.id]
+        );
+      }
+
+      await client.query(
         `insert into gestion_timeline (cliente_id, fecha_iso, descripcion, dot_color, created_by)
          values ($1, $2, $3, $4, $5)`,
         [id, nowISO, descripcion, bg, req.user.id]

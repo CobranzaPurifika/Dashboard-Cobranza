@@ -64,6 +64,21 @@ volverán a aparecer en Seguimiento, aunque el cliente seguirá fuera de la cola
 El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
 el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
+## Sincronización de Drive
+
+El backend relee siempre los tres archivos fijos de Antigüedad de Saldos (pestaña inicial `BDD`)
+y el archivo fijo de Pagos mes en curso (pestaña inicial `PAGOS`). Con
+`IMPORT_SCHEDULER_ENABLED=true`, BDD corre a las 10:00, 13:00 y 16:00 y Pagos a las 17:00 en
+`America/Mexico_City`. El administrador también dispone del botón **Actualizar datos ahora**,
+que ejecuta BDD y después Pagos.
+
+La consolidación BDD es atómica para las tres franquicias: si alguna solo tiene encabezados o no
+contiene cartera válida, no cambia ninguna. También se rechazan caídas no explicadas mayores al
+10% del día 1 al 5 o al 2% desde el día 6. Un cliente ausente solo se liquida cuando todos sus
+folios abiertos tienen evidencia de pago; de lo contrario conserva su último saldo como
+`Pendiente de validar`. Al liquidarse sale de cartera, Seguimiento y Lista negra, pero conserva
+pagos, gestiones y notas.
+
 ## Pendiente (siguiente sesión)
 
 - Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.

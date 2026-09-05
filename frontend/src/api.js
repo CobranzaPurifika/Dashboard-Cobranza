@@ -45,6 +45,7 @@ export const api = {
   },
   cliente: (id) => request(`/clientes/${id}`),
   statusGestion: () => request(`/status-gestion`),
+  syncData: () => request(`/importaciones/sync`, { method: "POST" }),
   guardarGestion: (id, body) =>
     request(`/clientes/${id}/gestion`, { method: "POST", body: JSON.stringify(body) }),
   agregarBlacklist: (id, motivo) =>

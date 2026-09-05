@@ -17,8 +17,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
   try {
     const allowed = resolveFranchiseScope(req.user, franchise);
     const params = [allowed];
-    const whereClientes = "where franchise_id = any($1::text[])";
-    const andClientes = "and c.franchise_id = any($1::text[])";
+    const whereClientes = "where franchise_id = any($1::text[]) and portfolio_status != 'settled'";
+    const andClientes = "and c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'";
 
     const [
       portfolio,
@@ -41,18 +41,26 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       ),
       pool.query(
         `select
-           coalesce(sum(saldo) filter (where tramo = 'good'), 0)::float as al_corriente_monto,
-           coalesce(sum(saldo) filter (where tramo != 'good'), 0)::float as vencida_monto,
-           coalesce(sum(saldo) filter (where tramo = 'critical'), 0)::float as mas60_monto,
-           coalesce(sum(saldo), 0)::float as total
-         from clientes ${whereClientes}`,
+           coalesce(sum(f.monto) filter (where f.dias_vencida <= 0), 0)::float as al_corriente_monto,
+           coalesce(sum(f.monto) filter (where f.dias_vencida > 0), 0)::float as vencida_monto,
+           coalesce(sum(f.monto) filter (where f.dias_vencida > 60), 0)::float as mas60_monto,
+           coalesce(sum(f.monto), 0)::float as total
+         from facturas f join clientes c on c.id = f.cliente_id
+         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'`,
         params
       ),
       pool.query(
-        `select tramo, tramo_label as label, coalesce(sum(saldo),0)::float as value, count(*)::int as clientes
-         from clientes ${whereClientes}
-         group by tramo, tramo_label
-         order by array_position(array['good','warning','serious','critical'], tramo)`,
+        `select
+           case when f.dias_vencida <= 0 then 'good' when f.dias_vencida <= 30 then 'warning'
+                when f.dias_vencida <= 60 then 'serious' else 'critical' end as tramo,
+           case when f.dias_vencida <= 0 then 'Al corriente' when f.dias_vencida <= 30 then '1-30 días'
+                when f.dias_vencida <= 60 then '31-60 días' else '+60 días' end as label,
+           coalesce(sum(f.monto),0)::float as value, count(distinct f.cliente_id)::int as clientes
+         from facturas f join clientes c on c.id = f.cliente_id
+         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'
+         group by 1, 2 order by array_position(array['good','warning','serious','critical'],
+           case when f.dias_vencida <= 0 then 'good' when f.dias_vencida <= 30 then 'warning'
+                when f.dias_vencida <= 60 then 'serious' else 'critical' end)`,
         params
       ),
       pool.query(
@@ -93,10 +101,14 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         params
       ),
       pool.query(
-        `select p.cliente_id, c.name, c.franchise_id, p.fecha_iso, p.monto
-         from pagos p join clientes c on c.id = p.cliente_id
-         where p.fecha_iso >= (current_date - interval '7 days')
-         and c.franchise_id = any($1::text[])
+        `select p.cliente_id, coalesce(c.name, p.grupo_facturacion) as name,
+                p.franchise_id, p.fecha_iso, p.monto
+         from pagos p left join clientes c on c.id = p.cliente_id
+         where p.fecha_iso >= greatest(
+           date_trunc('week', (now() at time zone 'America/Mexico_City'))::date,
+           date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
+         )
+         and p.franchise_id = any($1::text[])
          order by p.fecha_iso desc`,
         params
       ),
@@ -109,6 +121,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
          from status_gestion s
          left join clientes c on c.estatus_value = s.value
            and c.franchise_id = any($1::text[])
+           and c.portfolio_status != 'settled'
          group by s.value, s.label, s.bg, s.efectiva, s.sort_order
          order by s.sort_order`,
         params
@@ -116,14 +129,10 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       // Promesas cumplidas: promise_gestion_iso/promise_deadline_iso capturados y un pago aplicado
       // dentro de esa ventana -- misma definición que clientPromiseFulfilled.
       pool.query(
-        `select count(*)::int as cumplidas
-         from clientes c
-         where c.promise_gestion_iso is not null and c.promise_deadline_iso is not null
-           and exists (
-             select 1 from pagos p
-             where p.cliente_id = c.id
-               and p.fecha_iso between c.promise_gestion_iso and c.promise_deadline_iso
-           )
+        `select count(distinct pp.cliente_id)::int as cumplidas
+         from payment_promises pp join clientes c on c.id = pp.cliente_id
+         where pp.status = 'fulfilled'
+           and date_trunc('month', pp.fulfilled_at) = date_trunc('month', current_date)
            ${andClientes}`,
         params
       ),
@@ -197,7 +206,9 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       historicoVencida: historicoVencida.rows,
       recuperadoSemanal: {
         total: recuperadoSemanal.rows.reduce((s, r) => s + Number(r.monto), 0),
-        count: recuperadoSemanal.rows.length,
+        count: new Set(recuperadoSemanal.rows.map((row) =>
+          row.cliente_id || `${row.franchise_id}|${String(row.name ?? "").toLowerCase()}`
+        )).size,
         rows: recuperadoSemanal.rows,
       },
     };

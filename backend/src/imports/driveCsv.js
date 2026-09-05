@@ -17,7 +17,7 @@ function getAuthClient() {
   });
 }
 
-export async function downloadSheetAsCsv(fileId) {
+export async function downloadSheetAsCsv(fileId, _sheetName) {
   const auth = getAuthClient();
   const headers = await auth.getRequestHeaders();
   const url = new URL(`https://www.googleapis.com/drive/v3/files/${fileId}/export`);
