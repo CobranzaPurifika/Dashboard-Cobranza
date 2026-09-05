@@ -17,6 +17,7 @@ export async function runRawImport(sourceType, triggerType = "manual") {
   const sources = getDriveSources(sourceType);
   const parser = parsers[sourceType];
   const run = await createRun(sourceType, triggerType);
+  let rowsRead = 0;
 
   try {
     const downloaded = await Promise.all(
@@ -25,12 +26,12 @@ export async function runRawImport(sourceType, triggerType = "manual") {
         rows: parser(await downloadSheetAsCsv(source.fileId, source.sheetName)),
       }))
     );
+    rowsRead = downloaded.reduce((sum, item) => sum + item.rows.length, 0);
     if (sourceType === "bdd") validateCompleteBddBatch(downloaded);
 
     const db = await pool.connect();
     try {
       await db.query("begin");
-      const rowsRead = downloaded.reduce((sum, item) => sum + item.rows.length, 0);
       const rowsInserted = await storeRawRows(db, run.id, sourceType, downloaded);
       const application = sourceType === "bdd"
         ? await applyBddBatch(db, downloaded)
@@ -56,6 +57,20 @@ export async function runRawImport(sourceType, triggerType = "manual") {
       db.release();
     }
   } catch (error) {
+    if (sourceType === "bdd" && error.statusCode === 422) {
+      const details = { reason: error.message, incompleteBatch: true };
+      await pool.query(
+        `update import_runs
+         set status = 'skipped', rows_read = $1, rows_applied = 0,
+             details = $2::jsonb, error_message = null, finished_at = now()
+         where id = $3`,
+        [rowsRead, JSON.stringify(details), run.id]
+      );
+      return {
+        id: run.id, sourceType, status: "skipped", rowsRead,
+        rowsInserted: 0, rowsApplied: 0, details,
+      };
+    }
     await pool.query(
       `update import_runs set status = 'failed', error_message = $1, finished_at = now() where id = $2`,
       [String(error.message ?? error).slice(0, 2000), run.id]
