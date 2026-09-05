@@ -13,7 +13,10 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
     const { franchise, segment, q } = req.query;
     const allowed = resolveFranchiseScope(req.user, franchise || "todas");
     const params = [allowed];
-    const conditions = ["c.franchise_id = any($1::text[])"];
+    const conditions = [
+      "c.franchise_id = any($1::text[])",
+      "c.portfolio_status != 'settled'",
+    ];
 
     if (segment) {
       params.push(segment);
@@ -49,6 +52,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
         `select c.id, c.name, c.franchise_id, c.segment, c.segment_label,
                 c.saldo::float, c.tramo, c.tramo_label, c.estatus_value,
                 c.last_gestion_iso, c.promise_deadline_iso, c.is_blacklisted,
+                c.portfolio_status,
                 s.label as estatus_label, s.bg as estatus_bg,
                 (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date)
                   as managed_today
@@ -72,7 +76,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
       pool.query(
         `select count(*)::int as total
          from clientes c
-         where c.franchise_id = any($1::text[])`,
+         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'`,
         [allowed]
       ),
     ]);
@@ -90,6 +94,7 @@ clientesRouter.get("/", async (req, res, next) => {
     const conditions = [];
     const params = [resolveFranchiseScope(req.user, franchise || "todas")];
     conditions.push("c.franchise_id = any($1::text[])");
+    conditions.push("c.portfolio_status != 'settled'");
     if (tramo) {
       params.push(tramo);
       conditions.push(`c.tramo = $${params.length}`);

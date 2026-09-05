@@ -90,6 +90,7 @@ async function init() {
   window.addEventListener("auth-required", () => showLogin("Tu sesión terminó. Ingresa nuevamente."));
   document.getElementById("login-form").addEventListener("submit", handleLogin);
   document.getElementById("account-action").addEventListener("click", handleAccountAction);
+  document.getElementById("sync-data").addEventListener("click", syncDataNow);
   document.getElementById("cancel-login").addEventListener("click", () => openAuthenticatedApp());
   document.getElementById("dashboard-nav").addEventListener("click", () => setView("dashboard"));
   document.getElementById("management-nav").addEventListener("click", () => setView("management"));
@@ -208,6 +209,29 @@ function renderAccount() {
     : state.user.display_name || state.user.email;
   document.getElementById("account-role").textContent = roleLabels[state.user.role] ?? state.user.role;
   action.textContent = state.user.isAnonymous ? "Acceso administrador" : "Salir";
+  document.getElementById("import-controls").classList.toggle("hidden", state.user.role !== "admin");
+}
+
+async function syncDataNow() {
+  const button = document.getElementById("sync-data");
+  const status = document.getElementById("sync-status");
+  button.disabled = true;
+  button.textContent = "Actualizando…";
+  status.textContent = "Leyendo BDD y Pagos";
+  try {
+    const result = await api.syncData();
+    if (result.bdd.status === "skipped") {
+      status.textContent = `Sin cambios: ${result.bdd.details.reason}`;
+    } else {
+      status.textContent = `Actualizado: ${result.bdd.rowsApplied} registros BDD · ${result.pagos?.rowsApplied ?? 0} pagos nuevos`;
+      await loadActiveView();
+    }
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Actualizar datos ahora";
+  }
 }
 
 function renderPrimaryNav() {
@@ -346,6 +370,7 @@ async function loadPriority() {
       <span class="priority-badges">
         <span class="badge badge-${escapeAttr(client.tramo)}">${escapeHtml(client.tramo_label ?? TRAMO_LABEL[client.tramo] ?? client.tramo)}</span>
         ${client.is_blacklisted ? '<span class="blacklist-badge">Lista negra</span>' : ""}
+        ${client.portfolio_status === "pending_validation" ? '<span class="pending-badge">Pendiente de validar</span>' : ""}
       </span>
       <strong>${fmtMoney(client.saldo)}</strong>
       <button class="manage-button" type="button">Gestionar</button>
@@ -368,9 +393,9 @@ async function loadDashboard() {
     { label: "Vencida", value: `${data.kpi.vencidaTotal.pct}%`, sub: fmtMoney(data.kpi.vencidaTotal.monto) },
     { label: "+60 días", value: `${data.kpi.mas60.pct}%`, sub: fmtMoney(data.kpi.mas60.monto) },
     {
-      label: "Recuperado (7 días)",
+      label: "Recuperado (semana)",
       value: fmtMoney(data.recuperadoSemanal.total),
-      sub: `${data.recuperadoSemanal.count} pagos`,
+      sub: `${data.recuperadoSemanal.count} clientes`,
     },
     {
       label: "Gestionados",
@@ -432,7 +457,7 @@ async function loadClientes() {
       <td>${escapeHtml(c.segment_label)}</td>
       <td>${fmtMoney(c.saldo)}</td>
       <td><span class="badge badge-${c.tramo}">${TRAMO_LABEL[c.tramo] ?? c.tramo}</span></td>
-      <td>${c.estatus_label ? escapeHtml(c.estatus_label) : "Sin gestión previa"}</td>
+      <td>${c.portfolio_status === "pending_validation" ? '<span class="pending-badge">Pendiente de validar</span>' : c.estatus_label ? escapeHtml(c.estatus_label) : "Sin gestión previa"}</td>
     `;
     tr.addEventListener("click", () => openDetail(c.id));
     tbody.appendChild(tr);
@@ -513,6 +538,7 @@ async function openDetail(id) {
     <h2>${escapeHtml(c.name)}</h2>
     <p class="muted">${escapeHtml(c.franchise_id)} · ${escapeHtml(c.segment_label)} · RFC ${escapeHtml(c.rfc ?? "N/A")}</p>
     <p class="saldo">${fmtMoney(c.saldo)} <span class="badge badge-${c.tramo}">${TRAMO_LABEL[c.tramo] ?? c.tramo}</span></p>
+    ${c.portfolio_status === "pending_validation" ? '<p class="pending-notice">Pendiente de validar: no apareció en la BDD y todavía no existe evidencia de pago total.</p>' : ""}
 
     ${gestionBlock}
 

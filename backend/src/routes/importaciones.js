@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
-import { runRawImport } from "../imports/rawImport.js";
+import { runAllImports, runRawImport } from "../imports/rawImport.js";
 import { requireRole } from "../auth/authorization.js";
 
 export const importacionesRouter = Router();
@@ -10,12 +10,21 @@ importacionesRouter.get("/", async (_req, res, next) => {
   try {
     const { rows } = await pool.query(
       `select id, source_type, trigger_type, status, rows_read, rows_inserted,
-              error_message, started_at, finished_at
+              rows_applied, details, error_message, started_at, finished_at
        from import_runs order by started_at desc limit 30`
     );
     res.json(rows);
   } catch (error) {
     next(error);
+  }
+});
+
+// Actualización administrativa: BDD completa y, solo si se aplicó, Pagos.
+importacionesRouter.post("/sync", async (_req, res, next) => {
+  try {
+    res.status(201).json(await runAllImports("manual"));
+  } catch (error) {
+    res.status(error.statusCode ?? 500).json({ error: error.message });
   }
 });
 
@@ -30,7 +39,6 @@ importacionesRouter.post("/:sourceType/sync", async (req, res, next) => {
     const result = await runRawImport(sourceType, "manual");
     res.status(201).json(result);
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
-    next(error);
+    res.status(error.statusCode ?? 500).json({ error: error.message });
   }
 });
