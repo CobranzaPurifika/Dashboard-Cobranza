@@ -1,0 +1,60 @@
+name: Actualizar cobranza desde Drive
+
+on:
+  schedule:
+    # GitHub usa UTC; México centro permanece en UTC-6.
+    - cron: "0 16,19,22 * * *" # BDD: 10:00, 13:00 y 16:00
+    - cron: "0 23 * * *"       # Pagos: 17:00
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Fuente que se releerá
+        required: true
+        type: choice
+        options:
+          - bdd
+          - pagos
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drive-imports
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.event_name == 'workflow_dispatch' || vars.DRIVE_IMPORTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Determinar fuente
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_SOURCE: ${{ inputs.source }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=$MANUAL_SOURCE" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_SCHEDULE" = "0 23 * * *" ]; then
+            echo "value=pagos" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=bdd" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Releer Drive y actualizar Supabase
+        run: npm run import:scheduled -- "${{ steps.source.outputs.value }}"
