@@ -57,8 +57,10 @@ El estatus “Llamar más tarde” mantiene al cliente en Prioridad y activa su 
 guardar cualquier otro estatus limpia esa agenda dentro de la misma transacción.
 Los clientes en Lista negra se excluyen de la cola normal de Prioridad, pero siguen disponibles
 al buscar explícitamente por nombre o folio y el resultado se identifica con una etiqueta.
-Al enviarlos a Lista negra se desactivan la agenda y la promesa activa para retirarlos de
-Seguimiento; las entradas históricas de gestión no se modifican ni se borran.
+Al enviarlos a Lista negra se desactivan la agenda y la promesa que existían en ese momento;
+las entradas históricas de gestión no se modifican ni se borran. Mientras permanezcan ahí se
+pueden registrar gestiones nuevas con normalidad, incluidas nuevas agendas o promesas que sí
+volverán a aparecer en Seguimiento, aunque el cliente seguirá fuera de la cola normal de Prioridad.
 El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
 el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
