@@ -66,7 +66,10 @@ export class AppComponent implements OnInit {
       this.franchises = this.franchisesForUser(this.user);
       if (!this.franchises.length) throw new Error('Tu cuenta todavía no tiene franquicias asignadas');
       if (!this.franchises.some((option) => option.id === this.franchise)) this.franchise = this.franchises[0].id;
-      this.view = this.isAnonymous ? 'dashboard' : 'management';
+      // Al recargar se conserva el Dashboard como pantalla de entrada. Antes se cambiaba
+      // a Gestión mientras aún llegaban las respuestas; junto con el render diferido eso
+      // hacía que un clic en tema revelara una vista distinta a la esperada.
+      if (this.isAnonymous) this.view = 'dashboard';
       this.statusCatalog = this.isAnonymous ? [] : await this.api.statusGestion();
       this.loginVisible = false;
       await this.loadDashboard();
@@ -88,6 +91,7 @@ export class AppComponent implements OnInit {
     this.loginError = '';
     try {
       await this.auth.signIn(this.loginEmail, this.loginPassword);
+      this.view = 'management';
       await this.openApp();
       this.loginPassword = '';
     } catch (error: any) {
@@ -177,6 +181,13 @@ export class AppComponent implements OnInit {
     const count = Number(this.dashboardData.portfolio.clientes ?? 0).toLocaleString('es-MX');
     const balance = Number(this.dashboardData.portfolio.saldo ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
     return `${count} clientes · $${balance}`;
+  }
+
+  accountLabel(): string {
+    const displayName = String(this.user?.display_name ?? '').trim();
+    if (displayName) return displayName;
+    const email = String(this.user?.email ?? '').trim();
+    return email || (this.isAnonymous ? 'Acceso' : 'Salir');
   }
 
   private franchisesForUser(user: any): FranchiseOption[] {
