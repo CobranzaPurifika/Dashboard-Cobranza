@@ -19,6 +19,8 @@ dominio.
 5. La recuperación semanal comienza el lunes o el día 1 del mes, lo que sea más reciente.
 6. Una carga BDD preserva pagos y todos los datos de gestión de la aplicación.
 7. Guardar una gestión debe insertar el evento y actualizar al cliente en una sola transacción.
+7.1. Guardar una nota sólo actualiza `clientes.notas`: no crea un evento, no altera el
+     estatus y no modifica `last_gestion_iso`.
 8. Airtable es un respaldo transitorio de la etapa Artifact; no será fuente de verdad de la app.
 9. El botón manual relee los mismos archivos de Drive; no admite archivos alternos.
 10. Toda fuente se valida completa antes de escribir RAW. Un error deja intacto el consolidado.
