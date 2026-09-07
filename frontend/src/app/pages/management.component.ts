@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
@@ -51,19 +51,30 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   agendaNote = '';
   blacklistReason = '';
   saving = false;
+  noteSaving = false;
+  clientNotes = '';
+  showAllTimeline = false;
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
   private followupAbort?: AbortController;
   private blacklistAbort?: AbortController;
+  private monthlyAbort?: AbortController;
   private loadRequest = 0;
+  private priorityRequest = 0;
+  private detailRequest = 0;
+  private followupRequest = 0;
+  private blacklistRequest = 0;
+  private monthlyRequest = 0;
 
   readonly hours = Array.from({ length: 10 }, (_, index) => `${String(index + 9).padStart(2, '0')}:00`);
 
   constructor(private readonly api: ApiService) {}
 
-  ngOnChanges(): void {
-    void this.loadAll();
+  ngOnChanges(changes: SimpleChanges): void {
+    // Los cambios de franquicia son el único disparador de las tres consultas. Evitar
+    // recargas por referencias de usuario/catálogo elimina abortos cruzados al arrancar.
+    if (changes['franchise'] || !this.loaded) void this.loadAll();
   }
 
   ngOnDestroy(): void {
@@ -72,6 +83,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailAbort?.abort();
     this.followupAbort?.abort();
     this.blacklistAbort?.abort();
+    this.monthlyAbort?.abort();
   }
 
   get canManage(): boolean {
@@ -115,14 +127,14 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.priorityAbort?.abort();
     const controller = new AbortController();
     this.priorityAbort = controller;
-    const franchise = this.franchise;
+    const requestId = ++this.priorityRequest;
     try {
       const result = await this.api.prioridad({
-        franchise,
+        franchise: this.franchise,
         segment: this.segment,
         q: this.query,
       }, controller.signal);
-      if (!controller.signal.aborted && franchise === this.franchise) {
+      if (!controller.signal.aborted && requestId === this.priorityRequest) {
         this.priority = result.rows;
         this.priorityShown = result.shown;
         this.priorityTotal = result.total;
@@ -136,10 +148,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.followupAbort?.abort();
     const controller = new AbortController();
     this.followupAbort = controller;
-    const franchise = this.franchise;
+    const requestId = ++this.followupRequest;
     try {
-      const data = await this.api.seguimiento(franchise, controller.signal);
-      if (!controller.signal.aborted && franchise === this.franchise) {
+      const data = await this.api.seguimiento(this.franchise, controller.signal);
+      if (!controller.signal.aborted && requestId === this.followupRequest) {
         this.overdue = data.overdue;
         this.scheduled = data.scheduled;
       }
@@ -152,10 +164,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.blacklistAbort?.abort();
     const controller = new AbortController();
     this.blacklistAbort = controller;
-    const franchise = this.franchise;
+    const requestId = ++this.blacklistRequest;
     try {
-      const blacklist = await this.api.blacklist(franchise, controller.signal);
-      if (!controller.signal.aborted && franchise === this.franchise) this.blacklist = blacklist;
+      const blacklist = await this.api.blacklist(this.franchise, controller.signal);
+      if (!controller.signal.aborted && requestId === this.blacklistRequest) this.blacklist = blacklist;
     } catch (error: any) {
       if (error?.name !== 'AbortError') throw error;
     }
@@ -165,11 +177,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailAbort?.abort();
     const controller = new AbortController();
     this.detailAbort = controller;
+    const requestId = ++this.detailRequest;
     this.detailLoading = true;
     this.error = '';
     try {
       const detail = await this.api.cliente(id, controller.signal);
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || requestId !== this.detailRequest) return;
       this.detail = detail;
       this.gestionStatus = this.detail.estatus_value || this.statusCatalog[0]?.value || '';
       this.gestionComment = '';
@@ -177,30 +190,45 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.agendaDate = this.dateOnly(this.detail.agenda_fecha_iso) || this.todayMexico();
       this.agendaHour = this.hours.includes(this.detail.agenda_hora) ? this.detail.agenda_hora : this.suggestedHour();
       this.agendaNote = this.detail.agenda_nota ?? '';
+      this.clientNotes = this.detail.notas ?? '';
+      this.showAllTimeline = false;
     } catch (error: any) {
       if (error?.name !== 'AbortError') this.error = error.message;
     } finally {
-      if (!controller.signal.aborted) this.detailLoading = false;
+      if (!controller.signal.aborted && requestId === this.detailRequest) this.detailLoading = false;
     }
   }
 
   closeDetail(): void {
     this.detailAbort?.abort();
+    this.detailRequest += 1;
     this.detailLoading = false;
     this.detail = null;
   }
 
   async openMonthlyStats(): Promise<void> {
+    this.monthlyAbort?.abort();
+    const controller = new AbortController();
+    this.monthlyAbort = controller;
+    const requestId = ++this.monthlyRequest;
     this.showStats = true;
     this.monthlyLoading = true;
     this.monthlyError = '';
     try {
-      this.monthlyData = await this.api.gestionesMes();
+      const data = await this.api.gestionesMes('', controller.signal);
+      if (!controller.signal.aborted && requestId === this.monthlyRequest) this.monthlyData = data;
     } catch (error: any) {
-      this.monthlyError = error.message;
+      if (error?.name !== 'AbortError' && requestId === this.monthlyRequest) this.monthlyError = error.message;
     } finally {
-      this.monthlyLoading = false;
+      if (!controller.signal.aborted && requestId === this.monthlyRequest) this.monthlyLoading = false;
     }
+  }
+
+  closeMonthlyStats(): void {
+    this.monthlyAbort?.abort();
+    this.monthlyRequest += 1;
+    this.monthlyLoading = false;
+    this.showStats = false;
   }
 
   async markIncident(franchise: string, date: string, currentNote = ''): Promise<void> {
@@ -238,6 +266,20 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = error.message;
     } finally {
       this.saving = false;
+    }
+  }
+
+  async saveNote(): Promise<void> {
+    if (!this.detail || this.noteSaving) return;
+    this.noteSaving = true;
+    this.error = '';
+    try {
+      const updated = await this.api.guardarNota(this.detail.id, this.clientNotes);
+      if (this.detail?.id === updated.id) this.detail = { ...this.detail, notas: updated.notas };
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.noteSaving = false;
     }
   }
 
