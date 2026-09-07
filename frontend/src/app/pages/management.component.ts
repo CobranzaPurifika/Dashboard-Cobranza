@@ -34,6 +34,7 @@ export class ManagementComponent implements OnChanges {
   segment = '';
   query = '';
   loading = false;
+  loaded = false;
   detailLoading = false;
   detail: any = null;
   error = '';
@@ -77,13 +78,17 @@ export class ManagementComponent implements OnChanges {
   async loadAll(): Promise<void> {
     this.loading = true;
     this.error = '';
-    try {
-      await Promise.all([this.loadPriority(), this.loadFollowup(), this.loadBlacklist()]);
-    } catch (error: any) {
-      this.error = error.message;
-    } finally {
-      this.loading = false;
-    }
+    const results = await Promise.allSettled([
+      this.loadPriority(),
+      this.loadFollowup(),
+      this.loadBlacklist(),
+    ]);
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason?.message ?? 'No fue posible cargar una sección');
+    this.error = [...new Set(failures)].join(' · ');
+    this.loaded = true;
+    this.loading = false;
   }
 
   async loadPriority(): Promise<void> {

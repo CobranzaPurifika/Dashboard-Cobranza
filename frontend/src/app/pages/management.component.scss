@@ -1,8 +1,9 @@
 :host { display: block; }
 button, input, select, textarea { font: inherit; }
 .management { position: relative; padding-bottom: 70px; }
-.management.is-loading { opacity: .72; pointer-events: none; }
-.error-banner { margin-bottom: 14px; padding: 11px 14px; border: 1px solid #d84f43; border-radius: 10px; background: color-mix(in srgb, #d84f43 10%, var(--surface)); color: #d84f43; font-size: 12px; }
+.management.is-loading { cursor: progress; }
+.error-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 11px 14px; border: 1px solid #d84f43; border-radius: 10px; background: color-mix(in srgb, #d84f43 10%, var(--surface)); color: #d84f43; font-size: 12px; }
+.error-banner button { padding: 5px 9px; border: 1px solid currentColor; border-radius: 7px; background: transparent; color: inherit; cursor: pointer; }
 .management-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); gap: 16px; }
 .priority-card, .side-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
 .priority-card { min-width: 0; overflow: hidden; }
@@ -13,6 +14,7 @@ button, input, select, textarea { font: inherit; }
 .priority-total { text-align: right; color: var(--muted); }
 .priority-total strong { display: block; color: var(--ink); font-size: 28px; line-height: 1; }
 .priority-total span { font-size: 10px; }
+.priority-total ion-spinner { display: block; width: 20px; height: 20px; margin: 0 0 3px auto; color: var(--accent); }
 .segments { display: flex; gap: 5px; margin: 0 23px 13px; padding: 4px; border-radius: 10px; background: var(--surface-soft); width: max-content; }
 .segments button { padding: 6px 15px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }
 .segments .active { color: #063a3e; background: var(--accent); font-weight: 800; }
@@ -41,6 +43,9 @@ button, input, select, textarea { font: inherit; }
 .manage-action { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; color: var(--accent-strong); font-size: 10px; font-weight: 750; }
 .manage-action ion-icon { font-size: 12px; }
 .empty-state { display: grid; min-height: 180px; place-items: center; color: var(--muted); font-size: 12px; }
+.priority-skeleton { display: grid; gap: 1px; }
+.priority-skeleton i { display: block; height: 57px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 7%, var(--surface-soft)), transparent), var(--surface-soft); background-size: 220% 100%; animation: loading-sweep 1.2s linear infinite; }
+@keyframes loading-sweep { to { background-position: -220% 0; } }
 
 .management-side { display: grid; align-content: start; gap: 16px; }
 .side-card { padding: 19px; }
