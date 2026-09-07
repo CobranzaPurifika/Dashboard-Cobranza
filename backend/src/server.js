@@ -13,6 +13,7 @@ import { dashboardRouter } from "./routes/dashboard.js";
 import { importacionesRouter } from "./routes/importaciones.js";
 import { seguimientoRouter } from "./routes/seguimiento.js";
 import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
+import { notasRouter } from "./routes/notas.js";
 import { startImportSchedules } from "./imports/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
@@ -43,6 +44,7 @@ app.use("/api", requireAuthenticated);
 
 app.use("/api/clientes", clientesRouter);
 app.use("/api/clientes", gestionRouter);
+app.use("/api/clientes", notasRouter);
 app.use("/api/clientes", pagosRouter);
 app.use("/api", blacklistRouter);
 app.use("/api/clientes", agendaRouter);
