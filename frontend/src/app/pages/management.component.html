@@ -52,9 +52,9 @@
 
     <aside class="management-side">
       <article class="side-card followup-card">
-        <header><div><span class="eyebrow">PENDIENTES</span><h2>Seguimiento</h2></div><span class="side-count">{{ loading && !loaded ? '…' : overdue.length + scheduled.length }}</span></header>
+        <header><h2>Pendientes</h2><span class="side-count">{{ loading && !loaded ? '…' : overdue.length + scheduled.length }}</span></header>
 
-        <section class="followup-section">
+        <section class="followup-section overdue-section">
           <button class="section-toggle" type="button" (click)="overdueExpanded = !overdueExpanded" [attr.aria-expanded]="overdueExpanded"><span class="signal overdue"></span><strong>Promesas incumplidas</strong><i>{{ overdue.length }}</i><ion-icon [name]="overdueExpanded ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button>
           @if (overdueExpanded) { <div class="followup-list">
             @for (client of overdue; track client.id) {
@@ -67,7 +67,7 @@
           </div> }
         </section>
 
-        <section class="followup-section">
+        <section class="followup-section scheduled-section">
           <button class="section-toggle" type="button" (click)="scheduledExpanded = !scheduledExpanded" [attr.aria-expanded]="scheduledExpanded"><span class="signal scheduled"></span><strong>Agendados</strong><i>{{ scheduled.length }}</i><ion-icon [name]="scheduledExpanded ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button>
           @if (scheduledExpanded) { <div class="followup-list">
             @for (client of scheduled; track client.id) {
@@ -101,7 +101,7 @@
 </section>
 
 @if (detailLoading && !detail) {
-  <div class="loading-detail"><ion-spinner name="crescent"></ion-spinner></div>
+  <div class="loading-detail" role="status"><div><ion-spinner name="crescent"></ion-spinner><span>Cargando cliente…</span><button type="button" (click)="closeDetail()">Cancelar</button></div></div>
 }
 
 @if (detail) {
@@ -149,6 +149,14 @@
         </section>
       }
 
+      <section class="drawer-section notes-section">
+        <h3>Notas y pendientes</h3>
+        <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
+        @if (canManage) {
+          <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar nota' }}</button>
+        }
+      </section>
+
       <section class="drawer-section">
         <div class="section-heading"><h3>Facturas</h3><span>{{ detail.invoices.length }}</span></div>
         <div class="compact-list">
@@ -170,10 +178,13 @@
       <section class="drawer-section">
         <div class="section-heading"><h3>Historial de gestiones</h3><span>{{ detail.timeline.length }}</span></div>
         <div class="timeline">
-          @for (event of detail.timeline.slice(0, 15); track event.id) {
+          @for (event of (showAllTimeline ? detail.timeline : detail.timeline.slice(0, 15)); track event.id) {
             <div><i [style.background]="event.dot_color || '#999'"></i><span><strong>{{ shortDate(event.fecha_iso) }}</strong><p>{{ event.descripcion }}</p></span></div>
           } @empty { <p>Sin gestiones previas.</p> }
         </div>
+        @if (detail.timeline.length > 15) {
+          <button class="timeline-more" type="button" (click)="showAllTimeline = !showAllTimeline">{{ showAllTimeline ? 'Ver menos' : 'Ver todas (' + detail.timeline.length + ')' }}</button>
+        }
       </section>
 
       <section class="drawer-section blacklist-control">
@@ -190,9 +201,9 @@
 }
 
 @if (showStats) {
-  <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="showStats = false"></button>
+  <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="closeMonthlyStats()"></button>
   <aside class="monthly-drawer" aria-label="Gestiones acumuladas del mes">
-    <header><div><h2>Gestiones acumuladas del mes</h2><p>Acumulado de {{ monthlyData?.monthLabel || 'este mes' }} · sábados y domingos no cuentan</p></div><button type="button" aria-label="Cerrar" (click)="showStats = false"><ion-icon name="close-outline"></ion-icon></button></header>
+    <header><div><h2>Gestiones acumuladas del mes</h2><p>Acumulado de {{ monthlyData?.monthLabel || 'este mes' }} · sábados y domingos no cuentan</p></div><button type="button" aria-label="Cerrar" (click)="closeMonthlyStats()"><ion-icon name="close-outline"></ion-icon></button></header>
     <div class="monthly-scroll">
       @if (monthlyLoading) { <div class="monthly-loading"><ion-spinner name="crescent"></ion-spinner><span>Calculando cumplimiento…</span></div> }
       @else if (monthlyError) { <div class="error-banner">{{ monthlyError }}</div> }

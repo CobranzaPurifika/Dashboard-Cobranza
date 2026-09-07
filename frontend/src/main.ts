@@ -1,4 +1,6 @@
+import 'zone.js';
 import { bootstrapApplication } from '@angular/platform-browser';
+import { provideZoneChangeDetection } from '@angular/core';
 import { provideIonicAngular } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -43,5 +45,10 @@ addIcons({
   waterOutline,
 });
 
-bootstrapApplication(AppComponent, { providers: [provideIonicAngular({ mode: 'md' })] })
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideIonicAngular({ mode: 'md' }),
+  ],
+})
   .catch((error) => console.error(error));

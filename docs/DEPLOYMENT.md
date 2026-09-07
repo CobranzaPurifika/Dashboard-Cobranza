@@ -6,8 +6,10 @@ horarios de Drive se ejecutan de forma independiente mediante GitHub Actions.
 
 ## 1. Preparar Supabase
 
-Ejecutar, en orden, las migraciones de `supabase/migrations/` desde el SQL Editor del proyecto.
-La última migración requerida es `20260907100000_sales_executive.sql`.
+Ejecutar, en orden, **todas** las migraciones de `supabase/migrations/` desde el SQL Editor del proyecto.
+La última migración requerida actualmente es
+`20260907120000_dashboard_management_polish.sql`; incluye los cortes usados por los
+deltas del Dashboard y las tablas de Gestiones acumuladas del mes.
 
 El registro del administrador debe existir en `app_users`, con el mismo UUID de `auth.users` y
 `role = 'admin'`. El registro público de nuevas cuentas debe permanecer desactivado.

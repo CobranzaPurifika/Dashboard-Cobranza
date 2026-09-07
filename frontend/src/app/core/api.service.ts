@@ -11,6 +11,12 @@ export class ApiService {
   dashboard = (franchise: string, signal?: AbortSignal) =>
     this.request(`/dashboard/${franchise}`, { signal });
   statusGestion = () => this.request('/status-gestion');
+
+  actualizarStatus(value: string, body: { label: string; bg: string; efectiva: boolean; sortOrder: number }) {
+    return this.request(`/status-gestion/${encodeURIComponent(value)}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    });
+  }
   cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
   seguimiento = (franchise: string, signal?: AbortSignal) =>
     this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });
@@ -22,8 +28,14 @@ export class ApiService {
     return this.request(`/clientes/prioridad?${this.query(params)}`, { signal });
   }
 
-  gestionesMes = (month = '') =>
-    this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`);
+  gestionesMes = (month = '', signal?: AbortSignal) =>
+    this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`, { signal });
+
+  guardarNota(id: string, nota: string) {
+    return this.request(`/clientes/${id}/notas`, {
+      method: 'PUT', body: JSON.stringify({ nota }),
+    });
+  }
 
   guardarIncidencia(franchise: string, date: string, note: string) {
     return this.request(`/gestiones-mes/incidents/${encodeURIComponent(franchise)}/${date}`, {
