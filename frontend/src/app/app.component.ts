@@ -41,6 +41,8 @@ export class AppComponent implements OnInit {
   loginLoading = false;
   syncLoading = false;
   syncStatus = '';
+  statusSaving = '';
+  statusError = '';
   settingsVisible = false;
   appError = '';
   private dashboardAbort?: AbortController;
@@ -163,6 +165,27 @@ export class AppComponent implements OnInit {
       this.syncStatus = error.message;
     } finally {
       this.syncLoading = false;
+    }
+  }
+
+  async saveStatus(status: any): Promise<void> {
+    if (this.statusSaving) return;
+    this.statusSaving = status.value;
+    this.statusError = '';
+    try {
+      const updated = await this.api.actualizarStatus(status.value, {
+        label: String(status.label ?? '').trim(),
+        bg: String(status.bg ?? '').trim(),
+        efectiva: status.efectiva === true,
+        sortOrder: Number(status.sort_order),
+      });
+      this.statusCatalog = this.statusCatalog
+        .map((item) => item.value === updated.value ? updated : item)
+        .sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+    } catch (error: any) {
+      this.statusError = error.message;
+    } finally {
+      this.statusSaving = '';
     }
   }
 
