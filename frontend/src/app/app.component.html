@@ -26,7 +26,7 @@
         @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
         <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Cerrar sesión'" (click)="accountAction()">
           <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'log-out-outline'"></ion-icon>
-          <span>{{ isAnonymous ? 'Acceso' : (user?.display_name || 'Salir') }}</span>
+          <span>{{ accountLabel() }}</span>
         </button>
       </div>
     </header>
