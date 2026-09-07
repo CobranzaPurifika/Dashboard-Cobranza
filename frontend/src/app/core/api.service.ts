@@ -11,6 +11,12 @@ export class ApiService {
   dashboard = (franchise: string, signal?: AbortSignal) =>
     this.request(`/dashboard/${franchise}`, { signal });
   statusGestion = () => this.request('/status-gestion');
+
+  actualizarStatus(value: string, body: { label: string; bg: string; efectiva: boolean; sortOrder: number }) {
+    return this.request(`/status-gestion/${encodeURIComponent(value)}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    });
+  }
   cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
   seguimiento = (franchise: string, signal?: AbortSignal) =>
     this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });
