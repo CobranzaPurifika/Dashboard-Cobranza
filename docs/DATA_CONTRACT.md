@@ -33,6 +33,14 @@ dominio.
 17. `Ejecutivo de Ventas` se toma de la columna AC de BDD y se conserva por factura; no modifica
     saldos ni KPIs. Si un cliente tiene facturas de más de un ejecutivo, la ficha muestra todos
     los nombres distintos.
+18. El delta de cartera usa el corte Mensual más reciente anterior al mes actual; solo si no hay
+    cortes mensuales puede usar el Semanal más reciente. Nunca usa cortes manuales ni inventa
+    valores ausentes. Es actual menos baseline, en puntos porcentuales.
+19. Antes del primer BDD aplicado de cada mes se conserva en `portfolio_snapshots` el estado
+    todavía vigente del cierre anterior. Si ya hubo una importación del mes, no se reconstruye el
+    pasado con datos actuales.
+20. Gestiones del mes cuenta una sola vez a cada cliente por fecha, excluye eventos de pago/lista
+    negra/notas, omite fines de semana y elimina del promedio los días con incidencia justificada.
 
 ## Perfiles y permisos
 

@@ -73,7 +73,7 @@ export function renderFunnel(f, expectativaCobro) {
 
   const promiseBox = `<div class="promise-box" title="Suma de la factura más vencida de cada cliente con promesa de pago activa"><span class="rlabel">Expectativa de Cobro</span><span class="rvalue">${fmtMoney(expectativaCobro)}</span><span class="rsub">Factura más vencida por cliente</span></div>`;
 
-  return { bars: bars + promiseBox, rates };
+  return { bars, rates, promise: promiseBox };
 }
 
 export function renderDistribucion(distribucion) {
@@ -111,7 +111,19 @@ export function renderSegmentacion(seg) {
       return `<div class="legend-item" style="width:auto;"><span class="swatch" style="background:${safeColor(COLOR[s.segment])};"></span><span class="lbl">${escapeHtml(s.label)} · ${s.clientes} clientes</span><span class="val">${fmtMoney(s.monto)}</span><span class="pct">${Math.round(pct * 10) / 10}%</span></div>`;
     })
     .join("");
-  return { bar, legend };
+  const r = 58, cx = 80, cy = 80;
+  const circumference = 2 * Math.PI * r;
+  let cumulative = 0;
+  const circles = seg.map((s) => {
+    const pct = Number(s.monto) / total;
+    const length = pct * circumference;
+    const draw = Math.max(length - 2.5, 0);
+    const offset = -cumulative;
+    cumulative += length;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${safeColor(COLOR[s.segment])}" stroke-width="25" stroke-dasharray="${draw} ${circumference - draw}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeAttr(s.label)}: ${fmtMoney(s.monto)}</title></circle>`;
+  }).join("");
+  const svg = `<svg viewBox="0 0 160 160" role="img">${circles}<text x="80" y="77" text-anchor="middle" class="donut-center-label">${fmtMoney(total)}</text><text x="80" y="94" text-anchor="middle" class="donut-center-sub">Total cartera</text></svg>`;
+  return { bar, svg, legend };
 }
 
 export function renderCoverage(g) {

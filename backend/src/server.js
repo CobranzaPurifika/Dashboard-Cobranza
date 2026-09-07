@@ -12,6 +12,7 @@ import { statusGestionRouter } from "./routes/statusGestion.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { importacionesRouter } from "./routes/importaciones.js";
 import { seguimientoRouter } from "./routes/seguimiento.js";
+import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
 import { startImportSchedules } from "./imports/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
@@ -47,6 +48,7 @@ app.use("/api", blacklistRouter);
 app.use("/api/clientes", agendaRouter);
 app.use("/api/status-gestion", statusGestionRouter);
 app.use("/api/seguimiento", seguimientoRouter);
+app.use("/api/gestiones-mes", monthlyManagementRouter);
 app.use("/api/importaciones", importacionesRouter);
 
 // En producción el mismo proceso sirve la SPA y la API; localmente puede conservarse

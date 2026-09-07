@@ -47,7 +47,7 @@
       } @else if (view === 'dashboard') {
         <app-dashboard [data]="dashboardData" [loading]="loading"></app-dashboard>
       } @else {
-        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [dashboardData]="dashboardData" (refreshRequested)="loadDashboard()"></app-management>
+        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>
 

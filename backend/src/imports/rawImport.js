@@ -166,12 +166,73 @@ async function applyBddBatch(db, downloaded) {
     };
   }
 
+  await captureMonthlyPortfolioBaseline(db);
   await reconcilePromises(db);
   let rowsApplied = 0;
   for (const item of prepared) rowsApplied += await persistBddSnapshot(db, item);
   await attachUnmatchedPaymentsByInvoice(db);
   await reconcilePromises(db);
   return { status: "applied", rowsApplied, details };
+}
+
+// El primer BDD aplicado de cada mes conserva el último estado del mes anterior.
+// Si ya hubo una importación BDD este mes, no intenta reconstruir un cierre pasado
+// con datos actuales. Así los deltas siempre parten de un corte real.
+async function captureMonthlyPortfolioBaseline(db) {
+  const existingRun = await db.query(
+    `select 1
+     from import_runs
+     where source_type = 'bdd' and status = 'applied'
+       and finished_at >= date_trunc('month', now() at time zone 'America/Mexico_City')
+     limit 1`
+  );
+  if (existingRun.rows.length > 0) return;
+
+  await db.query(
+    `with client_totals as (
+       select franchise_id, coalesce(sum(saldo), 0)::numeric as saldo_total
+       from clientes
+       where portfolio_status != 'settled'
+       group by franchise_id
+     ), invoice_totals as (
+       select c.franchise_id,
+         coalesce(sum(f.monto), 0)::numeric as total_facturado,
+         coalesce(sum(f.monto) filter (where f.dias_vencida <= 0), 0)::numeric as al_corriente,
+         coalesce(sum(f.monto) filter (where f.dias_vencida > 0), 0)::numeric as vencida,
+         coalesce(sum(f.monto) filter (where f.dias_vencida > 60), 0)::numeric as mas60
+       from facturas f
+       join clientes c on c.id = f.cliente_id
+       where c.portfolio_status != 'settled'
+       group by c.franchise_id
+     ), detail as (
+       select c.franchise_id, c.saldo_total, i.total_facturado,
+              i.al_corriente, i.vencida, i.mas60
+       from client_totals c
+       join invoice_totals i using (franchise_id)
+       where i.total_facturado > 0
+     ), snapshots as (
+       select franchise_id,
+              round(al_corriente / total_facturado * 100, 1) as al_corriente_pct,
+              round(vencida / total_facturado * 100, 1) as cartera_vencida_pct,
+              mas60 as tramo_60_mas_monto, saldo_total
+       from detail
+       union all
+       select 'todas',
+              round(sum(al_corriente) / nullif(sum(total_facturado), 0) * 100, 1),
+              round(sum(vencida) / nullif(sum(total_facturado), 0) * 100, 1),
+              sum(mas60), sum(saldo_total)
+       from detail
+     )
+     insert into portfolio_snapshots
+       (franchise_id, fecha_corte, tipo_corte, al_corriente_pct,
+        cartera_vencida_pct, tramo_60_mas_monto, saldo_total)
+     select franchise_id,
+            (date_trunc('month', now() at time zone 'America/Mexico_City')::date - 1),
+            'Mensual', al_corriente_pct, cartera_vencida_pct,
+            tramo_60_mas_monto, saldo_total
+     from snapshots
+     on conflict do nothing`
+  );
 }
 
 async function loadFranchiseContext(db, franchiseId) {

@@ -37,11 +37,17 @@ test("el dashboard público elimina nombres y pagos individuales", () => {
       count: 1,
       rows: [{ cliente_id: "cliente-1", name: "Cliente privado", monto: 100 }],
     },
+    recuperadoMensual: {
+      total: 250,
+      count: 2,
+      rows: [{ cliente_id: "cliente-1", name: "Cliente privado", monto: 250 }],
+    },
   };
 
   const publicResult = sanitizeDashboardForViewer(source, { isAnonymous: true });
   assert.deepEqual(publicResult.distribucion[0].names, []);
   assert.deepEqual(publicResult.recuperadoSemanal.rows, []);
+  assert.deepEqual(publicResult.recuperadoMensual.rows, []);
   assert.equal(publicResult.recuperadoSemanal.total, 100);
   assert.equal(sanitizeDashboardForViewer(source, { isAnonymous: false }), source);
 });

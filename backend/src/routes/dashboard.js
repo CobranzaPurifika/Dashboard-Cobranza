@@ -29,7 +29,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       gestionadosMes,
       historico,
       historicoVencida,
-      recuperadoSemanal,
+      pagosMes,
+      baseline,
       distribucion,
       cumplidas,
       activePromises,
@@ -102,15 +103,44 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       ),
       pool.query(
         `select p.cliente_id, coalesce(c.name, p.grupo_facturacion) as name,
-                p.franchise_id, p.fecha_iso, p.monto
+                coalesce(p.franchise_id, c.franchise_id) as franchise_id, p.fecha_iso, p.monto,
+                p.fecha_iso >= greatest(
+                  date_trunc('week', (now() at time zone 'America/Mexico_City'))::date,
+                  date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
+                ) as is_weekly
          from pagos p left join clientes c on c.id = p.cliente_id
-         where p.fecha_iso >= greatest(
-           date_trunc('week', (now() at time zone 'America/Mexico_City'))::date,
-           date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
-         )
-         and p.franchise_id = any($1::text[])
+         where p.fecha_iso >= date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
+         and coalesce(p.franchise_id, c.franchise_id) = any($1::text[])
          order by p.fecha_iso desc`,
         params
+      ),
+      pool.query(
+        `with ranked as (
+           select ps.*,
+             row_number() over (
+               partition by franchise_id
+               order by case when tipo_corte = 'Mensual' then 0 else 1 end,
+                        fecha_corte desc
+             ) as rn
+           from portfolio_snapshots ps
+           where franchise_id = any($1::text[])
+             and fecha_corte < date_trunc('month', now() at time zone 'America/Mexico_City')::date
+             and tipo_corte in ('Mensual', 'Semanal')
+         ), latest as (
+           select * from ranked where rn = 1
+         )
+         select max(fecha_corte) as fecha_corte,
+                string_agg(distinct tipo_corte, ', ') as tipo_corte,
+                case when coalesce(sum(saldo_total), 0) > 0
+                  then sum(al_corriente_pct * saldo_total) / sum(saldo_total)
+                  else avg(al_corriente_pct) end::float as al_corriente_pct,
+                case when coalesce(sum(saldo_total), 0) > 0
+                  then sum(cartera_vencida_pct * saldo_total) / sum(saldo_total)
+                  else avg(cartera_vencida_pct) end::float as cartera_vencida_pct,
+                sum(tramo_60_mas_monto)::float as tramo_60_mas_monto,
+                sum(saldo_total)::float as saldo_total
+         from latest`,
+        [franchise === "todas" && allowed.length === 3 ? ["todas"] : allowed]
       ),
       // Distribución de estatus: las 10 filas de status_gestion siempre presentes (incluso en 0),
       // con los nombres de los clientes en cada una para el tooltip -- igual que el original.
@@ -169,6 +199,14 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
 
     const kpiRow = kpi.rows[0];
     const total = kpiRow.total || 1;
+    const baselineRow = baseline.rows[0]?.fecha_corte ? baseline.rows[0] : null;
+    const alCorrientePct = round1((kpiRow.al_corriente_monto / total) * 100);
+    const vencidaPct = round1((kpiRow.vencida_monto / total) * 100);
+    const mas60Pct = round1((kpiRow.mas60_monto / total) * 100);
+    const baselineMas60Pct = baselineRow && baselineRow.tramo_60_mas_monto != null
+      && Number(baselineRow.saldo_total) > 0
+      ? Number(baselineRow.tramo_60_mas_monto) / Number(baselineRow.saldo_total) * 100
+      : null;
 
     const distRows = distribucion.rows.map((r) => ({
       key: r.key,
@@ -184,10 +222,23 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
     const response = {
       portfolio: portfolio.rows[0],
       kpi: {
-        alCorriente: { pct: round1((kpiRow.al_corriente_monto / total) * 100), monto: kpiRow.al_corriente_monto },
-        vencidaTotal: { pct: round1((kpiRow.vencida_monto / total) * 100), monto: kpiRow.vencida_monto },
-        mas60: { pct: round1((kpiRow.mas60_monto / total) * 100), monto: kpiRow.mas60_monto },
+        alCorriente: metricWithDelta(
+          alCorrientePct, kpiRow.al_corriente_monto,
+          baselineRow?.al_corriente_pct, (delta) => delta >= 0
+        ),
+        vencidaTotal: metricWithDelta(
+          vencidaPct, kpiRow.vencida_monto,
+          baselineRow?.cartera_vencida_pct, (delta) => delta <= 0
+        ),
+        mas60: metricWithDelta(
+          mas60Pct, kpiRow.mas60_monto,
+          baselineMas60Pct, (delta) => delta <= 0
+        ),
       },
+      baseline: baselineRow ? {
+        fechaCorte: baselineRow.fecha_corte,
+        tipoCorte: baselineRow.tipo_corte,
+      } : null,
       saldos: saldos.rows,
       segmentacion: segmentacion.rows,
       gestion: {
@@ -204,13 +255,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       expectativaCobro: activePromises.rows[0].total,
       historico: historico.rows,
       historicoVencida: historicoVencida.rows,
-      recuperadoSemanal: {
-        total: recuperadoSemanal.rows.reduce((s, r) => s + Number(r.monto), 0),
-        count: new Set(recuperadoSemanal.rows.map((row) =>
-          row.cliente_id || `${row.franchise_id}|${String(row.name ?? "").toLowerCase()}`
-        )).size,
-        rows: recuperadoSemanal.rows,
-      },
+      recuperadoSemanal: summarizePayments(pagosMes.rows.filter((row) => row.is_weekly)),
+      recuperadoMensual: summarizePayments(pagosMes.rows),
     };
     res.json(sanitizeDashboardForViewer(response, req.user));
   } catch (err) {
@@ -220,4 +266,25 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
 
 function round1(n) {
   return Math.round(n * 10) / 10;
+}
+
+function metricWithDelta(pct, monto, baselinePct, isGood) {
+  const hasBaseline = baselinePct !== null && baselinePct !== undefined && Number.isFinite(Number(baselinePct));
+  const delta = hasBaseline ? round1(pct - Number(baselinePct)) : null;
+  return {
+    pct,
+    monto,
+    delta,
+    deltaGood: delta === null ? null : isGood(delta),
+  };
+}
+
+function summarizePayments(rows) {
+  return {
+    total: rows.reduce((sum, row) => sum + Number(row.monto), 0),
+    count: new Set(rows.map((row) =>
+      row.cliente_id || `${row.franchise_id}|${String(row.name ?? "").toLowerCase()}`
+    )).size,
+    rows: rows.map(({ is_weekly: _isWeekly, ...row }) => row),
+  };
 }

@@ -61,7 +61,7 @@ app-root.dark-theme {
 .rlabel { color: var(--muted); font-size: 7px; }
 .rvalue { margin-top: 3px; color: var(--ink); font-size: 14px; font-weight: 800; }
 .rsub { margin-top: 2px; color: var(--muted); font-size: 7px; }
-.promise-box { margin: 10px 0 0 115px; padding: 10px; border: 1px solid #35aa69; border-radius: 8px; color: #258453; background: color-mix(in srgb, #35aa69 8%, transparent); }
+.promise-box { margin: 0; padding: 10px; border: 1px solid #35aa69; border-radius: 8px; color: #258453; background: color-mix(in srgb, #35aa69 8%, transparent); }
 .promise-box .rvalue { color: #258453; font-size: 16px; }
 .dist-row { display: grid; grid-template-columns: 7px minmax(85px, 1fr) minmax(75px, 1.15fr) 24px; align-items: center; gap: 7px; margin: 7px 0; color: var(--ink-soft); font-size: 9px; }
 .dist-dot { width: 7px; height: 7px; border-radius: 2px; }

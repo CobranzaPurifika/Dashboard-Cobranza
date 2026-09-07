@@ -4,7 +4,9 @@ import { addIcons } from 'ionicons';
 import {
   analyticsOutline,
   callOutline,
+  chevronDownOutline,
   chevronForwardOutline,
+  chevronUpOutline,
   closeOutline,
   colorPaletteOutline,
   expandOutline,
@@ -24,7 +26,9 @@ import { AppComponent } from './app/app.component';
 addIcons({
   analyticsOutline,
   callOutline,
+  chevronDownOutline,
   chevronForwardOutline,
+  chevronUpOutline,
   closeOutline,
   colorPaletteOutline,
   expandOutline,
