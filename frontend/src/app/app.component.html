@@ -1,0 +1,74 @@
+<ion-app>
+  <ion-content [fullscreen]="true">
+  <div class="app-canvas">
+    <header class="topbar">
+      <button class="brand" type="button" (click)="setView('dashboard')" aria-label="Ir al dashboard">
+        <span class="drop"><ion-icon name="water-outline"></ion-icon></span>
+        <span><strong>PURIFIKA</strong><small>COBRANZA</small></span>
+      </button>
+
+      <nav class="primary-nav" aria-label="Secciones">
+        <button type="button" [class.active]="view === 'dashboard'" (click)="setView('dashboard')">Dashboard</button>
+        @if (!isAnonymous) { <button type="button" [class.active]="view === 'management'" (click)="setView('management')">Gestión</button> }
+      </nav>
+
+      <nav class="franchise-tabs" aria-label="Franquicias">
+        @for (option of franchises; track option.id) {
+          <button type="button" [class.active]="franchise === option.id" (click)="selectFranchise(option.id)">{{ option.label }}</button>
+        }
+      </nav>
+
+      <div class="topbar-spacer"></div>
+      <div class="portfolio-summary"><small>Cartera activa</small><strong>{{ portfolioSummary() }}</strong></div>
+      <div class="header-actions">
+        <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button>
+        <button type="button" title="Cambiar tema" aria-label="Cambiar tema" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon></button>
+        @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
+        <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Cerrar sesión'" (click)="accountAction()">
+          <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'log-out-outline'"></ion-icon>
+          <span>{{ isAnonymous ? 'Acceso' : (user?.display_name || 'Salir') }}</span>
+        </button>
+      </div>
+    </header>
+
+    @if (settingsVisible && isAdmin) {
+      <aside class="settings-popover">
+        <header><div><span>ADMINISTRACIÓN</span><strong>Fuentes de datos</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
+        <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
+        <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
+        @if (syncStatus) { <small>{{ syncStatus }}</small> }
+      </aside>
+    }
+
+    <main class="workspace">
+      @if (appError) { <div class="app-error">{{ appError }}</div> }
+      @if (loading && !dashboardData) {
+        <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
+      } @else if (view === 'dashboard') {
+        <app-dashboard [data]="dashboardData" [loading]="loading"></app-dashboard>
+      } @else {
+        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [dashboardData]="dashboardData" (refreshRequested)="loadDashboard()"></app-management>
+      }
+    </main>
+
+    @if (presentationMode) {
+      <button type="button" class="exit-presentation" (click)="togglePresentation()"><ion-icon name="close-outline"></ion-icon>Salir de presentación</button>
+    }
+  </div>
+  </ion-content>
+
+  @if (loginVisible) {
+    <div class="login-screen">
+      <form class="login-card" (ngSubmit)="signIn()">
+        <div class="login-brand"><span class="drop"><ion-icon name="water-outline"></ion-icon></span><span><strong>PURIFIKA</strong><small>COBRANZA</small></span></div>
+        <h1>Bienvenido</h1>
+        <p>Ingresa con la cuenta administrativa asignada.</p>
+        <label>Correo<input type="email" name="email" [(ngModel)]="loginEmail" autocomplete="username" required /></label>
+        <label>Contraseña<input type="password" name="password" [(ngModel)]="loginPassword" autocomplete="current-password" required /></label>
+        @if (loginError) { <div class="login-error" role="alert">{{ loginError }}</div> }
+        <button class="login-submit" type="submit" [disabled]="loginLoading">@if (loginLoading) { <ion-spinner name="crescent"></ion-spinner> }{{ loginLoading ? 'Ingresando…' : 'Iniciar sesión' }}</button>
+        <button class="login-cancel" type="button" (click)="loginVisible = false">Volver al tablero</button>
+      </form>
+    </div>
+  }
+</ion-app>

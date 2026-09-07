@@ -1,0 +1,192 @@
+<section class="management" [class.is-loading]="loading">
+  @if (error) { <div class="error-banner" role="alert">{{ error }}</div> }
+
+  <div class="management-grid">
+    <article class="priority-card">
+      <header class="priority-header">
+        <div>
+          <span class="eyebrow">COBRANZA</span>
+          <h1>Prioridad de contacto</h1>
+          <p>Urgencia por tramo y monto · gestionados hoy al final</p>
+        </div>
+        <div class="priority-total"><strong>{{ priorityShown }}</strong><span>de {{ priorityTotal }}</span></div>
+      </header>
+
+      <div class="segments" role="tablist" aria-label="Segmento">
+        <button type="button" [class.active]="segment === ''" (click)="setSegment('')">Todos</button>
+        <button type="button" [class.active]="segment === 'comercial'" (click)="setSegment('comercial')">Comercial</button>
+        <button type="button" [class.active]="segment === 'residencial'" (click)="setSegment('residencial')">Residencial</button>
+      </div>
+
+      <label class="search-box">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [(ngModel)]="query" (ngModelChange)="onSearch()" placeholder="Buscar cliente o folio…" />
+      </label>
+
+      <div class="priority-list">
+        @for (client of priority; track client.id) {
+          <button class="priority-row" type="button" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted" (click)="openDetail(client.id)">
+            <span class="segment-dot" [class.commercial]="client.segment === 'comercial'"></span>
+            <span class="client-main">
+              <strong>{{ client.name }}</strong>
+              <small>{{ client.franchise_id }} · {{ client.segment_label }}</small>
+            </span>
+            <span class="badges">
+              <i class="badge" [class]="'badge ' + client.tramo">{{ client.tramo_label || tramoLabel(client.tramo) }}</i>
+              @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
+              @if (client.portfolio_status === 'pending_validation') { <i class="pending-badge">Pendiente</i> }
+            </span>
+            <strong class="balance">{{ money(client.saldo) }}</strong>
+            <span class="manage-action">Gestionar <ion-icon name="chevron-forward-outline"></ion-icon></span>
+          </button>
+        } @empty {
+          <div class="empty-state">No hay contactos para estos filtros.</div>
+        }
+      </div>
+    </article>
+
+    <aside class="management-side">
+      <article class="side-card followup-card">
+        <header><div><span class="eyebrow">PENDIENTES</span><h2>Seguimiento</h2></div><span class="side-count">{{ overdue.length + scheduled.length }}</span></header>
+
+        <section class="followup-section">
+          <h3><span class="signal overdue"></span>Promesas incumplidas <i>{{ overdue.length }}</i></h3>
+          @for (client of overdue; track client.id) {
+            <button type="button" (click)="openDetail(client.id)">
+              <strong>{{ client.name }}</strong>
+              <span>Prometió el {{ shortDate(client.promise_deadline_iso) }} · {{ client.days_overdue }} días de retraso</span>
+              <small>{{ client.franchise_id }}</small>
+            </button>
+          } @empty { <p class="empty-line">Sin promesas vencidas.</p> }
+        </section>
+
+        <section class="followup-section">
+          <h3><span class="signal scheduled"></span>Agendados <i>{{ scheduled.length }}</i></h3>
+          @for (client of scheduled; track client.id) {
+            <button type="button" (click)="openDetail(client.id)">
+              <strong>{{ client.name }}</strong>
+              <span>{{ client.agenda_detail || ('Contactar el ' + shortDate(client.agenda_fecha_iso)) }}</span>
+              <small>{{ client.franchise_id }}</small>
+            </button>
+          } @empty { <p class="empty-line">Sin llamadas agendadas.</p> }
+        </section>
+      </article>
+
+      <article class="side-card blacklist-card">
+        <header><div><span class="eyebrow">CONTROL</span><h2>Lista negra</h2></div><span class="side-count">{{ blacklist.length }}</span></header>
+        @for (client of blacklist; track client.id) {
+          <button type="button" (click)="openDetail(client.id)">
+            <span><strong>{{ client.name }}</strong><small>{{ client.franchise_id }}</small></span>
+            <p>{{ client.motivo }}</p>
+          </button>
+        } @empty { <p class="empty-line">No hay clientes en esta lista.</p> }
+      </article>
+    </aside>
+  </div>
+
+  <button type="button" class="monthly-fab" (click)="showStats = true">
+    <ion-icon name="analytics-outline"></ion-icon><span>Gestiones del mes</span>
+  </button>
+</section>
+
+@if (detailLoading && !detail) {
+  <div class="loading-detail"><ion-spinner name="crescent"></ion-spinner></div>
+}
+
+@if (detail) {
+  <button class="drawer-backdrop" type="button" aria-label="Cerrar detalle" (click)="closeDetail()"></button>
+  <aside class="detail-drawer" aria-label="Detalle del cliente">
+    <header class="drawer-header">
+      <div>
+        <span class="eyebrow">DETALLE DE CLIENTE</span>
+        <h2>{{ detail.name }}</h2>
+        <p>{{ detail.franchise_id }} · {{ detail.segment_label }} · RFC {{ detail.rfc || 'N/A' }}</p>
+      </div>
+      <button type="button" aria-label="Cerrar" (click)="closeDetail()"><ion-icon name="close-outline"></ion-icon></button>
+    </header>
+
+    <div class="drawer-scroll">
+      <section class="balance-summary">
+        <div><span>Saldo pendiente</span><strong>{{ money(detail.saldo) }}</strong></div>
+        <i class="badge" [class]="'badge ' + detail.tramo">{{ tramoLabel(detail.tramo) }}</i>
+      </section>
+
+      @if (salesExecutives()) { <p class="sales-executive"><strong>Ejecutivo de ventas</strong><span>{{ salesExecutives() }}</span></p> }
+      @if (detail.portfolio_status === 'pending_validation') {
+        <div class="pending-notice">Pendiente de validar: no apareció en la BDD y aún no existe evidencia de pago total.</div>
+      }
+
+      @if (canManage) {
+        <section class="drawer-section management-form">
+          <h3>Guardar gestión</h3>
+          <label>Estatus
+            <select [(ngModel)]="gestionStatus">
+              @for (status of statusCatalog; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
+            </select>
+          </label>
+          <label>Comentario
+            <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
+          </label>
+          @if (callLaterSelected) {
+            <div class="agenda-fields">
+              <span>Agendar llamada</span>
+              <div><label>Fecha<input type="date" [(ngModel)]="agendaDate" /></label><label>Hora<select [(ngModel)]="agendaHour">@for (hour of hours; track hour) { <option [value]="hour">{{ hour }}</option> }</select></label></div>
+              <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
+            </div>
+          }
+          <button class="primary-action" type="button" [disabled]="saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
+        </section>
+      }
+
+      <section class="drawer-section">
+        <div class="section-heading"><h3>Facturas</h3><span>{{ detail.invoices.length }}</span></div>
+        <div class="compact-list">
+          @for (invoice of detail.invoices.slice(0, 12); track invoice.id) {
+            <div><span><strong>{{ invoice.folio }}</strong><small>{{ invoice.dias_vencida }} días</small></span><b>{{ money(invoice.monto) }}</b></div>
+          } @empty { <p>Sin facturas activas.</p> }
+        </div>
+      </section>
+
+      <section class="drawer-section">
+        <div class="section-heading"><h3>Pagos aplicados</h3><span>{{ detail.pagos.length }}</span></div>
+        <div class="compact-list payments">
+          @for (payment of detail.pagos.slice(0, 12); track payment.id) {
+            <div><span><strong>{{ shortDate(payment.fecha_iso) }}</strong><small>{{ payment.forma || payment.factura }}</small></span><b>{{ money(payment.monto) }}</b></div>
+          } @empty { <p>Sin pagos registrados.</p> }
+        </div>
+      </section>
+
+      <section class="drawer-section">
+        <div class="section-heading"><h3>Historial de gestiones</h3><span>{{ detail.timeline.length }}</span></div>
+        <div class="timeline">
+          @for (event of detail.timeline.slice(0, 15); track event.id) {
+            <div><i [style.background]="event.dot_color || '#999'"></i><span><strong>{{ shortDate(event.fecha_iso) }}</strong><p>{{ event.descripcion }}</p></span></div>
+          } @empty { <p>Sin gestiones previas.</p> }
+        </div>
+      </section>
+
+      <section class="drawer-section blacklist-control">
+        <h3>Lista negra</h3>
+        @if (detail.is_blacklisted) {
+          <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" (click)="removeBlacklist()">Quitar</button> }</div>
+        } @else if (canManage) {
+          <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
+          <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
+        }
+      </section>
+    </div>
+  </aside>
+}
+
+@if (showStats) {
+  <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="showStats = false"></button>
+  <section class="stats-modal">
+    <header><div><span class="eyebrow">RESUMEN</span><h2>Gestiones del mes</h2></div><button type="button" (click)="showStats = false"><ion-icon name="close-outline"></ion-icon></button></header>
+    <div class="stats-grid">
+      <div><span>Total gestiones</span><strong>{{ dashboardData?.funnel?.total || 0 }}</strong></div>
+      <div><span>Gestión efectiva</span><strong>{{ dashboardData?.funnel?.efectiva || 0 }}</strong></div>
+      <div><span>Promesas acordadas</span><strong>{{ dashboardData?.funnel?.acordadas || 0 }}</strong></div>
+      <div><span>Promesas cumplidas</span><strong>{{ dashboardData?.funnel?.cumplidas || 0 }}</strong></div>
+    </div>
+  </section>
+}

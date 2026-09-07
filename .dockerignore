@@ -2,5 +2,6 @@
 .github
 backend/node_modules
 backend/.env
-frontend/config.js
+frontend/node_modules
+frontend/www
 *.log

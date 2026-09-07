@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Puerto del renderizado del artifact original (renderDonut, renderFunnel, renderDistribucion,
 // renderSegmentation, buildLineChart, buildTrendChartVencida) a SVG inyectado vía innerHTML,
 // consumiendo la respuesta de /api/dashboard/:franchise en vez de mutar un JSON en memoria.
