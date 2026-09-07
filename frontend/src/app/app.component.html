@@ -37,6 +37,20 @@
         <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
         <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
         @if (syncStatus) { <small>{{ syncStatus }}</small> }
+        <section class="status-settings">
+          <h3>Estatus de gestión</h3>
+          <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard.</p>
+          @for (status of statusCatalog; track status.value) {
+            <div class="status-editor">
+              <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" />
+              <input [(ngModel)]="status.bg" [attr.aria-label]="'Color de ' + status.label" pattern="#[0-9a-fA-F]{6}" maxlength="7" />
+              <input type="number" [(ngModel)]="status.sort_order" [attr.aria-label]="'Orden de ' + status.label" min="0" max="999" />
+              <label><input type="checkbox" [(ngModel)]="status.efectiva" /> Efectiva</label>
+              <button type="button" [disabled]="statusSaving === status.value" (click)="saveStatus(status)">{{ statusSaving === status.value ? 'Guardando…' : 'Guardar' }}</button>
+            </div>
+          }
+          @if (statusError) { <small class="settings-error">{{ statusError }}</small> }
+        </section>
       </aside>
     }
 
