@@ -6,6 +6,7 @@ const BDD = Object.freeze({
   overdueDays: 11,
   balance: 21,
   status: 23,
+  salesExecutive: 28,
 });
 
 const IMPORTABLE_BDD_STATUSES = new Set(["facturada", "pago parcial"]);
@@ -40,6 +41,7 @@ export function buildBddSnapshot(franchiseId, rawRows) {
       balance,
       overdueDays,
       invoiceDate: parseDate(row[BDD.invoiceDate]),
+      salesExecutive: cleanText(row[BDD.salesExecutive]) || null,
     };
     const current = grouped.get(groupKey);
     if (current) {

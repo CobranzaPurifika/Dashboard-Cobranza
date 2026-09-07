@@ -11,7 +11,7 @@ import {
 } from "../src/imports/consolidation.js";
 
 function rawBddRow(overrides = {}) {
-  const payload = Array(28).fill("");
+  const payload = Array(29).fill("");
   payload[1] = overrides.name ?? "Cliente Demo";
   payload[2] = overrides.rfc ?? "ABC010203AB1";
   payload[5] = overrides.folio ?? "AGS-100";
@@ -19,6 +19,7 @@ function rawBddRow(overrides = {}) {
   payload[11] = overrides.days ?? "45";
   payload[21] = overrides.balance ?? "$1,250.50";
   payload[23] = overrides.status ?? "Facturada";
+  payload[28] = overrides.salesExecutive ?? "Ejecutivo Demo";
   return { payload };
 }
 
@@ -31,6 +32,7 @@ test("BDD agrupa por Grupo De Facturación y suma el saldo de sus facturas", () 
   assert.equal(result.invoiceCount, 2);
   assert.equal(result.balance, 1500);
   assert.equal(result.clients[0].tramo, "critical");
+  assert.equal(result.clients[0].invoices[0].salesExecutive, "Ejecutivo Demo");
 });
 
 test("BDD ignora estatus ajenos a Facturada y Pago Parcial", () => {

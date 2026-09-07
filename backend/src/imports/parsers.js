@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { parse } from "csv-parse/sync";
 
-const BDD_COLUMNS = 28;
+const BDD_MIN_COLUMNS = 28;
+const BDD_SALES_EXECUTIVE_INDEX = 28;
 const BDD_POSITION_CHECKS = new Map([
   [1, "grupo de facturacion"],
   [5, "serie/folio"],
@@ -25,14 +26,23 @@ export function parseBddCsv(csvText) {
 
   if (rows.length === 0) throw new Error("El archivo BDD está vacío");
   const [header, ...dataRows] = rows;
-  if (header.length !== BDD_COLUMNS) {
-    throw new Error(`BDD debe tener 28 columnas; se recibieron ${header.length}`);
+  if (header.length < BDD_MIN_COLUMNS) {
+    throw new Error(`BDD debe tener al menos 28 columnas; se recibieron ${header.length}`);
   }
 
   for (const [index, expected] of BDD_POSITION_CHECKS) {
     if (normalizeHeader(header[index]) !== expected) {
       throw new Error(`Encabezado BDD inesperado en columna ${index + 1}: ${header[index]}`);
     }
+  }
+
+  if (
+    header.length > BDD_SALES_EXECUTIVE_INDEX
+    && normalizeHeader(header[BDD_SALES_EXECUTIVE_INDEX]) !== "ejecutivo de ventas"
+  ) {
+    throw new Error(
+      `Encabezado BDD inesperado en columna AC: ${header[BDD_SALES_EXECUTIVE_INDEX]}`
+    );
   }
 
   return dataRows.map((columns, index) => rawRow(index + 2, columns));

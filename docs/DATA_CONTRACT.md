@@ -5,7 +5,7 @@ dominio.
 
 | Dominio | Fuente de verdad | Puede modificar |
 | --- | --- | --- |
-| Cartera vigente | BDD | Clientes, saldo vigente, días, tramo, facturas pendientes y segmentación |
+| Cartera vigente | BDD | Clientes, saldo vigente, días, tramo, facturas pendientes, ejecutivo de ventas y segmentación |
 | Recuperación | Pagos | Historial de pagos y métricas de recuperación del periodo |
 | Gestión | Aplicación | Estatus, promesas, agenda, notas, lista negra y timeline |
 | Histórico | Snapshots | Fotografías semanales y mensuales inmutables |
@@ -30,6 +30,9 @@ dominio.
 15. RFC de 12 caracteres corresponde a Comercial; RFC de 13 caracteres o genérico, a Residencial.
 16. Cualquier pago positivo dentro de los cuatro días naturales inclusivos de una promesa la
     cumple, aunque el pago sea parcial. El cumplimiento pertenece al mes del pago.
+17. `Ejecutivo de Ventas` se toma de la columna AC de BDD y se conserva por factura; no modifica
+    saldos ni KPIs. Si un cliente tiene facturas de más de un ejecutivo, la ficha muestra todos
+    los nombres distintos.
 
 ## Perfiles y permisos
 
