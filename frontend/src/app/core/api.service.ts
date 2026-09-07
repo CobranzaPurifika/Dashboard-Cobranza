@@ -22,8 +22,14 @@ export class ApiService {
     return this.request(`/clientes/prioridad?${this.query(params)}`, { signal });
   }
 
-  gestionesMes = (month = '') =>
-    this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`);
+  gestionesMes = (month = '', signal?: AbortSignal) =>
+    this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`, { signal });
+
+  guardarNota(id: string, nota: string) {
+    return this.request(`/clientes/${id}/notas`, {
+      method: 'PUT', body: JSON.stringify({ nota }),
+    });
+  }
 
   guardarIncidencia(franchise: string, date: string, note: string) {
     return this.request(`/gestiones-mes/incidents/${encodeURIComponent(franchise)}/${date}`, {
