@@ -22,7 +22,7 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
     const drawLen = Math.max(len - gap, 0);
     const offset = -cumulative;
     const pct = total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
-    parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${TRAMO_COLOR[s.tramo]}" stroke-width="30" stroke-dasharray="${drawLen} ${circumference - drawLen}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"><title>${s.label}: ${fmtMoney(value)} (${pct}%)</title></circle>`;
+    parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${safeColor(TRAMO_COLOR[s.tramo])}" stroke-width="30" stroke-dasharray="${drawLen} ${circumference - drawLen}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHtml(s.label)}: ${fmtMoney(value)} (${pct}%)</title></circle>`;
     cumulative += len;
   }
   parts += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" class="donut-center-label">${fmtMoney(total)}</text>`;
@@ -32,7 +32,7 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
     .map((s) => {
       const value = Number(s.value);
       const pct = total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
-      return `<div class="legend-item"><span class="swatch" style="background:${TRAMO_COLOR[s.tramo]};"></span><span class="lbl">${s.label}</span><span class="val">${fmtMoney(value)}</span><span class="pct">${pct}%</span></div>`;
+      return `<div class="legend-item"><span class="swatch" style="background:${safeColor(TRAMO_COLOR[s.tramo])};"></span><span class="lbl">${escapeHtml(s.label)}</span><span class="val">${fmtMoney(value)}</span><span class="pct">${pct}%</span></div>`;
     })
     .join("");
 
@@ -89,7 +89,8 @@ export function renderDistribucion(distribucion) {
         tooltipText += "\n" + tooltipLines.join("\n");
         if (names.length > tooltipLines.length) tooltipText += `\n+${names.length - tooltipLines.length} más`;
       }
-      return `<div class="dist-row" title="${escapeAttr(tooltipText)}"><span class="dist-dot" style="background:${d.bg};"></span><span class="dist-label">${escapeHtml(d.label)}</span><div class="dist-track"><div class="dist-fill" style="width:${pct}%; background:${d.bg};"></div></div><span class="dist-value">${d.count}</span></div>`;
+      const color = safeColor(d.bg);
+      return `<div class="dist-row" title="${escapeAttr(tooltipText)}"><span class="dist-dot" style="background:${color};"></span><span class="dist-label">${escapeHtml(d.label)}</span><div class="dist-track"><div class="dist-fill" style="width:${pct}%; background:${color};"></div></div><span class="dist-value">${d.count}</span></div>`;
     })
     .join("");
   return { rows, sub: `${total} gestiones del periodo · por resultado` };
@@ -101,13 +102,13 @@ export function renderSegmentacion(seg) {
   const bar = seg
     .map((s) => {
       const pct = (Number(s.monto) / total) * 100;
-      return `<div class="seg" style="flex-basis:${pct}%; background:${COLOR[s.segment]};" title="${s.label}: ${fmtMoney(s.monto)} (${Math.round(pct * 10) / 10}%)"></div>`;
+      return `<div class="seg" style="flex-basis:${pct}%; background:${safeColor(COLOR[s.segment])};" title="${escapeAttr(s.label)}: ${fmtMoney(s.monto)} (${Math.round(pct * 10) / 10}%)"></div>`;
     })
     .join("");
   const legend = seg
     .map((s) => {
       const pct = (Number(s.monto) / total) * 100;
-      return `<div class="legend-item" style="width:auto;"><span class="swatch" style="background:${COLOR[s.segment]};"></span><span class="lbl">${s.label} · ${s.clientes} clientes</span><span class="val">${fmtMoney(s.monto)}</span><span class="pct">${Math.round(pct * 10) / 10}%</span></div>`;
+      return `<div class="legend-item" style="width:auto;"><span class="swatch" style="background:${safeColor(COLOR[s.segment])};"></span><span class="lbl">${escapeHtml(s.label)} · ${s.clientes} clientes</span><span class="val">${fmtMoney(s.monto)}</span><span class="pct">${Math.round(pct * 10) / 10}%</span></div>`;
     })
     .join("");
   return { bar, legend };
@@ -123,7 +124,7 @@ export function buildLineChartRecuperado(historico) {
   return buildLineChart(historico, {
     valueOf: (h) => Number(h.monto_recuperado) / 1000,
     dotTitle: (h, v) =>
-      `${h.label}: $${v.toFixed(2)}k${h.pct_cobertura != null ? ` · ${Number(h.pct_cobertura).toFixed(1)}% cobertura` : ""}`,
+      `${h.label ?? monthLabel(h.month)}: $${v.toFixed(2)}k${h.pct_cobertura != null ? ` · ${Number(h.pct_cobertura).toFixed(1)}% cobertura` : ""}`,
     endLabel: (v) => `$${v.toFixed(2)}k`,
     gridLabel: (v) => `${Math.round(v)}k`,
     emptyText: "Sin datos de recuperación todavía",
@@ -136,7 +137,7 @@ export function buildLineChartVencida(historicoVencida) {
   const META_PCT = 25;
   return buildLineChart(historicoVencida, {
     valueOf: (h) => Number(h.pct),
-    dotTitle: (h, v) => `${h.label}${h.provisional ? " (sin cerrar)" : ""}: ${v.toFixed(1)}%`,
+    dotTitle: (h, v) => `${h.label ?? monthLabel(h.month)}${h.provisional ? " (sin cerrar)" : ""}: ${v.toFixed(1)}%`,
     endLabel: (v) => `${v.toFixed(1)}%`,
     gridLabel: (v) => `${Math.round(v)}%`,
     emptyText: "Aún no hay cortes mensuales de cartera vencida registrados",
@@ -221,5 +222,16 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 function escapeAttr(str) {
-  return String(str ?? "").replace(/"/g, "&quot;");
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function safeColor(value) {
+  const color = String(value ?? "");
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)
+    ? color
+    : "#899499";
 }

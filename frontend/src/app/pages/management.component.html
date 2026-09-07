@@ -1,5 +1,5 @@
 <section class="management" [class.is-loading]="loading">
-  @if (error) { <div class="error-banner" role="alert">{{ error }}</div> }
+  @if (error) { <div class="error-banner" role="alert"><span>{{ error }}</span><button type="button" (click)="loadAll()">Reintentar</button></div> }
 
   <div class="management-grid">
     <article class="priority-card">
@@ -9,7 +9,10 @@
           <h1>Prioridad de contacto</h1>
           <p>Urgencia por tramo y monto · gestionados hoy al final</p>
         </div>
-        <div class="priority-total"><strong>{{ priorityShown }}</strong><span>de {{ priorityTotal }}</span></div>
+        <div class="priority-total">
+          @if (loading && !loaded) { <ion-spinner name="crescent"></ion-spinner><span>Cargando</span> }
+          @else { <strong>{{ priorityShown }}</strong><span>de {{ priorityTotal }}</span> }
+        </div>
       </header>
 
       <div class="segments" role="tablist" aria-label="Segmento">
@@ -24,7 +27,9 @@
       </label>
 
       <div class="priority-list">
-        @for (client of priority; track client.id) {
+        @if (loading && !loaded) {
+          <div class="priority-skeleton" aria-label="Cargando prioridad"><i></i><i></i><i></i><i></i><i></i></div>
+        } @else { @for (client of priority; track client.id) {
           <button class="priority-row" type="button" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted" (click)="openDetail(client.id)">
             <span class="segment-dot" [class.commercial]="client.segment === 'comercial'"></span>
             <span class="client-main">
@@ -41,13 +46,13 @@
           </button>
         } @empty {
           <div class="empty-state">No hay contactos para estos filtros.</div>
-        }
+        } }
       </div>
     </article>
 
     <aside class="management-side">
       <article class="side-card followup-card">
-        <header><div><span class="eyebrow">PENDIENTES</span><h2>Seguimiento</h2></div><span class="side-count">{{ overdue.length + scheduled.length }}</span></header>
+        <header><div><span class="eyebrow">PENDIENTES</span><h2>Seguimiento</h2></div><span class="side-count">{{ loading && !loaded ? '…' : overdue.length + scheduled.length }}</span></header>
 
         <section class="followup-section">
           <h3><span class="signal overdue"></span>Promesas incumplidas <i>{{ overdue.length }}</i></h3>
@@ -73,7 +78,7 @@
       </article>
 
       <article class="side-card blacklist-card">
-        <header><div><span class="eyebrow">CONTROL</span><h2>Lista negra</h2></div><span class="side-count">{{ blacklist.length }}</span></header>
+        <header><div><span class="eyebrow">CONTROL</span><h2>Lista negra</h2></div><span class="side-count">{{ loading && !loaded ? '…' : blacklist.length }}</span></header>
         @for (client of blacklist; track client.id) {
           <button type="button" (click)="openDetail(client.id)">
             <span><strong>{{ client.name }}</strong><small>{{ client.franchise_id }}</small></span>
