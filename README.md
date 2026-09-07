@@ -12,10 +12,11 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   no por un JSON congelado. BDD es la única fuente de la cartera vigente; Pagos conserva el
   historial de recuperación sin restar saldos localmente. Consulta el contrato completo en
   [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md).
-- **`frontend/`** — SPA estática (HTML/CSS/JS sin build step) que consume la API. Cubre KPIs,
+- **`frontend/`** — app Ionic + Angular standalone que consume la API. Cubre KPIs,
   las gráficas del dashboard original (dona de antigüedad de saldos, embudo de gestión,
   distribución de estatus, segmentación, cobertura del mes, recuperación mensual y tendencia
-  de cartera vencida — ver `frontend/src/charts.js`), tabla de clientes filtrable y bitácora
+  de cartera vencida — ver `frontend/src/app/core/charts.ts`), Prioridad de contacto,
+  Seguimiento, Lista negra y ficha lateral con la bitácora
   de gestión por cliente. Quien tenga el enlace entra sin cuenta y solo puede consultar métricas
   agregadas de todas las franquicias, sin clientes identificables. El administrador inicia sesión
   con correo y contraseña de Supabase Auth y entra directamente a Prioridad de contacto; su perfil
@@ -33,9 +34,13 @@ npm install
 npm run dev        # API en :3001
 
 cd ../frontend
-cp config.example.js config.js  # completar URL y anon key públicas de Supabase
-npx serve -l 5173 . # o cualquier servidor estático; el frontend apunta a localhost:3001/api
+npm install
+npm start          # Ionic + Angular en :5173; por defecto apunta a localhost:3001/api
 ```
+
+En producción `/config.js` lo genera el backend a partir de `SUPABASE_URL` y
+`SUPABASE_ANON_KEY`; esas dos variables son públicas por diseño y nunca deben confundirse con
+`DATABASE_URL`. El contenedor compila Ionic/Angular y copia el resultado estático junto a la API.
 
 La única cuenta operativa se crea desde Supabase Auth y después se registra en `app_users` con
 rol `admin`. Un usuario de Auth sin registro activo en `app_users` no obtiene permisos. En
@@ -83,9 +88,9 @@ Para producción, el repositorio incluye un contenedor único que sirve frontend
 verificación automática en cada pull request. La secuencia completa de migración, variables y
 primera carga controlada está en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-## Pendiente (siguiente sesión)
+## Interfaz
 
-- Migrar el frontend estático a Ionic + Angular conservando el contrato de autenticación y API.
-- Completar las interacciones restantes de Seguimiento.
-- Decidir hosting (Vercel/Render para el backend + estático para el frontend, o ambos juntos)
-  y crear el servicio con las variables de producción.
+La navegación reproduce la estructura del Artifact: Dashboard/Gestión, selector de franquicia,
+tema claro/oscuro y modo presentación. El acceso autenticado abre Prioridad de contacto; desde
+ahí se consultan Seguimiento, Agendados, Lista negra y la ficha completa del cliente. El acceso
+por enlace permanece limitado a métricas agregadas.

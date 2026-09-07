@@ -7,11 +7,29 @@ horarios de Drive se ejecutan de forma independiente mediante GitHub Actions.
 ## 1. Preparar Supabase
 
 Ejecutar, en orden, las migraciones de `supabase/migrations/` desde el SQL Editor del proyecto.
-La última migración requerida para la primera importación es
-`20260905100000_drive_import_consolidation.sql`.
+La última migración requerida es `20260907100000_sales_executive.sql`.
 
 El registro del administrador debe existir en `app_users`, con el mismo UUID de `auth.users` y
 `role = 'admin'`. El registro público de nuevas cuentas debe permanecer desactivado.
+
+Para crear la primera cuenta, usar **Authentication → Users → Add user** en Supabase, marcarla
+como confirmada y después ejecutar en SQL Editor (cambiando únicamente el correo si aplica):
+
+```sql
+insert into public.app_users (id, email, display_name, role, active)
+select id, email, 'Administrador', 'admin', true
+from auth.users
+where lower(email) = lower('cobranza.ags@purifika.com')
+on conflict (id) do update
+set email = excluded.email,
+    display_name = excluded.display_name,
+    role = 'admin',
+    active = true,
+    updated_at = now();
+```
+
+Si la consulta no inserta ninguna fila, el correo todavía no existe en Supabase Auth. La
+contraseña se crea o restablece en Authentication; no se guarda en `app_users` ni en Render.
 
 ## 2. Preparar Google Drive
 

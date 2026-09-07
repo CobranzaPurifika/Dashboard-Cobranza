@@ -1,0 +1,72 @@
+:host { display: block; min-height: 100%; color-scheme: light; }
+:host.dark-theme { color-scheme: dark; }
+.app-canvas { min-height: 100vh; background: var(--app-bg); color: var(--ink); }
+.topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; min-height: 64px; padding: 0 max(20px, calc((100vw - 1440px) / 2)); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(14px); }
+.brand { display: flex; align-items: center; gap: 9px; margin-right: 25px; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.drop { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px 11px 14px 14px; background: var(--accent); color: #07373a; transform: rotate(45deg); }
+.drop ion-icon { font-size: 19px; transform: rotate(-45deg); }
+.brand > span:last-child, .login-brand > span:last-child { display: grid; line-height: 1; text-align: left; }
+.brand strong, .login-brand strong { font-size: 13px; letter-spacing: .12em; }
+.brand small, .login-brand small { margin-top: 4px; color: var(--accent-strong); font-size: 8px; font-weight: 800; letter-spacing: .23em; }
+.primary-nav { align-self: stretch; display: flex; align-items: stretch; margin-right: 20px; }
+.primary-nav button { position: relative; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.primary-nav button::after { content: ''; position: absolute; right: 12px; bottom: 0; left: 12px; height: 3px; border-radius: 3px 3px 0 0; background: transparent; }
+.primary-nav button.active { color: var(--ink); }
+.primary-nav button.active::after { background: var(--accent); }
+.franchise-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--surface-soft); }
+.franchise-tabs button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 10px; cursor: pointer; }
+.franchise-tabs button.active { background: var(--accent); color: #07373a; font-weight: 800; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 24%, transparent); }
+.topbar-spacer { flex: 1; }
+.portfolio-summary { display: grid; margin: 0 14px; padding-right: 15px; border-right: 1px solid var(--line); text-align: right; }
+.portfolio-summary small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.portfolio-summary strong { margin-top: 2px; color: var(--ink-soft); font-size: 10px; white-space: nowrap; }
+.header-actions { display: flex; align-items: center; gap: 5px; }
+.header-actions > button { display: inline-flex; height: 34px; min-width: 34px; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; }
+.header-actions ion-icon { font-size: 16px; }
+.header-actions .account-button span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.workspace { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 22px 0 36px; }
+.app-error { margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
+.app-loading { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+.settings-popover { position: fixed; top: 58px; right: max(20px, calc((100vw - 1440px) / 2)); z-index: 70; width: min(350px, calc(100vw - 30px)); padding: 17px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.settings-popover header { display: flex; justify-content: space-between; }
+.settings-popover header div { display: grid; }
+.settings-popover header span { color: var(--accent-strong); font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.settings-popover header strong { margin-top: 3px; font-size: 14px; }
+.settings-popover header button { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.settings-popover p { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.settings-popover > small { display: block; margin-top: 10px; color: var(--muted); font-size: 9px; }
+.sync-button { display: flex; width: 100%; align-items: center; justify-content: center; gap: 7px; padding: 10px; border: 0; border-radius: 8px; background: var(--accent); color: #07373a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.exit-presentation { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: inherit; font-size: 9px; cursor: pointer; }
+
+.login-screen { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent) 12%, var(--app-bg)), var(--app-bg) 55%); }
+.login-card { width: min(390px, 100%); padding: 34px 32px 30px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 29px; }
+.login-card h1 { margin: 0; color: var(--ink); font-size: 28px; letter-spacing: -.04em; }
+.login-card > p { margin: 8px 0 25px; color: var(--muted); font-size: 12px; }
+.login-card label { display: block; margin-top: 14px; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+.login-card input { display: block; width: 100%; margin-top: 6px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--input); color: var(--ink); font: inherit; font-size: 12px; }
+.login-card input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.login-error { margin-top: 13px; color: #d84f43; font-size: 10px; }
+.login-submit, .login-cancel { display: flex; width: 100%; min-height: 42px; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; border-radius: 9px; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.login-submit { border: 0; background: var(--accent); color: #06373a; }
+.login-submit ion-spinner { width: 16px; height: 16px; }
+.login-cancel { margin-top: 9px; border: 1px solid var(--line); background: transparent; color: var(--ink-soft); }
+
+:host.presentation-mode .topbar { display: none; }
+:host.presentation-mode .workspace { width: min(1600px, calc(100% - 34px)); padding-top: 17px; }
+
+@media (max-width: 1050px) {
+  .portfolio-summary { display: none; }
+  .topbar { flex-wrap: wrap; gap: 7px; padding-top: 8px; padding-bottom: 8px; }
+  .franchise-tabs { order: 5; width: 100%; overflow: auto; }
+}
+@media (max-width: 680px) {
+  .topbar { padding-left: 14px; padding-right: 14px; }
+  .brand { margin-right: 5px; }
+  .primary-nav { margin-right: 0; }
+  .primary-nav button { padding: 0 9px; }
+  .header-actions > button:not(.account-button) { display: none; }
+  .header-actions .account-button span { display: none; }
+  .workspace { width: min(100% - 24px, 1440px); padding-top: 13px; }
+  .login-card { padding: 28px 23px 24px; }
+}
