@@ -43,6 +43,8 @@ export class AppComponent implements OnInit {
   syncStatus = '';
   settingsVisible = false;
   appError = '';
+  private dashboardAbort?: AbortController;
+  private dashboardRequest = 0;
 
   constructor(private readonly api: ApiService, private readonly auth: AuthService) {}
 
@@ -118,21 +120,28 @@ export class AppComponent implements OnInit {
     if (!this.dashboardData) await this.loadDashboard();
   }
 
-  async selectFranchise(id: string): Promise<void> {
+  selectFranchise(id: string): void {
     if (this.franchise === id) return;
     this.franchise = id;
-    await this.loadDashboard();
+    void this.loadDashboard();
   }
 
   async loadDashboard(): Promise<void> {
+    const requestId = ++this.dashboardRequest;
+    this.dashboardAbort?.abort();
+    const controller = new AbortController();
+    this.dashboardAbort = controller;
     this.loading = true;
     this.appError = '';
     try {
-      this.dashboardData = await this.api.dashboard(this.franchise);
+      const data = await this.api.dashboard(this.franchise, controller.signal);
+      if (requestId === this.dashboardRequest) this.dashboardData = data;
     } catch (error: any) {
-      this.appError = error.message;
+      if (error?.name !== 'AbortError' && requestId === this.dashboardRequest) {
+        this.appError = error.message;
+      }
     } finally {
-      this.loading = false;
+      if (requestId === this.dashboardRequest) this.loading = false;
     }
   }
 

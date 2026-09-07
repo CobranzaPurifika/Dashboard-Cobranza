@@ -23,7 +23,8 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   incluye las tareas de gestor.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
-  `vencida_snapshots`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
+  `vencida_snapshots`, `portfolio_snapshots`, `management_daily_goals` y
+  `management_day_incidents`. RLS activado sin políticas públicas — solo el backend (vía `DATABASE_URL`
   con credenciales de servicio) tiene acceso; nunca exponer esa cadena de conexión al frontend.
 
 ## Desarrollo local
@@ -94,3 +95,13 @@ La navegación reproduce la estructura del Artifact: Dashboard/Gestión, selecto
 tema claro/oscuro y modo presentación. El acceso autenticado abre Prioridad de contacto; desde
 ahí se consultan Seguimiento, Agendados, Lista negra y la ficha completa del cliente. El acceso
 por enlace permanece limitado a métricas agregadas.
+
+Los tres KPI de cartera comparan contra el último corte mensual real anterior al mes en curso;
+si falta un campo histórico, su delta no se muestra. La dona de saldos permite alternar entre
+cartera completa y solo vencida. Recuperación alterna entre semana (lunes o inicio de mes) y mes
+calendario usando el historial de `pagos`.
+
+En Gestión, las tres listas usan scroll interno y comparten el alto visible de la página. La fila
+de Prioridad no abre accidentalmente el detalle: la acción explícita es **Gestionar**. El panel
+lateral **Gestiones del mes** calcula clientes únicos por día hábil, limita el cumplimiento diario
+al 100%, excluye sábados y domingos y permite justificar un día mediante una incidencia.

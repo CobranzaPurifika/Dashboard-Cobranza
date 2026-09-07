@@ -15,26 +15,39 @@
 .kpi-heading { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; font-weight: 650; }
 .kpi-heading ion-icon { font-size: 18px; color: var(--tone); }
 .kpi-card strong { display: block; margin: 9px 0 1px; color: var(--ink); font-size: clamp(29px, 3vw, 42px); line-height: 1; letter-spacing: -.04em; }
+.kpi-value { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.kpi-delta { display: grid; margin-bottom: 2px; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; line-height: 1.1; text-align: right; }
+.kpi-delta small { margin-top: 3px; color: var(--muted); font-size: 7px; font-weight: 600; white-space: nowrap; }
+.kpi-delta.is-good { color: #239653; background: color-mix(in srgb, #2cae60 11%, transparent); }
+.kpi-delta.is-bad { color: #d84f43; background: color-mix(in srgb, #d84f43 10%, transparent); }
 .kpi-card p { margin: 7px 0 16px; color: var(--ink-soft); font-size: 14px; }
 .goal-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
 .goal-track, .coverage-track { height: 5px; background: var(--surface-soft); border-radius: 999px; overflow: hidden; }
 .goal-track i, .coverage-track i { display: block; height: 100%; width: 0; max-width: 100%; background: var(--tone); border-radius: inherit; }
 
-.visual-grid { display: grid; grid-template-columns: 1.05fr 1fr 1fr; gap: 16px; align-items: stretch; }
+.visual-grid { display: grid; grid-template-columns: 1.05fr 1fr 1fr; grid-template-rows: auto minmax(300px, auto) minmax(315px, auto); gap: 16px; align-items: stretch; }
 .panel-card { min-width: 0; padding: 20px; }
 .panel-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
 .panel-title h2 { margin: 3px 0 0; font-size: 17px; letter-spacing: -.02em; color: var(--ink); }
 .eyebrow { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .13em; }
-.portfolio-total { font-size: 13px; color: var(--muted); font-weight: 700; }
+.current-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--muted); font: inherit; font-size: 8px; cursor: pointer; }
+.current-toggle i { position: relative; width: 23px; height: 13px; border-radius: 999px; background: var(--line); }
+.current-toggle i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface); transition: transform .15s ease; }
+.current-toggle.active { color: var(--accent-strong); }
+.current-toggle.active i { background: var(--accent); }
+.current-toggle.active i::after { transform: translateX(10px); }
 .total-pill { min-width: 34px; height: 26px; display: grid; place-items: center; padding: 0 9px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 12px; font-weight: 800; }
 .panel-subtitle { margin: -6px 0 12px; color: var(--muted); font-size: 11px; }
-.donut-layout { display: grid; grid-template-columns: minmax(135px, .85fr) minmax(160px, 1.15fr); align-items: center; gap: 8px; min-height: 230px; }
-.donut { max-width: 220px; }
+.donut-layout { display: grid; place-items: center; min-height: 185px; }
+.donut { width: min(190px, 72%); }
 .donut :global(svg) { width: 100%; }
 .legend { min-width: 0; }
+.balance-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 15px; padding-top: 8px; border-top: 1px solid var(--line); }
 .funnel-card, .distribution-card { min-height: 345px; }
 .funnel, .distribution { min-height: 175px; }
-.rates { margin-top: 9px; }
+.funnel-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(105px, .62fr); gap: 12px; align-items: start; }
+.funnel-layout .rates { grid-template-columns: 1fr; }
+.promise { margin-top: 9px; }
 .period-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
 .period-toggle button { border: 0; border-radius: 7px; padding: 5px 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; }
 .period-toggle .active { color: #07383c; background: var(--accent); font-weight: 750; }
@@ -46,24 +59,33 @@
 .payments-table div span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .payments-table strong { color: var(--ink); }
 .empty-state { display: grid; min-height: 120px; place-items: center; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; font-size: 12px; }
-.segment-bar { margin: 24px 0 14px; min-height: 30px; }
+.balance-card { grid-column: 1; }
+.funnel-card { grid-column: 2; }
+.distribution-card { grid-column: 3; }
+.recovered-card { grid-column: 1; grid-row: 2 / span 2; min-height: 631px; }
+.overdue-history-card { grid-column: 2 / span 2; grid-row: 2; }
+.segmentation-card { grid-column: 2; grid-row: 3; }
+.recovery-history-card { grid-column: 3; grid-row: 3; }
+.segmentation-layout { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); align-items: center; gap: 12px; }
+.segment-donut { width: min(180px, 100%); margin: 0 auto; }
 .coverage { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
 .coverage > div:first-child { display: flex; justify-content: space-between; margin-bottom: 9px; color: var(--muted); font-size: 12px; }
 .coverage strong { color: var(--ink); }
 .coverage-track i { background: var(--accent); }
 .history-card { min-height: 315px; }
-.history-card.wide { grid-column: span 2; }
 .line-chart { min-height: 230px; overflow: hidden; }
 
 @media (max-width: 1100px) {
   .visual-grid { grid-template-columns: repeat(2, 1fr); }
-  .history-card.wide { grid-column: span 1; }
+  .balance-card, .funnel-card, .distribution-card, .recovered-card,
+  .overdue-history-card, .segmentation-card, .recovery-history-card { grid-column: auto; grid-row: auto; }
+  .recovered-card { min-height: 500px; }
 }
 @media (max-width: 760px) {
   .kpi-grid, .dashboard-skeleton, .visual-grid { grid-template-columns: 1fr; }
   .kpi-card { padding: 17px 19px; }
   .kpi-card strong { font-size: 34px; }
-  .donut-layout { grid-template-columns: 1fr; }
   .donut { margin: 0 auto; width: min(70vw, 220px); }
-  .history-card.wide { grid-column: auto; }
+  .balance-legend { grid-template-columns: 1fr; }
+  .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
 }

@@ -8,15 +8,33 @@ export class ApiService {
   constructor(private readonly auth: AuthService) {}
 
   me = () => this.request('/me');
-  dashboard = (franchise: string) => this.request(`/dashboard/${franchise}`);
+  dashboard = (franchise: string, signal?: AbortSignal) =>
+    this.request(`/dashboard/${franchise}`, { signal });
   statusGestion = () => this.request('/status-gestion');
-  cliente = (id: string) => this.request(`/clientes/${id}`);
-  seguimiento = (franchise: string) => this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`);
-  blacklist = (franchise: string) => this.request(`/blacklist?franchise=${encodeURIComponent(franchise)}`);
+  cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
+  seguimiento = (franchise: string, signal?: AbortSignal) =>
+    this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });
+  blacklist = (franchise: string, signal?: AbortSignal) =>
+    this.request(`/blacklist?franchise=${encodeURIComponent(franchise)}`, { signal });
   syncData = () => this.request('/importaciones/sync', { method: 'POST' });
 
-  prioridad(params: Record<string, string>) {
-    return this.request(`/clientes/prioridad?${this.query(params)}`);
+  prioridad(params: Record<string, string>, signal?: AbortSignal) {
+    return this.request(`/clientes/prioridad?${this.query(params)}`, { signal });
+  }
+
+  gestionesMes = (month = '') =>
+    this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`);
+
+  guardarIncidencia(franchise: string, date: string, note: string) {
+    return this.request(`/gestiones-mes/incidents/${encodeURIComponent(franchise)}/${date}`, {
+      method: 'PUT', body: JSON.stringify({ note }),
+    });
+  }
+
+  quitarIncidencia(franchise: string, date: string) {
+    return this.request(`/gestiones-mes/incidents/${encodeURIComponent(franchise)}/${date}`, {
+      method: 'DELETE',
+    });
   }
 
   clientes(params: Record<string, string>) {
