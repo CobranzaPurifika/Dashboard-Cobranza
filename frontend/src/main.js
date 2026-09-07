@@ -534,10 +534,18 @@ async function openDetail(id) {
       ? '<p><span class="blacklist-badge">En Lista negra</span></p>'
       : "";
 
+  const salesExecutives = [...new Set(
+    c.invoices.map((invoice) => invoice.ejecutivo_ventas).filter(Boolean)
+  )];
+  const salesExecutiveBlock = salesExecutives.length
+    ? `<p class="muted"><strong>Ejecutivo de ventas:</strong> ${salesExecutives.map(escapeHtml).join(", ")}</p>`
+    : "";
+
   content.innerHTML = `
     <h2>${escapeHtml(c.name)}</h2>
     <p class="muted">${escapeHtml(c.franchise_id)} · ${escapeHtml(c.segment_label)} · RFC ${escapeHtml(c.rfc ?? "N/A")}</p>
     <p class="saldo">${fmtMoney(c.saldo)} <span class="badge badge-${c.tramo}">${TRAMO_LABEL[c.tramo] ?? c.tramo}</span></p>
+    ${salesExecutiveBlock}
     ${c.portfolio_status === "pending_validation" ? '<p class="pending-notice">Pendiente de validar: no apareció en la BDD y todavía no existe evidencia de pago total.</p>' : ""}
 
     ${gestionBlock}
