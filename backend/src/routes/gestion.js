@@ -82,18 +82,16 @@ gestionRouter.post(
         `update clientes
          set estatus_value = $1, last_gestion_iso = $2,
              promise_gestion_iso = $3, promise_deadline_iso = $4,
-             notas = coalesce($5, notas),
-             agenda_active = $6, agenda_fecha_iso = $7, agenda_hora = $8,
-             agenda_nota = $9, agenda_detail = $10, agenda_updated_by = $11,
+             agenda_active = $5, agenda_fecha_iso = $6, agenda_hora = $7,
+             agenda_nota = $8, agenda_detail = $9, agenda_updated_by = $10,
              updated_at = now()
-         where id = $12
+         where id = $11
          returning *`,
         [
           estatusValue,
           nowISO,
           isPaymentPromise ? nowISO : null,
           promiseDeadlineISO,
-          comentario ?? null,
           isCallLater,
           isCallLater ? agenda.fechaISO : null,
           isCallLater ? agenda.hora : null,
