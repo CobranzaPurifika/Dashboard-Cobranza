@@ -28,8 +28,16 @@
 .header-actions ion-icon { font-size: 16px; }
 .header-actions .account-button span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 .workspace { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 22px 0 36px; }
-.app-error { margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
-.app-loading { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+.app-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
+.app-error button, .app-start-error button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: #07373a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.app-loading { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); text-align: center; }
+.app-loading strong { color: var(--ink-soft); font-size: 13px; }
+.app-loading span { max-width: 360px; font-size: 10px; line-height: 1.5; }
+.app-start-error { min-height: 65vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.app-start-error > ion-icon { color: #d84f43; font-size: 38px; }
+.app-start-error > span { display: grid; gap: 6px; }
+.app-start-error strong { color: var(--ink); font-size: 16px; }
+.app-start-error small { max-width: 520px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .settings-backdrop { position: fixed; inset: 0; z-index: 110; border: 0; background: rgba(3, 14, 18, .56); backdrop-filter: blur(2px); }
 .settings-panel { position: fixed; inset: 0 0 0 auto; z-index: 120; display: grid; grid-template-rows: auto auto minmax(0, 1fr); width: min(680px, 96vw); border-left: 1px solid var(--line); background: var(--surface); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: settings-in .2s ease-out; }
 @keyframes settings-in { from { transform: translateX(32px); opacity: .5; } }

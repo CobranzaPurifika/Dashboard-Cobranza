@@ -1,0 +1,18 @@
+{
+  "name": "cobranza-purifika",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace frontend -- --output-path ../public",
+    "test": "npm test --workspace frontend && npm test --workspace backend",
+    "check": "npm run check --workspace backend && node --check api/index.js && node --check api/config.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

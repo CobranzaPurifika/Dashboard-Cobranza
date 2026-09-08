@@ -1,6 +1,7 @@
 node_modules/
 frontend/.angular/
 frontend/www/
+public/
 .env
 .env.local
 frontend/config.js

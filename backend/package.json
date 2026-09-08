@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/imports/rawImport.js && node --check src/imports/runScheduled.js && node --check src/imports/consolidation.js && node --check src/routes/dashboard.js && node --check src/routes/gestion.js && node --check src/routes/monthlyManagement.js && node --check src/routes/notas.js && node --check src/routes/statusGestion.js && node --check src/domain/monthlyManagement.js",
+    "check": "node --check src/app.js && node --check src/server.js && node --check src/imports/rawImport.js && node --check src/imports/runScheduled.js && node --check src/imports/consolidation.js && node --check src/routes/dashboard.js && node --check src/routes/gestion.js && node --check src/routes/monthlyManagement.js && node --check src/routes/notas.js && node --check src/routes/statusGestion.js && node --check src/domain/monthlyManagement.js",
     "import:scheduled": "node src/imports/runScheduled.js"
   },
   "dependencies": {
