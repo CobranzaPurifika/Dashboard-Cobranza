@@ -21,12 +21,29 @@ describe('ManagementComponent', () => {
     component.segment = 'residencial';
     const second = component.loadPriority();
 
+    expect(component.priorityLoading).toBe(true);
+
     residential.resolve({ rows: [{ id: 'residencial' }], shown: 1, total: 1 });
     await second;
     commercial.resolve({ rows: [{ id: 'comercial' }], shown: 1, total: 1 });
     await first;
 
     expect(component.priority).toEqual([{ id: 'residencial' }]);
+    expect(component.priorityLoading).toBe(false);
+  });
+
+  it('conserva un error recuperable cuando no puede abrir el detalle', async () => {
+    const api = {
+      cliente: async () => { throw new Error('La solicitud tardó demasiado'); },
+    } as any;
+    const component = new ManagementComponent(api);
+
+    await component.openDetail('cliente-1');
+
+    expect(component.detail).toBeNull();
+    expect(component.detailLoading).toBe(false);
+    expect(component.pendingDetailId).toBe('cliente-1');
+    expect(component.detailLoadError).toBe('La solicitud tardó demasiado');
   });
 
   it('muestra el error de Gestiones del mes y deja de cargar', async () => {

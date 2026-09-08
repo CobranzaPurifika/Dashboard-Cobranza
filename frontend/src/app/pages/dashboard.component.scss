@@ -25,10 +25,11 @@
 .goal-track, .coverage-track { height: 5px; background: var(--surface-soft); border-radius: 999px; overflow: hidden; }
 .goal-track i, .coverage-track i { display: block; height: 100%; width: 0; max-width: 100%; background: var(--tone); border-radius: inherit; }
 
-.visual-grid { display: grid; grid-template-columns: 1.05fr 1fr 1fr; grid-template-rows: auto minmax(300px, auto) minmax(315px, auto); gap: 16px; align-items: stretch; }
+.visual-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 .panel-card { min-width: 0; padding: 20px; }
 .panel-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
 .panel-title h2 { margin: 3px 0 0; font-size: 17px; letter-spacing: -.02em; color: var(--ink); }
+.panel-note { align-self: center; color: var(--muted); font-size: 9px; }
 .eyebrow { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .13em; }
 .current-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--muted); font: inherit; font-size: 8px; cursor: pointer; }
 .current-toggle i { position: relative; width: 23px; height: 13px; border-radius: 999px; background: var(--line); }
@@ -59,16 +60,12 @@
 .payments-table div span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .payments-table strong { color: var(--ink); }
 .empty-state { display: grid; min-height: 120px; place-items: center; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; font-size: 12px; }
-.balance-card { grid-column: 1; }
-.funnel-card { grid-column: 2; }
-.distribution-card { grid-column: 3; }
-.recovered-card { grid-column: 1; grid-row: 2 / span 2; min-height: 631px; }
-.overdue-history-card { grid-column: 2 / span 2; grid-row: 2; }
-.segmentation-card { grid-column: 2; grid-row: 3; }
-.recovery-history-card { grid-column: 3; grid-row: 3; }
-.segmentation-layout { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); align-items: center; gap: 12px; }
-.segment-donut { width: min(180px, 100%); margin: 0 auto; }
-.coverage { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.balance-card, .funnel-card, .distribution-card { grid-column: span 2; }
+.recovered-card, .segmentation-card, .overdue-history-card, .recovery-history-card { grid-column: span 3; }
+.recovered-card { min-height: 420px; }
+.segmentation-bar { display: flex; height: 28px; margin-top: 20px; overflow: hidden; border-radius: 7px; background: var(--surface-soft); }
+.segmentation-legend { display: grid; gap: 3px; margin-top: 14px; }
+.coverage { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); }
 .coverage > div:first-child { display: flex; justify-content: space-between; margin-bottom: 9px; color: var(--muted); font-size: 12px; }
 .coverage strong { color: var(--ink); }
 .coverage-track i { background: var(--accent); }
@@ -87,5 +84,5 @@
   .kpi-card strong { font-size: 34px; }
   .donut { margin: 0 auto; width: min(70vw, 220px); }
   .balance-legend { grid-template-columns: 1fr; }
-  .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
+  .funnel-layout { grid-template-columns: 1fr; }
 }

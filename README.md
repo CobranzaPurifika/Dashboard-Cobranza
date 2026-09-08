@@ -19,8 +19,8 @@ HTML y se persistía republicando el archivo completo) a una app convencional:
   Seguimiento, Lista negra y ficha lateral con la bitácora
   de gestión por cliente. Quien tenga el enlace entra sin cuenta y solo puede consultar métricas
   agregadas de todas las franquicias, sin clientes identificables. El administrador inicia sesión
-  con correo y contraseña de Supabase Auth y entra directamente a Prioridad de contacto; su perfil
-  incluye las tareas de gestor.
+  con correo y contraseña de Supabase Auth; la pantalla inicial se elige en Configuración y su
+  perfil incluye las tareas de gestor.
 - **Base de datos**: Supabase Postgres (proyecto `Gestion_Cobranza`), tablas `clientes`,
   `facturas`, `pagos`, `gestion_timeline`, `blacklist`, `status_gestion`, `kpi_snapshots`,
   `vencida_snapshots`, `portfolio_snapshots`, `management_daily_goals` y
@@ -92,16 +92,18 @@ primera carga controlada está en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 ## Interfaz
 
 La navegación reproduce la estructura del Artifact: Dashboard/Gestión, selector de franquicia,
-tema claro/oscuro y modo presentación. El acceso autenticado abre Prioridad de contacto; desde
-ahí se consultan Seguimiento, Agendados, Lista negra y la ficha completa del cliente. El acceso
-por enlace permanece limitado a métricas agregadas.
+tema claro/oscuro y modo presentación. Configuración permite elegir pantalla inicial, franquicia
+predeterminada, tema y densidad; también administra metas diarias, estatus de gestión y la
+sincronización de datos. El acceso autenticado abre Dashboard por defecto; desde Gestión se
+consultan Seguimiento, Agendados, Lista negra y la ficha completa del cliente. El acceso por
+enlace permanece limitado a métricas agregadas.
 
 Los tres KPI de cartera comparan contra el último corte mensual real anterior al mes en curso;
 si falta un campo histórico, su delta no se muestra. La dona de saldos permite alternar entre
 cartera completa y solo vencida. Recuperación alterna entre semana (lunes o inicio de mes) y mes
 calendario usando el historial de `pagos`.
 
-En Gestión, las tres listas usan scroll interno y comparten el alto visible de la página. La fila
-de Prioridad no abre accidentalmente el detalle: la acción explícita es **Gestionar**. El panel
-lateral **Gestiones del mes** calcula clientes únicos por día hábil, limita el cumplimiento diario
+En Gestión, las tres listas usan scroll interno y comparten el alto visible de la página. Tanto la
+fila de Prioridad como la acción **Gestionar** abren el detalle, incluido en pantallas móviles. El
+panel lateral **Gestiones del mes** calcula clientes únicos por día hábil, limita el cumplimiento diario
 al 100%, excluye sábados y domingos y permite justificar un día mediante una incidencia.

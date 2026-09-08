@@ -11,10 +11,17 @@ export class ApiService {
   dashboard = (franchise: string, signal?: AbortSignal) =>
     this.request(`/dashboard/${franchise}`, { signal });
   statusGestion = () => this.request('/status-gestion');
+  managementGoals = () => this.request('/gestiones-mes/goals');
 
   actualizarStatus(value: string, body: { label: string; bg: string; efectiva: boolean; sortOrder: number }) {
     return this.request(`/status-gestion/${encodeURIComponent(value)}`, {
       method: 'PUT', body: JSON.stringify(body),
+    });
+  }
+
+  actualizarMetaGestion(franchise: string, dailyGoal: number) {
+    return this.request(`/gestiones-mes/goals/${encodeURIComponent(franchise)}`, {
+      method: 'PUT', body: JSON.stringify({ dailyGoal }),
     });
   }
   cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
@@ -70,14 +77,32 @@ export class ApiService {
 
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.auth.getValidAccessToken();
-    const response = await fetch(`${this.apiBase}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers ?? {}),
-      },
-    });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort('timeout'), 20_000);
+    const externalSignal = options.signal;
+    const abortFromExternal = () => controller.abort(externalSignal?.reason);
+    if (externalSignal?.aborted) abortFromExternal();
+    else externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiBase}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(options.headers ?? {}),
+        },
+      });
+    } catch (error: any) {
+      if (controller.signal.aborted && !externalSignal?.aborted) {
+        throw new Error('La solicitud tardó demasiado. Revisa tu conexión e intenta nuevamente.');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+      externalSignal?.removeEventListener('abort', abortFromExternal);
+    }
 
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));

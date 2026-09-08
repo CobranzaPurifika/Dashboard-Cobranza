@@ -27,7 +27,7 @@ export class DashboardComponent implements OnChanges {
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
   funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
   distribution: { rows?: SafeHtml; sub?: string } = {};
-  segmentation: { svg?: SafeHtml; legend?: SafeHtml } = {};
+  segmentation: { bar?: SafeHtml; legend?: SafeHtml } = {};
   recoveryChart?: SafeHtml;
   overdueChart?: SafeHtml;
 
@@ -82,7 +82,7 @@ export class DashboardComponent implements OnChanges {
       promise: this.safe(funnel.promise),
     };
     this.distribution = { rows: this.safe(distribution.rows), sub: distribution.sub };
-    this.segmentation = { svg: this.safe(segmentation.svg), legend: this.safe(segmentation.legend) };
+    this.segmentation = { bar: this.safe(segmentation.bar), legend: this.safe(segmentation.legend) };
     this.recoveryChart = this.safe(buildLineChartRecuperado(this.data.historico ?? []));
     this.overdueChart = this.safe(buildLineChartVencida(this.data.historicoVencida ?? []));
   }

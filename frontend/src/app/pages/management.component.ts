@@ -33,8 +33,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   segment = '';
   query = '';
   loading = false;
+  priorityLoading = false;
   loaded = false;
   detailLoading = false;
+  detailLoadError = '';
+  pendingDetailId = '';
   detail: any = null;
   error = '';
   showStats = false;
@@ -54,6 +57,9 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   noteSaving = false;
   clientNotes = '';
   showAllTimeline = false;
+  showAgendaModal = false;
+  showInvoicesModal = false;
+  selectedInvoiceIds = new Set<string>();
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
@@ -74,7 +80,15 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     // Los cambios de franquicia son el único disparador de las tres consultas. Evitar
     // recargas por referencias de usuario/catálogo elimina abortos cruzados al arrancar.
-    if (changes['franchise'] || !this.loaded) void this.loadAll();
+    if (changes['franchise']) {
+      this.priority = [];
+      this.overdue = [];
+      this.scheduled = [];
+      this.blacklist = [];
+      this.loaded = false;
+      this.closeDetail();
+    }
+    if (changes['franchise']) void this.loadAll();
   }
 
   ngOnDestroy(): void {
@@ -95,13 +109,17 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   }
 
   setSegment(value: string): void {
+    if (this.segment === value) return;
     this.segment = value;
-    void this.loadPriority();
+    this.priority = [];
+    void this.reloadPriority();
   }
 
   onSearch(): void {
     clearTimeout(this.queryTimer);
-    this.queryTimer = setTimeout(() => void this.loadPriority(), 300);
+    this.priorityLoading = true;
+    this.priority = [];
+    this.queryTimer = setTimeout(() => void this.reloadPriority(), 300);
   }
 
   async loadAll(): Promise<void> {
@@ -128,6 +146,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     const controller = new AbortController();
     this.priorityAbort = controller;
     const requestId = ++this.priorityRequest;
+    this.priorityLoading = true;
     try {
       const result = await this.api.prioridad({
         franchise: this.franchise,
@@ -141,6 +160,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError') throw error;
+    } finally {
+      if (requestId === this.priorityRequest) this.priorityLoading = false;
     }
   }
 
@@ -178,7 +199,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     const controller = new AbortController();
     this.detailAbort = controller;
     const requestId = ++this.detailRequest;
+    this.pendingDetailId = id;
     this.detailLoading = true;
+    this.detailLoadError = '';
+    if (this.detail?.id !== id) this.detail = null;
     this.error = '';
     try {
       const detail = await this.api.cliente(id, controller.signal);
@@ -192,8 +216,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.agendaNote = this.detail.agenda_nota ?? '';
       this.clientNotes = this.detail.notas ?? '';
       this.showAllTimeline = false;
+      this.showAgendaModal = false;
+      this.showInvoicesModal = false;
+      this.selectedInvoiceIds = new Set();
+      this.pendingDetailId = '';
     } catch (error: any) {
-      if (error?.name !== 'AbortError') this.error = error.message;
+      if (error?.name !== 'AbortError') this.detailLoadError = error.message;
     } finally {
       if (!controller.signal.aborted && requestId === this.detailRequest) this.detailLoading = false;
     }
@@ -203,7 +231,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailAbort?.abort();
     this.detailRequest += 1;
     this.detailLoading = false;
+    this.detailLoadError = '';
+    this.pendingDetailId = '';
     this.detail = null;
+    this.showAgendaModal = false;
+    this.showInvoicesModal = false;
   }
 
   async openMonthlyStats(): Promise<void> {
@@ -267,6 +299,41 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     } finally {
       this.saving = false;
     }
+  }
+
+  retryDetail(): void {
+    if (this.pendingDetailId) void this.openDetail(this.pendingDetailId);
+  }
+
+  openAgenda(): void {
+    if (!this.detail) return;
+    this.showAgendaModal = true;
+  }
+
+  closeAgenda(): void { this.showAgendaModal = false; }
+
+  openInvoices(): void {
+    this.selectedInvoiceIds = new Set();
+    this.showInvoicesModal = true;
+  }
+
+  toggleInvoice(id: string): void {
+    const next = new Set(this.selectedInvoiceIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.selectedInvoiceIds = next;
+  }
+
+  toggleAllInvoices(): void {
+    const invoices = this.detail?.invoices ?? [];
+    this.selectedInvoiceIds = this.selectedInvoiceIds.size === invoices.length
+      ? new Set()
+      : new Set(invoices.map((invoice: any) => String(invoice.id)));
+  }
+
+  selectedInvoicesTotal(): number {
+    return (this.detail?.invoices ?? [])
+      .filter((invoice: any) => this.selectedInvoiceIds.has(String(invoice.id)))
+      .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
   }
 
   async saveNote(): Promise<void> {
@@ -339,6 +406,15 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   private async refreshContext(id: string): Promise<void> {
     await Promise.all([this.openDetail(id), this.loadAll()]);
     this.refreshRequested.emit();
+  }
+
+  private async reloadPriority(): Promise<void> {
+    this.error = '';
+    try {
+      await this.loadPriority();
+    } catch (error: any) {
+      this.error = error.message;
+    }
   }
 
   private isCallLater(status: any): boolean {
