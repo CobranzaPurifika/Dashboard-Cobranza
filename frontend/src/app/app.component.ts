@@ -63,8 +63,10 @@ export class AppComponent implements OnInit {
   goalSaving = '';
   goalError = '';
   appError = '';
+  bootstrapSlow = false;
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
+  private bootstrapTimer?: number;
 
   constructor(private readonly api: ApiService, private readonly auth: AuthService) {}
 
@@ -81,7 +83,10 @@ export class AppComponent implements OnInit {
 
   async openApp(): Promise<void> {
     this.bootstrapping = true;
+    this.bootstrapSlow = false;
     this.appError = '';
+    window.clearTimeout(this.bootstrapTimer);
+    this.bootstrapTimer = window.setTimeout(() => { this.bootstrapSlow = true; }, 6_000);
     try {
       this.user = await this.api.me();
       this.franchises = this.franchisesForUser(this.user);
@@ -102,15 +107,17 @@ export class AppComponent implements OnInit {
         this.appError = statusResult.reason?.message ?? 'No fue posible cargar los estatus de gestión';
       }
     } catch (error: any) {
-      if (this.auth.hasSession()) {
-        this.auth.clearSession();
-        this.showLogin(error.message);
-      } else {
+      if (!this.loginVisible) {
         this.appError = error.message;
       }
     } finally {
+      window.clearTimeout(this.bootstrapTimer);
       this.bootstrapping = false;
     }
+  }
+
+  retryOpenApp(): void {
+    void this.openApp();
   }
 
   async signIn(): Promise<void> {

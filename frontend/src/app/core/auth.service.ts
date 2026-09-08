@@ -48,6 +48,7 @@ export class AuthService {
     }
 
     try {
+      this.assertConfigured();
       const refreshed = await this.authRequest('/token?grant_type=refresh_token', {
         refresh_token: session.refresh_token,
       });
@@ -55,6 +56,7 @@ export class AuthService {
       return refreshed.access_token;
     } catch (error) {
       this.clearSession();
+      window.dispatchEvent(new CustomEvent('auth-required'));
       throw error;
     }
   }
@@ -81,14 +83,14 @@ export class AuthService {
   private assertConfigured(): void {
     const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
     if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Falta configurar SUPABASE_URL o SUPABASE_ANON_KEY en Render');
+      throw new Error('Falta configurar SUPABASE_URL o SUPABASE_ANON_KEY en el despliegue');
     }
   }
 
   private async authRequest(path: string, body: Record<string, string>): Promise<StoredSession> {
     const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
     let response: Response;
     try {
       response = await fetch(`${this.normalizeUrl(supabaseUrl!)}/auth/v1${path}`, {
@@ -113,6 +115,10 @@ export class AuthService {
         throw new Error('Correo o contraseña incorrectos');
       }
       throw new Error(message);
+    }
+
+    if (!(response.headers.get('content-type') ?? '').toLowerCase().includes('application/json')) {
+      throw new Error('El servicio de autenticación no está configurado correctamente.');
     }
 
     return response.json();

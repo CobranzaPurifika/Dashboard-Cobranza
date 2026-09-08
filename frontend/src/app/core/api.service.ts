@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly apiBase = window.__APP_CONFIG__?.apiBase ?? 'http://localhost:3001/api';
+  private readonly apiBase = this.resolveApiBase();
 
   constructor(private readonly auth: AuthService) {}
 
@@ -78,7 +78,7 @@ export class ApiService {
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.auth.getValidAccessToken();
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort('timeout'), 20_000);
+    const timeout = window.setTimeout(() => controller.abort('timeout'), 15_000);
     const externalSignal = options.signal;
     const abortFromExternal = () => controller.abort(externalSignal?.reason);
     if (externalSignal?.aborted) abortFromExternal();
@@ -98,14 +98,24 @@ export class ApiService {
       if (controller.signal.aborted && !externalSignal?.aborted) {
         throw new Error('La solicitud tardó demasiado. Revisa tu conexión e intenta nuevamente.');
       }
+      if (error?.name === 'TypeError') {
+        throw new Error('No fue posible conectar con el servicio de cartera. Intenta nuevamente.');
+      }
       throw error;
     } finally {
       window.clearTimeout(timeout);
       externalSignal?.removeEventListener('abort', abortFromExternal);
     }
 
+    if (response.status === 204) return null;
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      throw new Error('La API de cartera no está conectada en este despliegue. Intenta nuevamente o revisa la configuración de Vercel.');
+    }
+
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
         this.auth.clearSession();
         window.dispatchEvent(new CustomEvent('auth-required'));
@@ -113,10 +123,18 @@ export class ApiService {
       throw new Error(payload.error ?? `Error ${response.status}`);
     }
 
-    return response.status === 204 ? null : response.json();
+    return payload;
   }
 
   private query(params: Record<string, string>): string {
     return new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value))).toString();
+  }
+
+  private resolveApiBase(): string {
+    const configured = String(window.__APP_CONFIG__?.apiBase ?? '').trim();
+    if (configured) return configured.replace(/\/$/, '');
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001/api'
+      : '/api';
   }
 }

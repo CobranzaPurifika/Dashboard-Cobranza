@@ -39,7 +39,7 @@ npm install
 npm start          # Ionic + Angular en :5173; por defecto apunta a localhost:3001/api
 ```
 
-En producción `/config.js` lo genera el backend a partir de `SUPABASE_URL` y
+En producción `/runtime-config.js` lo genera el despliegue a partir de `SUPABASE_URL` y
 `SUPABASE_ANON_KEY`; esas dos variables son públicas por diseño y nunca deben confundirse con
 `DATABASE_URL`. El contenedor compila Ionic/Angular y copia el resultado estático junto a la API.
 
@@ -85,9 +85,10 @@ folios abiertos tienen evidencia de pago; de lo contrario conserva su último sa
 `Pendiente de validar`. Al liquidarse sale de cartera, Seguimiento y Lista negra, pero conserva
 pagos, gestiones y notas.
 
-Para producción, el repositorio incluye un contenedor único que sirve frontend y API, además de
-verificación automática en cada pull request. La secuencia completa de migración, variables y
-primera carga controlada está en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+Para producción, el repositorio incluye configuración de Vercel que compila Angular en `public/`
+y enruta `/api/*` a una única Function de Express. El contenedor se conserva como alternativa,
+y cada pull request ejecuta la verificación automática. La secuencia completa de migración,
+variables y primera carga controlada está en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Interfaz
 

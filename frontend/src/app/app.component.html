@@ -90,12 +90,23 @@
     }
 
     <main class="workspace">
-      @if (appError) { <div class="app-error">{{ appError }}</div> }
       @if (bootstrapping) {
-        <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
+        <div class="app-loading" role="status">
+          <ion-spinner name="crescent"></ion-spinner>
+          <strong>Conectando con la cartera…</strong>
+          @if (bootstrapSlow) { <span>El servicio está tardando más de lo habitual, pero la espera está limitada.</span> }
+        </div>
+      } @else if (appError && !user) {
+        <div class="app-start-error" role="alert">
+          <ion-icon name="cloud-offline-outline"></ion-icon>
+          <span><strong>No fue posible cargar la cartera</strong><small>{{ appError }}</small></span>
+          <button type="button" (click)="retryOpenApp()">Reintentar</button>
+        </div>
       } @else if (view === 'dashboard') {
+        @if (appError) { <div class="app-error"><span>{{ appError }}</span><button type="button" (click)="loadDashboard()">Reintentar</button></div> }
         <app-dashboard [data]="dashboardData" [loading]="dashboardLoading"></app-dashboard>
       } @else {
+        @if (appError) { <div class="app-error"><span>{{ appError }}</span><button type="button" (click)="loadDashboard()">Reintentar</button></div> }
         <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>

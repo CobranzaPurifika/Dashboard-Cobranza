@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AppComponent } from './app.component';
 import { DEFAULT_PREFERENCES } from './core/preferences';
 
@@ -43,5 +43,21 @@ describe('AppComponent', () => {
     expect(component.franchise).toBe('cancun');
     expect(component.pendingFranchise).toBe('');
     expect(component.dashboardData.franchise).toBe('cancun');
+  });
+
+  it('libera el arranque y conserva la sesión ante una falla de infraestructura', async () => {
+    const clearSession = vi.fn();
+    const component = new AppComponent({
+      me: async () => { throw new Error('API no disponible'); },
+    } as any, {
+      hasSession: () => true,
+      clearSession,
+    } as any);
+
+    await component.openApp();
+
+    expect(component.bootstrapping).toBe(false);
+    expect(component.appError).toBe('API no disponible');
+    expect(clearSession).not.toHaveBeenCalled();
   });
 });
