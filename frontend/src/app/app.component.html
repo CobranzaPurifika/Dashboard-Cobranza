@@ -1,6 +1,7 @@
 <ion-app>
   <ion-content [fullscreen]="true">
   <div class="app-canvas">
+    @if (!bootstrapping || user) {
     <header class="topbar">
       <button class="brand" type="button" (click)="setView('dashboard')" aria-label="Ir al dashboard">
         <span class="drop"><ion-icon name="water-outline"></ion-icon></span>
@@ -14,7 +15,10 @@
 
       <nav class="franchise-tabs" aria-label="Franquicias">
         @for (option of franchises; track option.id) {
-          <button type="button" [class.active]="franchise === option.id" (click)="selectFranchise(option.id)">{{ option.label }}</button>
+          <button type="button" [class.active]="franchise === option.id" [class.pending]="pendingFranchise === option.id" [disabled]="!!pendingFranchise" (click)="selectFranchise(option.id)">
+            @if (pendingFranchise === option.id) { <ion-spinner name="crescent"></ion-spinner> }
+            {{ option.label }}
+          </button>
         }
       </nav>
 
@@ -23,43 +27,74 @@
       <div class="header-actions">
         <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button>
         <button type="button" title="Cambiar tema" aria-label="Cambiar tema" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon></button>
-        @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
+        @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="openSettings()"><ion-icon name="settings-outline"></ion-icon></button> }
         <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Cerrar sesión'" (click)="accountAction()">
           <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'log-out-outline'"></ion-icon>
           <span>{{ accountLabel() }}</span>
         </button>
       </div>
     </header>
+    }
 
     @if (settingsVisible && isAdmin) {
-      <aside class="settings-popover">
-        <header><div><span>ADMINISTRACIÓN</span><strong>Fuentes de datos</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
-        <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
-        <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
-        @if (syncStatus) { <small>{{ syncStatus }}</small> }
-        <section class="status-settings">
-          <h3>Estatus de gestión</h3>
-          <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard.</p>
-          @for (status of statusCatalog; track status.value) {
-            <div class="status-editor">
-              <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" />
-              <input [(ngModel)]="status.bg" [attr.aria-label]="'Color de ' + status.label" pattern="#[0-9a-fA-F]{6}" maxlength="7" />
-              <input type="number" [(ngModel)]="status.sort_order" [attr.aria-label]="'Orden de ' + status.label" min="0" max="999" />
-              <label><input type="checkbox" [(ngModel)]="status.efectiva" /> Efectiva</label>
-              <button type="button" [disabled]="statusSaving === status.value" (click)="saveStatus(status)">{{ statusSaving === status.value ? 'Guardando…' : 'Guardar' }}</button>
-            </div>
+      <button class="settings-backdrop" type="button" aria-label="Cerrar configuración" (click)="settingsVisible = false"></button>
+      <aside class="settings-panel" role="dialog" aria-modal="true" aria-label="Configuración">
+        <header class="settings-header"><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong><p>Personaliza la experiencia y los criterios operativos.</p></div><button type="button" aria-label="Cerrar" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
+        <nav class="settings-nav" aria-label="Secciones de configuración">
+          <button type="button" [class.active]="settingsTab === 'preferences'" (click)="settingsTab = 'preferences'"><ion-icon name="options-outline"></ion-icon>Preferencias</button>
+          <button type="button" [class.active]="settingsTab === 'management'" (click)="settingsTab = 'management'"><ion-icon name="analytics-outline"></ion-icon>Gestión</button>
+          <button type="button" [class.active]="settingsTab === 'data'" (click)="settingsTab = 'data'"><ion-icon name="refresh-outline"></ion-icon>Datos</button>
+        </nav>
+        <div class="settings-scroll">
+          @if (settingsTab === 'preferences') {
+            <section class="settings-section">
+              <div class="settings-title"><span>EXPERIENCIA</span><h2>Preferencias de la aplicación</h2><p>Se guardan en este dispositivo y se aplican en los próximos accesos.</p></div>
+              <label class="setting-field"><span>Pantalla al iniciar sesión</span><small>Elige el espacio de trabajo que verás después de identificarte.</small><select [(ngModel)]="settingsDraft.initialView"><option value="dashboard">Dashboard</option><option value="management">Gestión</option></select></label>
+              <label class="setting-field"><span>Franquicia predeterminada</span><small>Puedes cambiarla en cualquier momento desde la barra superior.</small><select [(ngModel)]="settingsDraft.defaultFranchise">@for (option of franchises; track option.id) { <option [value]="option.id">{{ option.label }}</option> }</select></label>
+              <fieldset class="setting-field"><legend>Tema</legend><small>Selecciona el contraste visual de la interfaz.</small><div class="choice-grid"><button type="button" [class.active]="settingsDraft.theme === 'dark'" (click)="settingsDraft.theme = 'dark'"><ion-icon name="moon-outline"></ion-icon>Oscuro</button><button type="button" [class.active]="settingsDraft.theme === 'light'" (click)="settingsDraft.theme = 'light'"><ion-icon name="sunny-outline"></ion-icon>Claro</button></div></fieldset>
+              <fieldset class="setting-field"><legend>Densidad</legend><small>Ajusta cuánto contenido aparece en pantalla.</small><div class="choice-grid"><button type="button" [class.active]="settingsDraft.density === 'comfortable'" (click)="settingsDraft.density = 'comfortable'">Cómoda</button><button type="button" [class.active]="settingsDraft.density === 'compact'" (click)="settingsDraft.density = 'compact'">Compacta</button></div></fieldset>
+              <button class="settings-primary" type="button" (click)="saveAppPreferences()">Guardar preferencias</button>
+              @if (preferencesStatus) { <div class="settings-success" role="status">{{ preferencesStatus }}</div> }
+            </section>
+          } @else if (settingsTab === 'management') {
+            <section class="settings-section">
+              <div class="settings-title"><span>OBJETIVOS</span><h2>Metas diarias de gestión</h2><p>Clientes únicos que deben gestionarse cada día hábil por franquicia.</p></div>
+              @if (settingsLoading) { <div class="settings-loading"><ion-spinner name="crescent"></ion-spinner>Cargando metas…</div> }
+              @for (goal of managementGoals; track goal.franchise_id) {
+                <div class="goal-editor"><label><strong>{{ goal.label }}</strong><span>Clientes únicos por día</span></label><input type="number" [(ngModel)]="goal.daily_goal" min="1" max="100" [attr.aria-label]="'Meta de ' + goal.label" /><button type="button" [disabled]="goalSaving === goal.franchise_id" (click)="saveGoal(goal)">{{ goalSaving === goal.franchise_id ? 'Guardando…' : 'Guardar' }}</button></div>
+              }
+              @if (goalError) { <div class="settings-error" role="alert">{{ goalError }}</div> }
+            </section>
+            <section class="settings-section">
+              <div class="settings-title"><span>CATÁLOGO</span><h2>Estatus de gestión</h2><p>La clave se conserva; puedes ajustar su nombre, color, orden y si cuenta como gestión efectiva.</p></div>
+              @for (status of statusCatalog; track status.value) {
+                <div class="status-editor">
+                  <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" />
+                  <input [(ngModel)]="status.bg" [attr.aria-label]="'Color de ' + status.label" pattern="#[0-9a-fA-F]{6}" maxlength="7" />
+                  <input type="number" [(ngModel)]="status.sort_order" [attr.aria-label]="'Orden de ' + status.label" min="0" max="999" />
+                  <label><input type="checkbox" [(ngModel)]="status.efectiva" /> Efectiva</label>
+                  <button type="button" [disabled]="statusSaving === status.value" (click)="saveStatus(status)">{{ statusSaving === status.value ? 'Guardando…' : 'Guardar' }}</button>
+                </div>
+              }
+              @if (statusError) { <div class="settings-error" role="alert">{{ statusError }}</div> }
+            </section>
+          } @else {
+            <section class="settings-section">
+              <div class="settings-title"><span>SINCRONIZACIÓN</span><h2>Fuentes de datos</h2><p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p></div>
+              <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
+              @if (syncStatus) { <div class="sync-status" role="status">{{ syncStatus }}</div> }
+            </section>
           }
-          @if (statusError) { <small class="settings-error">{{ statusError }}</small> }
-        </section>
+        </div>
       </aside>
     }
 
     <main class="workspace">
       @if (appError) { <div class="app-error">{{ appError }}</div> }
-      @if (loading && !dashboardData) {
+      @if (bootstrapping) {
         <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
       } @else if (view === 'dashboard') {
-        <app-dashboard [data]="dashboardData" [loading]="loading"></app-dashboard>
+        <app-dashboard [data]="dashboardData" [loading]="dashboardLoading"></app-dashboard>
       } @else {
         <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" (refreshRequested)="loadDashboard()"></app-management>
       }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildMonthlyManagement, businessDays } from "../src/domain/monthlyManagement.js";
+import { buildMonthlyManagement, businessDays, parseDailyGoal } from "../src/domain/monthlyManagement.js";
 
 test("omite sábados y domingos del acumulado mensual", () => {
   assert.deepEqual(businessDays("2026-09", "2026-09-07"), [
@@ -31,4 +31,12 @@ test("promedia por día, limita a 100 y excluye incidencias", () => {
     justifiedDays: 1,
   });
   assert.equal(result.franchises[0].days.at(-1).incident.note, "Capacitación");
+});
+
+test("valida las metas diarias configurables", () => {
+  assert.equal(parseDailyGoal(9), 9);
+  assert.equal(parseDailyGoal("3"), 3);
+  assert.equal(parseDailyGoal(0), null);
+  assert.equal(parseDailyGoal(101), null);
+  assert.equal(parseDailyGoal("3.5"), null);
 });

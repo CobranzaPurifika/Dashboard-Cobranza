@@ -6,6 +6,13 @@ import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
+import {
+  AppPreferences,
+  AppView,
+  DEFAULT_PREFERENCES,
+  loadPreferences,
+  savePreferences,
+} from './core/preferences';
 
 interface FranchiseOption { id: string; label: string }
 
@@ -26,14 +33,17 @@ const FRANCHISES: FranchiseOption[] = [
 export class AppComponent implements OnInit {
   @HostBinding('class.dark-theme') darkTheme = true;
   @HostBinding('class.presentation-mode') presentationMode = false;
+  @HostBinding('class.compact-density') compactDensity = false;
 
   user: any = null;
   franchises: FranchiseOption[] = [];
   franchise = 'todas';
-  view: 'dashboard' | 'management' = 'dashboard';
+  pendingFranchise = '';
+  view: AppView = 'dashboard';
   dashboardData: any = null;
   statusCatalog: any[] = [];
-  loading = true;
+  bootstrapping = true;
+  dashboardLoading = false;
   loginVisible = false;
   loginEmail = '';
   loginPassword = '';
@@ -44,6 +54,14 @@ export class AppComponent implements OnInit {
   statusSaving = '';
   statusError = '';
   settingsVisible = false;
+  settingsTab: 'preferences' | 'management' | 'data' = 'preferences';
+  settingsLoading = false;
+  preferencesStatus = '';
+  preferences: AppPreferences = { ...DEFAULT_PREFERENCES };
+  settingsDraft: AppPreferences = { ...DEFAULT_PREFERENCES };
+  managementGoals: any[] = [];
+  goalSaving = '';
+  goalError = '';
   appError = '';
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
@@ -51,8 +69,9 @@ export class AppComponent implements OnInit {
   constructor(private readonly api: ApiService, private readonly auth: AuthService) {}
 
   ngOnInit(): void {
-    const savedTheme = localStorage.getItem('cobranza-purifika.theme');
-    this.darkTheme = savedTheme ? savedTheme === 'dark' : true;
+    this.preferences = loadPreferences(localStorage);
+    this.settingsDraft = { ...this.preferences };
+    this.applyPreferences();
     window.addEventListener('auth-required', () => this.showLogin('Tu sesión terminó. Ingresa nuevamente.'));
     void this.openApp();
   }
@@ -61,20 +80,27 @@ export class AppComponent implements OnInit {
   get isAdmin(): boolean { return this.user?.role === 'admin'; }
 
   async openApp(): Promise<void> {
-    this.loading = true;
+    this.bootstrapping = true;
     this.appError = '';
     try {
       this.user = await this.api.me();
       this.franchises = this.franchisesForUser(this.user);
       if (!this.franchises.length) throw new Error('Tu cuenta todavía no tiene franquicias asignadas');
-      if (!this.franchises.some((option) => option.id === this.franchise)) this.franchise = this.franchises[0].id;
-      // Al recargar se conserva el Dashboard como pantalla de entrada. Antes se cambiaba
-      // a Gestión mientras aún llegaban las respuestas; junto con el render diferido eso
-      // hacía que un clic en tema revelara una vista distinta a la esperada.
-      if (this.isAnonymous) this.view = 'dashboard';
-      this.statusCatalog = this.isAnonymous ? [] : await this.api.statusGestion();
+      const preferredFranchise = this.preferences.defaultFranchise;
+      this.franchise = this.franchises.some((option) => option.id === preferredFranchise)
+        ? preferredFranchise
+        : this.franchises[0].id;
+      this.view = this.isAnonymous ? 'dashboard' : this.preferences.initialView;
       this.loginVisible = false;
-      await this.loadDashboard();
+      this.bootstrapping = false;
+
+      const statusPromise = this.isAnonymous ? Promise.resolve([]) : this.api.statusGestion();
+      const [statusResult] = await Promise.allSettled([statusPromise, this.loadDashboard()]);
+      if (statusResult.status === 'fulfilled') {
+        this.statusCatalog = statusResult.value;
+      } else {
+        this.appError = statusResult.reason?.message ?? 'No fue posible cargar los estatus de gestión';
+      }
     } catch (error: any) {
       if (this.auth.hasSession()) {
         this.auth.clearSession();
@@ -83,7 +109,7 @@ export class AppComponent implements OnInit {
         this.appError = error.message;
       }
     } finally {
-      this.loading = false;
+      this.bootstrapping = false;
     }
   }
 
@@ -93,7 +119,6 @@ export class AppComponent implements OnInit {
     this.loginError = '';
     try {
       await this.auth.signIn(this.loginEmail, this.loginPassword);
-      this.view = 'management';
       await this.openApp();
       this.loginPassword = '';
     } catch (error: any) {
@@ -120,34 +145,38 @@ export class AppComponent implements OnInit {
     this.loginVisible = true;
   }
 
-  async setView(view: 'dashboard' | 'management'): Promise<void> {
+  async setView(view: AppView): Promise<void> {
     if (view === 'management' && this.isAnonymous) return;
     this.view = view;
     if (!this.dashboardData) await this.loadDashboard();
   }
 
-  selectFranchise(id: string): void {
-    if (this.franchise === id) return;
-    this.franchise = id;
-    void this.loadDashboard();
+  async selectFranchise(id: string): Promise<void> {
+    if (this.franchise === id || this.pendingFranchise) return;
+    this.pendingFranchise = id;
+    const loaded = await this.loadDashboard(id);
+    if (loaded) this.franchise = id;
+    this.pendingFranchise = '';
   }
 
-  async loadDashboard(): Promise<void> {
+  async loadDashboard(franchise = this.franchise): Promise<boolean> {
     const requestId = ++this.dashboardRequest;
     this.dashboardAbort?.abort();
     const controller = new AbortController();
     this.dashboardAbort = controller;
-    this.loading = true;
+    this.dashboardLoading = true;
     this.appError = '';
     try {
-      const data = await this.api.dashboard(this.franchise, controller.signal);
+      const data = await this.api.dashboard(franchise, controller.signal);
       if (requestId === this.dashboardRequest) this.dashboardData = data;
+      return requestId === this.dashboardRequest;
     } catch (error: any) {
       if (error?.name !== 'AbortError' && requestId === this.dashboardRequest) {
         this.appError = error.message;
       }
+      return false;
     } finally {
-      if (requestId === this.dashboardRequest) this.loading = false;
+      if (requestId === this.dashboardRequest) this.dashboardLoading = false;
     }
   }
 
@@ -189,9 +218,51 @@ export class AppComponent implements OnInit {
     }
   }
 
+  async openSettings(): Promise<void> {
+    this.settingsVisible = true;
+    this.settingsTab = 'preferences';
+    this.settingsDraft = { ...this.preferences };
+    this.preferencesStatus = '';
+    this.goalError = '';
+    this.settingsLoading = true;
+    try {
+      this.managementGoals = await this.api.managementGoals();
+    } catch (error: any) {
+      this.goalError = error.message;
+    } finally {
+      this.settingsLoading = false;
+    }
+  }
+
+  saveAppPreferences(): void {
+    const defaultFranchise = this.franchises.some((option) => option.id === this.settingsDraft.defaultFranchise)
+      ? this.settingsDraft.defaultFranchise
+      : this.franchises[0]?.id ?? 'todas';
+    this.preferences = { ...this.settingsDraft, defaultFranchise };
+    savePreferences(localStorage, this.preferences);
+    this.applyPreferences();
+    this.preferencesStatus = 'Preferencias guardadas en este dispositivo.';
+  }
+
+  async saveGoal(goal: any): Promise<void> {
+    if (this.goalSaving) return;
+    this.goalSaving = goal.franchise_id;
+    this.goalError = '';
+    try {
+      const updated = await this.api.actualizarMetaGestion(goal.franchise_id, Number(goal.daily_goal));
+      goal.daily_goal = updated.daily_goal;
+    } catch (error: any) {
+      this.goalError = error.message;
+    } finally {
+      this.goalSaving = '';
+    }
+  }
+
   toggleTheme(): void {
     this.darkTheme = !this.darkTheme;
-    localStorage.setItem('cobranza-purifika.theme', this.darkTheme ? 'dark' : 'light');
+    this.preferences = { ...this.preferences, theme: this.darkTheme ? 'dark' : 'light' };
+    this.settingsDraft.theme = this.preferences.theme;
+    savePreferences(localStorage, this.preferences);
   }
 
   togglePresentation(): void {
@@ -210,7 +281,7 @@ export class AppComponent implements OnInit {
     const displayName = String(this.user?.display_name ?? '').trim();
     if (displayName) return displayName;
     const email = String(this.user?.email ?? '').trim();
-    return email || (this.isAnonymous ? 'Acceso' : 'Salir');
+    return email || (this.isAnonymous ? 'Acceso' : 'Cuenta');
   }
 
   private franchisesForUser(user: any): FranchiseOption[] {
@@ -218,5 +289,10 @@ export class AppComponent implements OnInit {
     const assigned = new Set(user.franchise_ids ?? []);
     const choices = FRANCHISES.filter((item) => item.id !== 'todas' && assigned.has(item.id));
     return choices.length ? [{ id: 'todas', label: 'Mis franquicias' }, ...choices] : [];
+  }
+
+  private applyPreferences(): void {
+    this.darkTheme = this.preferences.theme === 'dark';
+    this.compactDensity = this.preferences.density === 'compact';
   }
 }

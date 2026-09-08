@@ -65,10 +65,13 @@ export class AuthService {
     const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
     if (!session?.access_token || !supabaseUrl || !supabaseAnonKey) return;
 
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8_000);
     await fetch(`${this.normalizeUrl(supabaseUrl)}/auth/v1/logout`, {
       method: 'POST',
       headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${session.access_token}` },
-    }).catch(() => undefined);
+      signal: controller.signal,
+    }).catch(() => undefined).finally(() => window.clearTimeout(timeout));
   }
 
   clearSession(): void {
@@ -84,11 +87,24 @@ export class AuthService {
 
   private async authRequest(path: string, body: Record<string, string>): Promise<StoredSession> {
     const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
-    const response = await fetch(`${this.normalizeUrl(supabaseUrl!)}/auth/v1${path}`, {
-      method: 'POST',
-      headers: { apikey: supabaseAnonKey!, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    let response: Response;
+    try {
+      response = await fetch(`${this.normalizeUrl(supabaseUrl!)}/auth/v1${path}`, {
+        method: 'POST',
+        headers: { apikey: supabaseAnonKey!, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (error: any) {
+      if (controller.signal.aborted) {
+        throw new Error('El inicio de sesión tardó demasiado. Intenta nuevamente.');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));

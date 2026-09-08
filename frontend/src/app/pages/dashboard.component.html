@@ -79,7 +79,7 @@
       <article class="panel-card recovered-card">
         <div class="panel-title">
           <div><span class="eyebrow">RECUPERACIÓN</span><h2>Monto recuperado</h2></div>
-          <div class="period-toggle"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+          <div class="period-toggle"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mensual</button><button type="button" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semanal</button></div>
         </div>
         <div class="recovered-summary">
           <strong>{{ money(recoveryData().total) }}</strong>
@@ -102,8 +102,9 @@
       </article>
 
       <article class="panel-card segmentation-card">
-        <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
-        <div class="segmentation-layout"><div class="segment-donut" [innerHTML]="segmentation.svg"></div><div class="legend" [innerHTML]="segmentation.legend"></div></div>
+        <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación de cartera</h2></div><span class="panel-note">Comercial vs. Residencial</span></div>
+        <div class="segmentation-bar" [innerHTML]="segmentation.bar"></div>
+        <div class="legend segmentation-legend" [innerHTML]="segmentation.legend"></div>
         <div class="coverage">
           <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
           <div class="coverage-track"><i [style.width.%]="data.gestion.total ? data.gestion.gestionados / data.gestion.total * 100 : 0"></i></div>
