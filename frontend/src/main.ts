@@ -1,4 +1,5 @@
 import 'zone.js';
+import 'zone.js/plugins/zone-patch-fetch';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideZoneChangeDetection } from '@angular/core';
 import { provideIonicAngular } from '@ionic/angular';
