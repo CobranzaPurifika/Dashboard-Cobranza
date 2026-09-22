@@ -58,11 +58,6 @@ export function buildMonthlyManagement({ month, throughDate, franchises, goals, 
   };
 }
 
-export function parseDailyGoal(value) {
-  const goal = Number(value);
-  return Number.isInteger(goal) && goal >= 1 && goal <= 100 ? goal : null;
-}
-
 export function businessDays(month, throughDate) {
   const start = `${month}-01`;
   const end = throughDate.startsWith(month)
