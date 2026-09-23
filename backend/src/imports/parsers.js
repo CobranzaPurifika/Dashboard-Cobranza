@@ -3,6 +3,7 @@ import { parse } from "csv-parse/sync";
 
 const BDD_MIN_COLUMNS = 28;
 const BDD_SALES_EXECUTIVE_INDEX = 28;
+const BDD_COLLECTION_EXECUTIVE_INDEX = 29;
 const BDD_POSITION_CHECKS = new Map([
   [1, "grupo de facturacion"],
   [5, "serie/folio"],
@@ -38,10 +39,18 @@ export function parseBddCsv(csvText) {
 
   if (
     header.length > BDD_SALES_EXECUTIVE_INDEX
-    && normalizeHeader(header[BDD_SALES_EXECUTIVE_INDEX]) !== "ejecutivo de ventas"
+    && normalizeHeader(header[BDD_SALES_EXECUTIVE_INDEX]) !== "ejecutivo ventas"
   ) {
     throw new Error(
       `Encabezado BDD inesperado en columna AC: ${header[BDD_SALES_EXECUTIVE_INDEX]}`
+    );
+  }
+  if (
+    header.length > BDD_COLLECTION_EXECUTIVE_INDEX
+    && normalizeHeader(header[BDD_COLLECTION_EXECUTIVE_INDEX]) !== "ejecutivo cobranza"
+  ) {
+    throw new Error(
+      `Encabezado BDD inesperado en columna AD: ${header[BDD_COLLECTION_EXECUTIVE_INDEX]}`
     );
   }
 

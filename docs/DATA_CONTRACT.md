@@ -33,9 +33,9 @@ dominio.
 15. RFC de 12 caracteres corresponde a Comercial; RFC de 13 caracteres o genérico, a Residencial.
 16. Cualquier pago positivo dentro de los cuatro días naturales inclusivos de una promesa la
     cumple, aunque el pago sea parcial. El cumplimiento pertenece al mes del pago.
-17. `Ejecutivo de Ventas` se toma de la columna AC de BDD y se conserva por factura; no modifica
-    saldos ni KPIs. Si un cliente tiene facturas de más de un ejecutivo, la ficha muestra todos
-    los nombres distintos.
+17. `Ejecutivo de Ventas` (columna AC) y `Ejecutivo de Cobranza` (columna AD) de BDD se conservan
+    por factura; no modifican saldos ni KPIs. Si un cliente tiene facturas de más de un ejecutivo
+    de cada tipo, la ficha muestra todos los nombres distintos.
 18. El delta de cartera usa el corte Mensual más reciente anterior al mes actual; solo si no hay
     cortes mensuales puede usar el Semanal más reciente. Nunca usa cortes manuales ni inventa
     valores ausentes. Es actual menos baseline, en puntos porcentuales.

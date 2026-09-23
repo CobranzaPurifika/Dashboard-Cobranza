@@ -132,6 +132,7 @@
       </section>
 
       @if (salesExecutives()) { <p class="sales-executive"><strong>Ejecutivo de ventas</strong><span>{{ salesExecutives() }}</span></p> }
+      @if (collectionExecutives()) { <p class="sales-executive"><strong>Ejecutivo de cobranza</strong><span>{{ collectionExecutives() }}</span></p> }
 
       @if (canManage) {
         <section class="drawer-section management-form">
