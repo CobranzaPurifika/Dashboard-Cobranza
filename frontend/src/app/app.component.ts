@@ -151,6 +151,11 @@ export class AppComponent implements OnInit {
     }
   }
 
+  retry(): void {
+    if (this.user) void this.loadDashboard();
+    else void this.openApp();
+  }
+
   async syncData(): Promise<void> {
     if (this.syncLoading) return;
     this.syncLoading = true;
