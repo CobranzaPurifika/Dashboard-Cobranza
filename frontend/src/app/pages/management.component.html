@@ -270,26 +270,33 @@
 
       <div class="bulk-field">
         <span>Días</span>
-        <div class="bulk-mode-toggle">
-          <button type="button" [class.active]="bulkMode === 'range'" (click)="bulkMode = 'range'">Rango de fechas</button>
-          <button type="button" [class.active]="bulkMode === 'days'" (click)="bulkMode = 'days'">Días específicos</button>
-        </div>
-        @if (bulkMode === 'range') {
-          <div class="bulk-range-fields">
-            <label>Desde<input type="date" [(ngModel)]="bulkStartDate" [min]="bulkAvailableDates[0]" [max]="bulkEndDate || bulkAvailableDates[bulkAvailableDates.length - 1]" /></label>
-            <label>Hasta<input type="date" [(ngModel)]="bulkEndDate" [min]="bulkStartDate || bulkAvailableDates[0]" [max]="bulkAvailableDates[bulkAvailableDates.length - 1]" /></label>
+        <p class="bulk-cal-hint">Clic en un día para seleccionarlo suelto · clic y arrastra para seleccionar un rango</p>
+        <div class="bulk-calendar">
+          <div class="bulk-cal-header">{{ bulkCalendarLabel }}</div>
+          <div class="bulk-cal-weekdays">
+            <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span>
           </div>
-          <small class="bulk-range-summary">{{ bulkDatesInRange().length }} día(s) hábil(es) en el rango</small>
-        } @else {
-          <div class="bulk-day-grid">
-            @for (date of bulkAvailableDates; track date) {
-              <label class="bulk-chip" [class.active]="bulkSelectedDates.has(date)">
-                <input type="checkbox" [checked]="bulkSelectedDates.has(date)" (change)="toggleBulkDate(date)" />
-                {{ shortDate(date) }}
-              </label>
+          <div class="bulk-cal-grid">
+            @for (week of bulkCalendarWeeks; track $index) {
+              @for (cell of week; track cell.date) {
+                <button
+                  type="button"
+                  class="bulk-cal-day"
+                  [class.out-of-month]="!cell.inMonth"
+                  [class.unavailable]="cell.inMonth && !cell.available"
+                  [class.selected]="cell.available && bulkSelectedDates.has(cell.date)"
+                  [class.preview]="cell.available && isInBulkDragPreview(cell.date)"
+                  [disabled]="!cell.available"
+                  [attr.aria-label]="cell.date"
+                  (pointerdown)="onCalendarPointerDown(cell)"
+                  (pointerenter)="onCalendarPointerEnter(cell)"
+                  (pointerup)="onCalendarPointerUp(cell)"
+                >{{ cell.day }}</button>
+              }
             }
           </div>
-        }
+        </div>
+        <small class="bulk-range-summary">{{ bulkSelectionSummary() }}</small>
       </div>
 
       <label class="bulk-field">Nota<textarea [(ngModel)]="bulkNote" rows="3" placeholder="Ej. Cierre por mantenimiento de sucursal…"></textarea></label>
