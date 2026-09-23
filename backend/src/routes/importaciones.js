@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { runAllImports, runRawImport } from "../imports/rawImport.js";
+import { runMonthlySnapshots } from "../jobs/monthlySnapshots.js";
 import { requireRole } from "../auth/authorization.js";
 
 export const importacionesRouter = Router();
@@ -19,10 +20,14 @@ importacionesRouter.get("/", async (_req, res, next) => {
   }
 });
 
-// Actualización administrativa: BDD completa y, solo si se aplicó, Pagos.
+// Actualización administrativa: BDD completa y, solo si se aplicó, Pagos. Al final recalcula
+// también el corte del mes en curso (kpi_snapshots/vencida_snapshots) con los pagos recién
+// importados -- si esto falla no debe tumbar la respuesta del sync, que ya se aplicó.
 importacionesRouter.post("/sync", async (_req, res, next) => {
   try {
-    res.status(201).json(await runAllImports("manual"));
+    const result = await runAllImports("manual");
+    await runMonthlySnapshots().catch((error) => console.error("[monthly-snapshots]", error));
+    res.status(201).json(result);
   } catch (error) {
     res.status(error.statusCode ?? 500).json({ error: error.message });
   }
