@@ -17,6 +17,18 @@ export class ApiService {
       method: 'PUT', body: JSON.stringify(body),
     });
   }
+
+  crearStatus(label: string) {
+    return this.request('/status-gestion', { method: 'POST', body: JSON.stringify({ label }) });
+  }
+
+  eliminarStatus(value: string) {
+    return this.request(`/status-gestion/${encodeURIComponent(value)}`, { method: 'DELETE' });
+  }
+
+  reordenarStatus(order: string[]) {
+    return this.request('/status-gestion/reorder', { method: 'PUT', body: JSON.stringify({ order }) });
+  }
   cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
   seguimiento = (franchise: string, signal?: AbortSignal) =>
     this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });

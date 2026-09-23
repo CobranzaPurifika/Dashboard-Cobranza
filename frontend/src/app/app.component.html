@@ -122,19 +122,26 @@
           </button>
           @if (isSectionExpanded('status')) {
             <div class="settings-section-body">
-              <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard.</p>
-              @for (status of statusCatalog; track status.value) {
+              <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard. Los cambios se guardan al momento.</p>
+              @for (status of statusCatalog; track status.value; let i = $index; let first = $first; let last = $last) {
                 <div class="status-editor">
+                  <div class="status-reorder">
+                    <button type="button" [disabled]="first || !!statusSaving" title="Subir" aria-label="Subir" (click)="moveStatus(i, -1)"><ion-icon name="chevron-up-outline"></ion-icon></button>
+                    <button type="button" [disabled]="last || !!statusSaving" title="Bajar" aria-label="Bajar" (click)="moveStatus(i, 1)"><ion-icon name="chevron-down-outline"></ion-icon></button>
+                  </div>
                   <label class="color-swatch" [style.background]="status.bg" [attr.aria-label]="'Color de ' + status.label">
-                    <input type="color" [(ngModel)]="status.bg" />
+                    <input type="color" [(ngModel)]="status.bg" (change)="saveStatus(status)" />
                   </label>
-                  <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" />
-                  <input type="number" [(ngModel)]="status.sort_order" [attr.aria-label]="'Orden de ' + status.label" min="0" max="999" />
-                  <label class="status-effective"><input type="checkbox" [(ngModel)]="status.efectiva" /> Efectiva</label>
-                  <button type="button" [disabled]="statusSaving === status.value" (click)="saveStatus(status)">{{ statusSaving === status.value ? 'Guardando…' : 'Guardar' }}</button>
+                  <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" (blur)="saveStatus(status)" />
+                  <label class="status-effective"><input type="checkbox" [(ngModel)]="status.efectiva" (change)="saveStatus(status)" /> Efectiva</label>
+                  <button type="button" class="status-delete" [disabled]="!!statusSaving" title="Eliminar" aria-label="Eliminar" (click)="deleteStatus(status)"><ion-icon name="trash-outline"></ion-icon></button>
                 </div>
               }
               @if (statusError) { <small class="settings-error">{{ statusError }}</small> }
+              <div class="status-add">
+                <input [(ngModel)]="newStatusLabel" placeholder="Nombre del nuevo estatus" maxlength="80" (keydown.enter)="addStatus()" />
+                <button type="button" [disabled]="!newStatusLabel.trim() || !!statusSaving" (click)="addStatus()"><ion-icon name="add-outline"></ion-icon>Añadir estatus</button>
+              </div>
             </div>
           }
         </section>

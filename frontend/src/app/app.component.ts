@@ -45,6 +45,7 @@ export class AppComponent implements OnInit {
   syncStatus = '';
   statusSaving = '';
   statusError = '';
+  newStatusLabel = '';
   settingsVisible = false;
   appError = '';
   preferences: AppPreferences = { ...DEFAULT_PREFERENCES };
@@ -196,6 +197,53 @@ export class AppComponent implements OnInit {
       this.statusCatalog = this.statusCatalog
         .map((item) => item.value === updated.value ? updated : item)
         .sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+    } catch (error: any) {
+      this.statusError = error.message;
+    } finally {
+      this.statusSaving = '';
+    }
+  }
+
+  async moveStatus(index: number, direction: -1 | 1): Promise<void> {
+    const target = index + direction;
+    if (this.statusSaving || target < 0 || target >= this.statusCatalog.length) return;
+    const reordered = [...this.statusCatalog];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    this.statusCatalog = reordered;
+    this.statusSaving = 'reorder';
+    this.statusError = '';
+    try {
+      this.statusCatalog = await this.api.reordenarStatus(reordered.map((item) => item.value));
+    } catch (error: any) {
+      this.statusError = error.message;
+    } finally {
+      this.statusSaving = '';
+    }
+  }
+
+  async deleteStatus(status: any): Promise<void> {
+    if (this.statusSaving) return;
+    this.statusSaving = status.value;
+    this.statusError = '';
+    try {
+      await this.api.eliminarStatus(status.value);
+      this.statusCatalog = this.statusCatalog.filter((item) => item.value !== status.value);
+    } catch (error: any) {
+      this.statusError = error.message;
+    } finally {
+      this.statusSaving = '';
+    }
+  }
+
+  async addStatus(): Promise<void> {
+    const label = this.newStatusLabel.trim();
+    if (!label || this.statusSaving) return;
+    this.statusSaving = 'new';
+    this.statusError = '';
+    try {
+      const created = await this.api.crearStatus(label);
+      this.statusCatalog = [...this.statusCatalog, created];
+      this.newStatusLabel = '';
     } catch (error: any) {
       this.statusError = error.message;
     } finally {
