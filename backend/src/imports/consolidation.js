@@ -127,12 +127,9 @@ export function buildPayments(rawRows) {
   return payments;
 }
 
-export function anomalyThresholdForDate(date = new Date()) {
-  const day = Number(
-    new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", day: "numeric" }).format(date)
-  );
-  return day <= 5 ? 0.1 : 0.02;
-}
+// Si la caída supera este umbral, la corrida no se aplica sola: el botón Actualizar le pide
+// confirmación al administrador antes de continuar (ver runAllImports / applyBddBatch).
+export const ANOMALY_THRESHOLD = 0.2;
 
 export function evaluateSnapshotDrop({
   previousCount,
@@ -141,9 +138,8 @@ export function evaluateSnapshotDrop({
   nextBalance,
   confirmedSettledCount = 0,
   confirmedSettledBalance = 0,
-  date = new Date(),
 }) {
-  const threshold = anomalyThresholdForDate(date);
+  const threshold = ANOMALY_THRESHOLD;
   const comparableCount = Math.max(0, Number(previousCount) - Number(confirmedSettledCount));
   const comparableBalance = Math.max(0, Number(previousBalance) - Number(confirmedSettledBalance));
   const clientDrop = ratioDrop(comparableCount, Number(nextCount));

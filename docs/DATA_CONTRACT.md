@@ -27,8 +27,8 @@ dominio.
 10. Toda fuente se valida completa antes de escribir RAW. Un error deja intacto el consolidado.
 11. RAW es acumulativo: una fila idéntica no se duplica y una versión modificada se conserva.
 12. Los tres archivos BDD se aplican en una sola transacción o no se aplica ninguno.
-13. Una corrida BDD con una franquicia vacía se omite. La caída máxima no explicada es 10% del
-    día 1 al 5 y 2% desde el día 6, tanto en clientes como en saldo.
+13. Una corrida BDD con una franquicia vacía se omite. Si la caída de clientes o saldo supera el
+    20%, no se aplica sola: el botón le pide confirmación al administrador antes de continuar.
 14. `Grupo De Facturación` identifica al cliente. `Nombre Comercial` nunca agrupa clientes.
 15. RFC de 12 caracteres corresponde a Comercial; RFC de 13 caracteres o genérico, a Residencial.
 16. Cualquier pago positivo dentro de los cuatro días naturales inclusivos de una promesa la

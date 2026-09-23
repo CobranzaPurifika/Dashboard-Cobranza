@@ -34,7 +34,8 @@ export class ApiService {
     this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });
   blacklist = (franchise: string, signal?: AbortSignal) =>
     this.request(`/blacklist?franchise=${encodeURIComponent(franchise)}`, { signal });
-  syncData = () => this.request('/importaciones/sync', { method: 'POST' });
+  syncData = (force = false) =>
+    this.request('/importaciones/sync', { method: 'POST', body: JSON.stringify({ force }) });
 
   prioridad(params: Record<string, string>, signal?: AbortSignal) {
     return this.request(`/clientes/prioridad?${this.query(params)}`, { signal });

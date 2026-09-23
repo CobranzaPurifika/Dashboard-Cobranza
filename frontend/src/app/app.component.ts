@@ -184,17 +184,38 @@ export class AppComponent implements OnInit {
   async syncData(): Promise<void> {
     if (this.syncLoading) return;
     this.syncLoading = true;
-    this.syncStatus = 'Leyendo BDD y Pagos…';
     try {
-      const result = await this.api.syncData();
+      await this.runSync(false);
+    } finally {
+      this.syncLoading = false;
+    }
+  }
+
+  // needs_confirmation: la caída de clientes/saldo superó el umbral de anomalía. En vez de
+  // abortar en silencio, se le pregunta al administrador si aplicar de todas formas; si acepta,
+  // se reintenta la misma corrida con force=true (sin volver a leer Drive desde cero).
+  private async runSync(force: boolean): Promise<void> {
+    this.syncStatus = force ? 'Aplicando de todas formas…' : 'Leyendo BDD y Pagos…';
+    try {
+      const result = await this.api.syncData(force);
+      if (result.bdd.status === 'needs_confirmation') {
+        const reason = result.bdd.details?.reason ?? 'Caída superior al umbral';
+        const proceed = window.confirm(
+          `${reason}.\n\nEsto puede ser normal (clientes dados de baja) o un error en el archivo.\n\n¿Aplicar de todas formas?`
+        );
+        if (proceed) {
+          await this.runSync(true);
+          return;
+        }
+        this.syncStatus = `Actualización detenida: ${reason}`;
+        return;
+      }
       this.syncStatus = result.bdd.status === 'skipped'
         ? `Sin cambios: ${result.bdd.details.reason}`
         : `Actualizado: ${result.bdd.rowsApplied} BDD · ${result.pagos?.rowsApplied ?? 0} pagos`;
       await this.loadDashboard();
     } catch (error: any) {
       this.syncStatus = error.message;
-    } finally {
-      this.syncLoading = false;
     }
   }
 
