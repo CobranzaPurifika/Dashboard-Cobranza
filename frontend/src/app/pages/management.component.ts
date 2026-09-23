@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
@@ -69,7 +69,15 @@ export class ManagementComponent implements OnChanges, OnDestroy {
 
   readonly hours = Array.from({ length: 10 }, (_, index) => `${String(index + 9).padStart(2, '0')}:00`);
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService, private readonly cdr: ChangeDetectorRef) {}
+
+  // Works around a change-detection gap in this build: Angular's zone-driven autorun does not
+  // reach this component's own view on its own (see frontend/src/main.ts for the root-level
+  // half of this workaround, and its comment for why). Call after any async method updates
+  // component state so the template actually reflects it.
+  private refresh(): void {
+    this.cdr.detectChanges();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     // Los cambios de franquicia son el único disparador de las tres consultas. Evitar
@@ -120,6 +128,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = [...new Set(failures)].join(' · ');
       this.loaded = true;
       this.loading = false;
+      this.refresh();
     }
   }
 
@@ -138,6 +147,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
         this.priority = result.rows;
         this.priorityShown = result.shown;
         this.priorityTotal = result.total;
+        this.refresh();
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError') throw error;
@@ -195,7 +205,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     } catch (error: any) {
       if (error?.name !== 'AbortError') this.error = error.message;
     } finally {
-      if (!controller.signal.aborted && requestId === this.detailRequest) this.detailLoading = false;
+      if (!controller.signal.aborted && requestId === this.detailRequest) {
+        this.detailLoading = false;
+        this.refresh();
+      }
     }
   }
 
@@ -220,7 +233,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     } catch (error: any) {
       if (error?.name !== 'AbortError' && requestId === this.monthlyRequest) this.monthlyError = error.message;
     } finally {
-      if (!controller.signal.aborted && requestId === this.monthlyRequest) this.monthlyLoading = false;
+      if (!controller.signal.aborted && requestId === this.monthlyRequest) {
+        this.monthlyLoading = false;
+        this.refresh();
+      }
     }
   }
 
@@ -239,6 +255,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.monthlyData = await this.api.gestionesMes(this.monthlyData?.month ?? '');
     } catch (error: any) {
       this.monthlyError = error.message;
+    } finally {
+      this.refresh();
     }
   }
 
@@ -248,6 +266,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.monthlyData = await this.api.gestionesMes(this.monthlyData?.month ?? '');
     } catch (error: any) {
       this.monthlyError = error.message;
+    } finally {
+      this.refresh();
     }
   }
 
@@ -266,6 +286,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = error.message;
     } finally {
       this.saving = false;
+      this.refresh();
     }
   }
 
@@ -280,6 +301,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = error.message;
     } finally {
       this.noteSaving = false;
+      this.refresh();
     }
   }
 
@@ -294,6 +316,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = error.message;
     } finally {
       this.saving = false;
+      this.refresh();
     }
   }
 
@@ -307,6 +330,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.error = error.message;
     } finally {
       this.saving = false;
+      this.refresh();
     }
   }
 

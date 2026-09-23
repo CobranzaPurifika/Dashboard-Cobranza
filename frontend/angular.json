@@ -14,7 +14,7 @@
             "outputPath": { "base": "www", "browser": "" },
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": [],
+            "polyfills": ["zone.js", "zone.js/plugins/zone-patch-fetch", "zone.js/plugins/webapis-shadydom"],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [{ "glob": "**/*", "input": "src/assets", "output": "assets" }],
