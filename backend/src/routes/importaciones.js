@@ -23,9 +23,12 @@ importacionesRouter.get("/", async (_req, res, next) => {
 // Actualización administrativa: BDD completa y, solo si se aplicó, Pagos. Al final recalcula
 // también el corte del mes en curso (kpi_snapshots/vencida_snapshots) con los pagos recién
 // importados -- si esto falla no debe tumbar la respuesta del sync, que ya se aplicó.
-importacionesRouter.post("/sync", async (_req, res, next) => {
+// force = true: aplica de todas formas aunque la caída de clientes/saldo supere el umbral de
+// anomalía; el administrador ya confirmó esto tras ver el aviso de la primera corrida.
+importacionesRouter.post("/sync", async (req, res, next) => {
   try {
-    const result = await runAllImports("manual");
+    const force = req.body?.force === true;
+    const result = await runAllImports("manual", { force });
     await runMonthlySnapshots().catch((error) => console.error("[monthly-snapshots]", error));
     res.status(201).json(result);
   } catch (error) {
@@ -41,7 +44,8 @@ importacionesRouter.post("/:sourceType/sync", async (req, res, next) => {
   }
 
   try {
-    const result = await runRawImport(sourceType, "manual");
+    const force = req.body?.force === true;
+    const result = await runRawImport(sourceType, "manual", { force });
     res.status(201).json(result);
   } catch (error) {
     res.status(error.statusCode ?? 500).json({ error: error.message });

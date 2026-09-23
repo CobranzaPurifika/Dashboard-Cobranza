@@ -14,7 +14,7 @@ import {
 
 const parsers = { bdd: parseBddCsv, pagos: parsePaymentsCsv };
 
-export async function runRawImport(sourceType, triggerType = "manual") {
+export async function runRawImport(sourceType, triggerType = "manual", { force = false } = {}) {
   const sources = getDriveSources(sourceType);
   const parser = parsers[sourceType];
   const run = await createRun(sourceType, triggerType);
@@ -35,7 +35,7 @@ export async function runRawImport(sourceType, triggerType = "manual") {
       await db.query("begin");
       const rowsInserted = await storeRawRows(db, run.id, sourceType, downloaded);
       const application = sourceType === "bdd"
-        ? await applyBddBatch(db, downloaded)
+        ? await applyBddBatch(db, downloaded, { force })
         : await applyPayments(db, buildPayments(downloaded.flatMap((item) => item.rows)));
 
       await db.query(
@@ -85,7 +85,7 @@ export async function runRawImport(sourceType, triggerType = "manual") {
 // clientes vigentes antes de esta corrida) para que, al decidir qué cliente ausente de la BDD
 // ya se pagó, se use el Pagos recién subido y no el de una corrida anterior; ya no queda nadie
 // en un estado intermedio esperando la siguiente corrida.
-export async function runAllImports(triggerType = "manual") {
+export async function runAllImports(triggerType = "manual", { force = false } = {}) {
   const bddRun = await createRun("bdd", triggerType);
   const pagosRun = await createRun("pagos", triggerType);
   let bddRowsRead = 0;
@@ -109,11 +109,11 @@ export async function runAllImports(triggerType = "manual") {
       const pagosApplication = await applyPayments(
         db, buildPayments(pagosDownloaded.flatMap((item) => item.rows))
       );
-      const bddApplication = await applyBddBatch(db, bddDownloaded);
+      const bddApplication = await applyBddBatch(db, bddDownloaded, { force });
 
       if (bddApplication.status !== "applied") {
         await db.query("rollback");
-        return finishSkippedJointRun({
+        return finishUnappliedJointRun({
           bddRun, pagosRun, bddRowsRead, pagosRowsRead, bddApplication,
         });
       }
@@ -188,25 +188,29 @@ export async function runAllImports(triggerType = "manual") {
   }
 }
 
-async function finishSkippedJointRun({ bddRun, pagosRun, bddRowsRead, pagosRowsRead, bddApplication }) {
+// bddApplication.status es "needs_confirmation" (cayó más del umbral, se le pregunta al
+// administrador si aplicar de todas formas) o "skipped" (lote incompleto). En ambos casos no se
+// aplicó nada -- Pagos tampoco, aunque ya se hubiera insertado en esta transacción, por el rollback.
+async function finishUnappliedJointRun({ bddRun, pagosRun, bddRowsRead, pagosRowsRead, bddApplication }) {
+  const status = bddApplication.status;
   await Promise.all([
     pool.query(
       `update import_runs
-       set status = 'skipped', rows_read = $1, rows_applied = 0, details = $2::jsonb, finished_at = now()
-       where id = $3`,
-      [bddRowsRead, JSON.stringify(bddApplication.details), bddRun.id]
+       set status = $1, rows_read = $2, rows_applied = 0, details = $3::jsonb, finished_at = now()
+       where id = $4`,
+      [status, bddRowsRead, JSON.stringify(bddApplication.details), bddRun.id]
     ),
     pool.query(
       `update import_runs
-       set status = 'skipped', rows_read = $1, rows_applied = 0,
-           details = $2::jsonb, finished_at = now()
-       where id = $3`,
-      [pagosRowsRead, JSON.stringify({ reason: "BDD no se aplicó; Pagos tampoco se aplica en esta corrida" }), pagosRun.id]
+       set status = $1, rows_read = $2, rows_applied = 0,
+           details = $3::jsonb, finished_at = now()
+       where id = $4`,
+      [status, pagosRowsRead, JSON.stringify({ reason: "BDD no se aplicó; Pagos tampoco se aplica en esta corrida" }), pagosRun.id]
     ),
   ]);
   return {
-    bdd: { id: bddRun.id, sourceType: "bdd", status: "skipped", rowsRead: bddRowsRead, rowsInserted: 0, rowsApplied: 0, details: bddApplication.details },
-    pagos: { id: pagosRun.id, sourceType: "pagos", status: "skipped", rowsRead: pagosRowsRead, rowsInserted: 0, rowsApplied: 0, details: { reason: "BDD no se aplicó" } },
+    bdd: { id: bddRun.id, sourceType: "bdd", status, rowsRead: bddRowsRead, rowsInserted: 0, rowsApplied: 0, details: bddApplication.details },
+    pagos: { id: pagosRun.id, sourceType: "pagos", status, rowsRead: pagosRowsRead, rowsInserted: 0, rowsApplied: 0, details: { reason: "BDD no se aplicó" } },
   };
 }
 
@@ -276,7 +280,7 @@ async function storeRawRows(db, runId, sourceType, downloaded) {
   return inserted;
 }
 
-async function applyBddBatch(db, downloaded) {
+async function applyBddBatch(db, downloaded, { force = false } = {}) {
   const snapshots = downloaded.map(({ source, rows }) => buildBddSnapshot(source.franchiseId, rows));
   const details = { franchises: {}, threshold: null };
   const prepared = [];
@@ -313,10 +317,17 @@ async function applyBddBatch(db, downloaded) {
   const anomalies = prepared.filter(({ check }) => check.anomalous);
   if (anomalies.length > 0) {
     const affected = anomalies.map(({ snapshot }) => snapshot.franchiseId).join(", ");
-    return {
-      status: "skipped", rowsApplied: 0,
-      details: { ...details, reason: `Caída superior al umbral en: ${affected}` },
-    };
+    if (!force) {
+      return {
+        status: "needs_confirmation", rowsApplied: 0,
+        details: {
+          ...details,
+          reason: `Caída superior al umbral (${Math.round(details.threshold * 100)}%) en: ${affected}`,
+          anomalousFranchises: anomalies.map(({ snapshot }) => snapshot.franchiseId),
+        },
+      };
+    }
+    details.forcedPastThreshold = affected;
   }
 
   await captureMonthlyPortfolioBaseline(db);

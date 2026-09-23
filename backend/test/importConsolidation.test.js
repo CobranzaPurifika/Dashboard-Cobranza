@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  anomalyThresholdForDate,
+  ANOMALY_THRESHOLD,
   buildBddSnapshot,
   buildPayments,
   clientIdFor,
@@ -72,16 +72,13 @@ test("Pagos toma la fecha más reciente, excluye ceros y deduplica", () => {
   assert.equal(result[0].franchiseId, "aguascalientes");
 });
 
-test("El umbral es 10% del día 1 al 5 y 2% después", () => {
-  assert.equal(anomalyThresholdForDate(new Date("2026-09-03T18:00:00Z")), 0.1);
-  assert.equal(anomalyThresholdForDate(new Date("2026-09-06T18:00:00Z")), 0.02);
+test("El umbral de anomalía es fijo en 20%", () => {
+  assert.equal(ANOMALY_THRESHOLD, 0.2);
   assert.equal(evaluateSnapshotDrop({
-    previousCount: 100, previousBalance: 1000, nextCount: 95, nextBalance: 950,
-    date: new Date("2026-09-03T18:00:00Z"),
+    previousCount: 100, previousBalance: 1000, nextCount: 85, nextBalance: 850,
   }).anomalous, false);
   assert.equal(evaluateSnapshotDrop({
-    previousCount: 100, previousBalance: 1000, nextCount: 95, nextBalance: 950,
-    date: new Date("2026-09-06T18:00:00Z"),
+    previousCount: 100, previousBalance: 1000, nextCount: 75, nextBalance: 750,
   }).anomalous, true);
 });
 
@@ -89,7 +86,6 @@ test("Clientes liquidados comprobados se descuentan antes del umbral", () => {
   const result = evaluateSnapshotDrop({
     previousCount: 100, previousBalance: 1000, nextCount: 90, nextBalance: 900,
     confirmedSettledCount: 10, confirmedSettledBalance: 100,
-    date: new Date("2026-09-06T18:00:00Z"),
   });
   assert.equal(result.clientDrop, 0);
   assert.equal(result.balanceDrop, 0);

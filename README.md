@@ -79,12 +79,13 @@ datos ahora**, que exige que las tres antigüedades y Pagos tengan datos válido
 nada.
 
 La consolidación BDD es atómica para las tres franquicias: si alguna solo tiene encabezados o no
-contiene cartera válida, o si Pagos no tiene datos válidos, no se aplica ningún cambio. También se
-rechazan caídas no explicadas mayores al 10% del día 1 al 5 o al 2% desde el día 6. Los pagos
-recién subidos se aplican antes de decidir qué hacer con cada cliente ausente: si tiene evidencia
-completa de pago pasa a liquidado; si no, pasa de inmediato a `Fuera de cartera` (sale de cartera,
-Seguimiento y Lista negra en esa misma corrida, sin esperar una revisión posterior), pero conserva
-pagos, gestiones y notas.
+contiene cartera válida, o si Pagos no tiene datos válidos, no se aplica ningún cambio. Si la caída
+de clientes o saldo respecto a la corrida anterior supera el 20%, no se aborta en silencio: el
+administrador ve un aviso con el detalle y decide si aplicar de todas formas o detener la
+actualización. Los pagos recién subidos se aplican antes de decidir qué hacer con cada cliente
+ausente: si tiene evidencia completa de pago pasa a liquidado; si no, pasa de inmediato a
+`Fuera de cartera` (sale de cartera, Seguimiento y Lista negra en esa misma corrida, sin esperar
+una revisión posterior), pero conserva pagos, gestiones y notas.
 
 Para producción, el repositorio incluye un contenedor único que sirve frontend y API, además de
 verificación automática en cada pull request. La secuencia completa de migración, variables y
