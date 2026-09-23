@@ -47,10 +47,10 @@ export function renderFunnel(f, expectativaCobro) {
     { color: "#25CAD2", ink: "#0B2B2D" },
   ];
   const stages = [
-    { label: "Total gestiones", value: f.total },
-    { label: "Gestión efectiva", value: f.efectiva },
-    { label: "Promesas acordadas", value: f.acordadas },
-    { label: "Promesas cumplidas", value: f.cumplidas },
+    { label: "Gestiones", value: f.total },
+    { label: "Efectiva", value: f.efectiva },
+    { label: "Acordadas", value: f.acordadas },
+    { label: "Cumplidas", value: f.cumplidas },
   ].map((s, i) => ({ ...s, ...FUNNEL_COLORS[i] }));
 
   const max = stages[0].value || 1;
@@ -69,7 +69,7 @@ export function renderFunnel(f, expectativaCobro) {
   const tasaAcuerdo = f.efectiva > 0 ? (f.acordadas / f.efectiva) * 100 : 0;
   const indiceCumplimiento = f.acordadas > 0 ? (f.cumplidas / f.acordadas) * 100 : 0;
 
-  const rates = `<div class="rate-box"><span class="rlabel">Contactabilidad</span><span class="rvalue">${contactabilidad.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Tasa de acuerdo</span><span class="rvalue">${tasaAcuerdo.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Índice de cumplimiento</span><span class="rvalue">${indiceCumplimiento.toFixed(1)}%</span></div>`;
+  const rates = `<div class="rate-box"><span class="rlabel">Contactabilidad</span><span class="rvalue">${contactabilidad.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Tasa de acuerdo</span><span class="rvalue">${tasaAcuerdo.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Cumplimiento</span><span class="rvalue">${indiceCumplimiento.toFixed(1)}%</span></div>`;
 
   const promiseBox = `<div class="promise-box" title="Suma de la factura más vencida de cada cliente con promesa de pago activa"><span class="rlabel">Expectativa de Cobro</span><span class="rvalue">${fmtMoney(expectativaCobro)}</span><span class="rsub">Factura más vencida por cliente</span></div>`;
 

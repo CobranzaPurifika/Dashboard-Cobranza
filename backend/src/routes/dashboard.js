@@ -166,11 +166,12 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            ${andClientes}`,
         params
       ),
-      // Expectativa de cobro: suma de la factura más vencida (folio numérico más bajo) de cada
-      // cliente con promesa de pago activa (vigente, sin cumplir todavía) -- computeActivePromisesTotal.
+      // Expectativa de cobro: la factura más vencida (folio numérico más bajo) de cada cliente
+      // con promesa de pago activa (vigente, sin cumplir todavía) -- computeActivePromisesTotal,
+      // ahora también por cliente (no solo la suma) para mostrar el detalle en Modo Presentación.
       pool.query(
         `with activos as (
-           select c.id
+           select c.id, c.name, c.promise_deadline_iso
            from clientes c
            where c.estatus_value = 'promesa_pago'
              and c.promise_deadline_iso is not null
@@ -191,8 +192,10 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            from facturas f
            join activos a on a.id = f.cliente_id
          )
-         select coalesce(sum(monto), 0)::float as total
-         from facturas_ord where rn = 1`,
+         select a.name, a.promise_deadline_iso, fo.monto::float as monto
+         from activos a
+         join facturas_ord fo on fo.cliente_id = a.id and fo.rn = 1
+         order by a.promise_deadline_iso asc, fo.monto desc`,
         params
       ),
     ]);
@@ -252,7 +255,12 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         acordadas,
         cumplidas: cumplidas.rows[0].cumplidas,
       },
-      expectativaCobro: activePromises.rows[0].total,
+      expectativaCobro: activePromises.rows.reduce((sum, row) => sum + Number(row.monto), 0),
+      expectativaCobroDetalle: activePromises.rows.map((row) => ({
+        name: row.name,
+        deadline: row.promise_deadline_iso,
+        monto: Number(row.monto),
+      })),
       historico: historico.rows,
       historicoVencida: historicoVencida.rows,
       recuperadoSemanal: summarizePayments(pagosMes.rows.filter((row) => row.is_weekly)),

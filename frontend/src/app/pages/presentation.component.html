@@ -1,0 +1,103 @@
+<div class="pres-screen" [class.controls-hidden]="hideControls">
+  <header class="pres-topbar">
+    <div class="pres-fr">
+      <span class="name">{{ active?.label ?? '—' }}</span>
+      <span class="sub">{{ portfolioSummary() }}</span>
+    </div>
+    <div class="pres-controls">
+      <div class="pres-progress"><div class="pres-progress-fill" [style.width.%]="progressPct"></div></div>
+      <div class="pres-dots">
+        @for (option of franchises; track option.id; let i = $index) {
+          <button type="button" class="pres-dot" [class.active]="i === activeIndex" [attr.aria-label]="'Ver ' + option.label" (click)="selectFranchise(i)"></button>
+        }
+      </div>
+      <button class="pres-btn" type="button" [title]="paused ? 'Reanudar rotación' : 'Pausar rotación'" (click)="togglePause()">
+        <ion-icon [name]="paused ? 'play-outline' : 'pause-outline'"></ion-icon>
+      </button>
+      <button class="pres-btn" type="button" [title]="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'" (click)="toggleFullscreen()">
+        <ion-icon [name]="isFullscreen ? 'contract-outline' : 'expand-outline'"></ion-icon>
+      </button>
+      <button class="pres-btn" type="button" title="Salir de presentación (Esc)" (click)="exitPresentation()">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+  </header>
+
+  @if (!data) {
+    <div class="pres-loading">Cargando…</div>
+  } @else {
+    <div class="pres-kpi-strip">
+      <div class="pres-kpi-tile good">
+        <div class="klabel">Cartera al corriente</div>
+        <div class="kvalue">{{ data.kpi.alCorriente.pct }}%</div>
+        <div class="kmonto">{{ money(data.kpi.alCorriente.monto) }}</div>
+      </div>
+      <div class="pres-kpi-tile warning">
+        <div class="klabel">Cartera vencida total</div>
+        <div class="kvalue">{{ data.kpi.vencidaTotal.pct }}%</div>
+        <div class="kmonto">{{ money(data.kpi.vencidaTotal.monto) }}</div>
+      </div>
+      <div class="pres-kpi-tile critical">
+        <div class="klabel">Cartera +60 días</div>
+        <div class="kvalue">{{ data.kpi.mas60.pct }}%</div>
+        <div class="kmonto">{{ money(data.kpi.mas60.monto) }}</div>
+      </div>
+    </div>
+
+    <div class="pres-grid">
+      <div class="pres-card saldos">
+        <div class="ptitle">Representación de saldos</div>
+        <div class="pres-pie-wrap">
+          <div class="donut" [innerHTML]="donut.svg"></div>
+          <div class="legend" [innerHTML]="donut.legend"></div>
+        </div>
+      </div>
+
+      <div class="pres-card funnel">
+        <div class="ptitle">Funnel de cobranza</div>
+        <div class="pres-mini-funnel" [innerHTML]="funnel.bars"></div>
+        <div class="pres-funnel-rates" [innerHTML]="funnel.rates"></div>
+      </div>
+
+      <div class="pres-card recuperado">
+        <div class="ptitle">Recuperado y expectativa — mes en curso</div>
+        <div class="pres-recuperado-body">
+          <div class="pres-rec-block">
+            <div class="rlabel">Monto recuperado</div>
+            <div class="pres-rec-amt">{{ money(data.recuperadoMensual?.total) }}</div>
+            <div class="pres-rec-sub">{{ countLabel(data.recuperadoMensual?.count) }} aplicados</div>
+            <div class="pres-rec-list">
+              @for (row of (data.recuperadoMensual?.rows ?? []).slice(0, 4); track $index) {
+                <div class="pres-rec-row"><span>{{ row.name || 'Cliente' }}</span><strong>{{ money(row.monto) }}</strong></div>
+              } @empty {
+                <div class="pres-rec-empty">Sin pagos aplicados este mes.</div>
+              }
+            </div>
+          </div>
+          <div class="pres-rec-block expectativa">
+            <div class="rlabel">Expectativa de cobro</div>
+            <div class="pres-rec-amt">{{ money(data.expectativaCobro) }}</div>
+            <div class="pres-rec-sub">Promesas activas</div>
+            <div class="pres-rec-list">
+              @for (row of (data.expectativaCobroDetalle ?? []).slice(0, 4); track $index) {
+                <div class="pres-rec-row"><span>{{ row.name || 'Cliente' }}</span><strong>{{ shortDate(row.deadline) }}</strong></div>
+              } @empty {
+                <div class="pres-rec-empty">Sin promesas de pago activas.</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pres-card historico">
+        <div class="ptitle">Histórico de recuperación</div>
+        <div class="pres-lc-wrap" [innerHTML]="recoveryChart"></div>
+      </div>
+
+      <div class="pres-card tendencia">
+        <div class="ptitle">Tendencia de cartera vencida</div>
+        <div class="pres-lc-wrap" [innerHTML]="overdueChart"></div>
+      </div>
+    </div>
+  }
+</div>

@@ -24,6 +24,8 @@ button, input, select, textarea { font: inherit; }
 .priority-list { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
 .priority-list.is-loading { opacity: .6; pointer-events: none; transition: opacity .15s ease; }
 .priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) 90px 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; }
+.priority-list.density-compact .priority-row { padding: 7px 22px; gap: 10px; contain-intrinsic-size: auto 37px; }
+.priority-list.density-compact .client-main small { display: none; }
 .priority-row:hover { background: var(--surface-hover); }
 .priority-row.managed { opacity: .62; }
 .priority-row.blacklisted { background: color-mix(in srgb, #d84f43 5%, transparent); }
