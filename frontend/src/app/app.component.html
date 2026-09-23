@@ -55,7 +55,7 @@
     }
 
     <main class="workspace">
-      @if (appError) { <div class="app-error">{{ appError }}</div> }
+      @if (appError) { <div class="app-error"><span>{{ appError }}</span><button type="button" (click)="retry()">Reintentar</button></div> }
       @if (loading && !dashboardData) {
         <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
       } @else if (view === 'dashboard') {

@@ -25,7 +25,8 @@
 .header-actions ion-icon { font-size: 16px; }
 .header-actions .account-button span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 .workspace { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 22px 0 36px; }
-.app-error { margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
+.app-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
+.app-error button { flex: none; padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: #07373a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
 .app-loading { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
 .settings-popover { position: fixed; top: 58px; right: max(20px, calc((100vw - 1440px) / 2)); z-index: 70; width: min(350px, calc(100vw - 30px)); padding: 17px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow-lg); }
 .settings-popover header { display: flex; justify-content: space-between; }

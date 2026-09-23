@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly apiBase = window.__APP_CONFIG__?.apiBase ?? 'http://localhost:3001/api';
+  private readonly apiBase = this.resolveApiBase();
 
   constructor(private readonly auth: AuthService) {}
 
@@ -79,8 +79,15 @@ export class ApiService {
       },
     });
 
+    if (response.status === 204) return null;
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      throw new Error('La API de cartera no está conectada en este despliegue. Intenta nuevamente o revisa la configuración del servidor.');
+    }
+
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
         this.auth.clearSession();
         window.dispatchEvent(new CustomEvent('auth-required'));
@@ -88,10 +95,18 @@ export class ApiService {
       throw new Error(payload.error ?? `Error ${response.status}`);
     }
 
-    return response.status === 204 ? null : response.json();
+    return payload;
   }
 
   private query(params: Record<string, string>): string {
     return new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value))).toString();
+  }
+
+  private resolveApiBase(): string {
+    const configured = String(window.__APP_CONFIG__?.apiBase ?? '').trim();
+    if (configured) return configured.replace(/\/$/, '');
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001/api'
+      : '/api';
   }
 }
