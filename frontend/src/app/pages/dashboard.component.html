@@ -85,10 +85,23 @@
           <strong>{{ money(recoveryData().total) }}</strong>
           <span>{{ countLabel(recoveryData().count) }}</span>
         </div>
-        @if (recoveredRows().length) {
+        @if (recoveredClients().length) {
           <div class="payments-table">
-            @for (payment of recoveredRows(); track $index) {
-              <div><span>{{ payment.name || 'Cliente' }}</span><span>{{ payment.fecha_iso | date:'dd MMM' }}</span><strong>{{ money(payment.monto) }}</strong></div>
+            @for (client of recoveredClients(); track client.key) {
+              <div class="payments-client">
+                <button type="button" class="payments-client-toggle" [attr.aria-expanded]="isRecoveryClientExpanded(client.key)" (click)="toggleRecoveryClient(client.key)">
+                  <ion-icon [name]="isRecoveryClientExpanded(client.key) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+                  <span>{{ client.name }}</span>
+                  <strong>{{ money(client.total) }}</strong>
+                </button>
+                @if (isRecoveryClientExpanded(client.key)) {
+                  <div class="payments-invoices">
+                    @for (payment of client.payments; track $index) {
+                      <div><span>{{ payment.folio || payment.factura || 'Sin folio' }}</span><span>{{ payment.fecha_iso | date:'dd MMM' }}</span><b>{{ money(payment.monto) }}</b></div>
+                    }
+                  </div>
+                }
+              </div>
             }
           </div>
         } @else {

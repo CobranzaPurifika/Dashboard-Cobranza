@@ -47,13 +47,6 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   monthlyData: any = null;
   dailyCountExpanded = false;
   expandedFranchiseDetails = new Set<string>();
-  showPayments = false;
-  paymentsLoading = false;
-  paymentsError = '';
-  paymentsData: { rows: any[]; shown: number; total: number } | null = null;
-  paymentsQuery = '';
-  paymentsDesde = '';
-  paymentsHasta = '';
   showBulkIncidentModal = false;
   bulkFranchiseIds = new Set<string>();
   bulkSelectedDates = new Set<string>();
@@ -80,15 +73,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   private followupAbort?: AbortController;
   private blacklistAbort?: AbortController;
   private monthlyAbort?: AbortController;
-  private paymentsAbort?: AbortController;
   private loadRequest = 0;
   private priorityRequest = 0;
   private detailRequest = 0;
   private followupRequest = 0;
   private blacklistRequest = 0;
   private monthlyRequest = 0;
-  private paymentsRequest = 0;
-  private paymentsQueryTimer?: ReturnType<typeof setTimeout>;
 
   readonly hours = Array.from({ length: 10 }, (_, index) => `${String(index + 9).padStart(2, '0')}:00`);
 
@@ -106,7 +96,6 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     // Los cambios de franquicia son el único disparador de las tres consultas. Evitar
     // recargas por referencias de usuario/catálogo elimina abortos cruzados al arrancar.
     if (changes['franchise'] || !this.loaded) void this.loadAll();
-    if (changes['franchise'] && this.showPayments) void this.loadPayments();
   }
 
   ngOnDestroy(): void {
@@ -116,8 +105,6 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.followupAbort?.abort();
     this.blacklistAbort?.abort();
     this.monthlyAbort?.abort();
-    this.paymentsAbort?.abort();
-    clearTimeout(this.paymentsQueryTimer);
   }
 
   get canManage(): boolean {
@@ -306,52 +293,6 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.monthlyRequest += 1;
     this.monthlyLoading = false;
     this.showStats = false;
-  }
-
-  async openPayments(): Promise<void> {
-    this.showPayments = true;
-    this.paymentsQuery = '';
-    this.paymentsDesde = '';
-    this.paymentsHasta = '';
-    await this.loadPayments();
-  }
-
-  closePayments(): void {
-    this.paymentsAbort?.abort();
-    this.paymentsRequest += 1;
-    this.paymentsLoading = false;
-    this.showPayments = false;
-  }
-
-  onPaymentsSearch(): void {
-    clearTimeout(this.paymentsQueryTimer);
-    this.paymentsQueryTimer = setTimeout(() => void this.loadPayments(), 300);
-  }
-
-  async loadPayments(): Promise<void> {
-    this.paymentsAbort?.abort();
-    const controller = new AbortController();
-    this.paymentsAbort = controller;
-    const requestId = ++this.paymentsRequest;
-    this.paymentsLoading = true;
-    this.paymentsError = '';
-    this.refresh();
-    try {
-      const data = await this.api.pagosGlobal({
-        franchise: this.franchise,
-        q: this.paymentsQuery,
-        desde: this.paymentsDesde,
-        hasta: this.paymentsHasta,
-      }, controller.signal);
-      if (!controller.signal.aborted && requestId === this.paymentsRequest) this.paymentsData = data;
-    } catch (error: any) {
-      if (error?.name !== 'AbortError' && requestId === this.paymentsRequest) this.paymentsError = error.message;
-    } finally {
-      if (!controller.signal.aborted && requestId === this.paymentsRequest) {
-        this.paymentsLoading = false;
-        this.refresh();
-      }
-    }
   }
 
   isFranchiseDetailExpanded(id: string): boolean {

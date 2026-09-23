@@ -96,10 +96,6 @@ export class ApiService {
     return this.request(`/clientes/${id}/promise`, { method: 'DELETE' });
   }
 
-  pagosGlobal(params: Record<string, string>, signal?: AbortSignal) {
-    return this.request(`/pagos?${this.query(params)}`, { signal });
-  }
-
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.auth.getValidAccessToken();
     const response = await fetch(`${this.apiBase}${path}`, {

@@ -104,6 +104,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       pool.query(
         `select p.cliente_id, coalesce(c.name, p.grupo_facturacion) as name,
                 coalesce(p.franchise_id, c.franchise_id) as franchise_id, p.fecha_iso, p.monto,
+                p.folio, p.factura,
                 p.fecha_iso >= greatest(
                   date_trunc('week', (now() at time zone 'America/Mexico_City'))::date,
                   date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
