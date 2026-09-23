@@ -22,7 +22,8 @@ dominio.
 7.1. Guardar una nota sólo actualiza `clientes.notas`: no crea un evento, no altera el
      estatus y no modifica `last_gestion_iso`.
 8. Airtable es un respaldo transitorio de la etapa Artifact; no será fuente de verdad de la app.
-9. El botón manual relee los mismos archivos de Drive; no admite archivos alternos.
+9. El botón manual relee los mismos archivos de Drive; no admite archivos alternos. No hay
+   corridas automáticas ni programadas.
 10. Toda fuente se valida completa antes de escribir RAW. Un error deja intacto el consolidado.
 11. RAW es acumulativo: una fila idéntica no se duplica y una versión modificada se conserva.
 12. Los tres archivos BDD se aplican en una sola transacción o no se aplica ninguno.
@@ -53,12 +54,14 @@ dominio.
 Administradores y lectores consultan Aguascalientes, Cancún y Mérida. Cada gestor solo puede
 consultar y modificar clientes de las franquicias registradas en `user_franchises`.
 
-Toda gestión nueva conserva el usuario que la registró. La sincronización automática se ejecuta
-como proceso interno y no suplanta a un usuario.
+Toda gestión nueva conserva el usuario que la registró. La corrida del botón Actualizar se
+ejecuta como proceso interno y no suplanta a un usuario.
 
 ## Consecuencia operativa
 
-Si un cliente deja de aparecer en BDD, primero se verifica que todos sus folios abiertos tengan
-evidencia de pago. Si la evidencia es completa, pasa a liquidado, sale de cartera, Seguimiento y
-Lista negra, y conserva pagos, gestiones y notas. Si falta evidencia, conserva el último saldo y
-permanece visible como `Pendiente de validar` hasta la siguiente importación o revisión.
+Si un cliente deja de aparecer en BDD, primero se verifica -- con el Pagos recién subido en esa
+misma corrida -- que todos sus folios abiertos tengan evidencia de pago. Si la evidencia es
+completa, pasa a liquidado, sale de cartera, Seguimiento y Lista negra, y conserva pagos,
+gestiones y notas. Si falta evidencia, pasa de inmediato a `Fuera de cartera`: sale de las mismas
+vistas activas en esa misma corrida -- sin esperar una siguiente importación -- pero conserva su
+timeline, notas y facturas para consulta histórica.

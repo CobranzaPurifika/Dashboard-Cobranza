@@ -15,7 +15,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
     const params = [allowed];
     const conditions = [
       "c.franchise_id = any($1::text[])",
-      "c.portfolio_status != 'settled'",
+      "c.portfolio_status = 'active'",
     ];
 
     if (segment) {
@@ -76,7 +76,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
       pool.query(
         `select count(*)::int as total
          from clientes c
-         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'`,
+         where c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'`,
         [allowed]
       ),
     ]);
@@ -94,7 +94,7 @@ clientesRouter.get("/", async (req, res, next) => {
     const conditions = [];
     const params = [resolveFranchiseScope(req.user, franchise || "todas")];
     conditions.push("c.franchise_id = any($1::text[])");
-    conditions.push("c.portfolio_status != 'settled'");
+    conditions.push("c.portfolio_status = 'active'");
     if (tramo) {
       params.push(tramo);
       conditions.push(`c.tramo = $${params.length}`);

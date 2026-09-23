@@ -39,7 +39,6 @@
             <span class="badges">
               <i class="badge" [class]="'badge ' + client.tramo">{{ client.tramo_label || tramoLabel(client.tramo) }}</i>
               @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
-              @if (client.portfolio_status === 'pending_validation') { <i class="pending-badge">Pendiente</i> }
             </span>
             <strong class="balance">{{ money(client.saldo) }}</strong>
             <button class="manage-action" type="button" (click)="openDetail(client.id)">Gestionar <ion-icon name="chevron-forward-outline"></ion-icon></button>
@@ -133,9 +132,6 @@
       </section>
 
       @if (salesExecutives()) { <p class="sales-executive"><strong>Ejecutivo de ventas</strong><span>{{ salesExecutives() }}</span></p> }
-      @if (detail.portfolio_status === 'pending_validation') {
-        <div class="pending-notice">Pendiente de validar: no apareció en la BDD y aún no existe evidencia de pago total.</div>
-      }
 
       @if (canManage) {
         <section class="drawer-section management-form">
