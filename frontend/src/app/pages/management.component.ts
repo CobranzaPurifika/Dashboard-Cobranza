@@ -33,6 +33,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   segment = '';
   query = '';
   loading = false;
+  priorityLoading = false;
   loaded = false;
   detailLoading = false;
   detail: any = null;
@@ -137,6 +138,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     const controller = new AbortController();
     this.priorityAbort = controller;
     const requestId = ++this.priorityRequest;
+    this.priorityLoading = true;
+    this.refresh();
     try {
       const result = await this.api.prioridad({
         franchise: this.franchise,
@@ -147,10 +150,14 @@ export class ManagementComponent implements OnChanges, OnDestroy {
         this.priority = result.rows;
         this.priorityShown = result.shown;
         this.priorityTotal = result.total;
-        this.refresh();
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError') throw error;
+    } finally {
+      if (requestId === this.priorityRequest) {
+        this.priorityLoading = false;
+        this.refresh();
+      }
     }
   }
 
