@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
@@ -44,6 +44,17 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   monthlyLoading = false;
   monthlyError = '';
   monthlyData: any = null;
+  dailyCountExpanded = false;
+  expandedFranchiseDetails = new Set<string>();
+  showBulkIncidentModal = false;
+  bulkFranchiseIds = new Set<string>();
+  bulkSelectedDates = new Set<string>();
+  bulkNote = '';
+  bulkSaving = false;
+  bulkError = '';
+  bulkDragPreviewEnd = '';
+  private bulkDragStart: string | null = null;
+  private bulkDragMoved = false;
 
   gestionStatus = '';
   gestionComment = '';
@@ -234,6 +245,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.showStats = true;
     this.monthlyLoading = true;
     this.monthlyError = '';
+    this.dailyCountExpanded = false;
+    this.expandedFranchiseDetails = new Set();
     try {
       const data = await this.api.gestionesMes('', controller.signal);
       if (!controller.signal.aborted && requestId === this.monthlyRequest) this.monthlyData = data;
@@ -254,15 +267,170 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.showStats = false;
   }
 
-  async markIncident(franchise: string, date: string, currentNote = ''): Promise<void> {
-    const note = window.prompt('Describe la incidencia que justifica este día:', currentNote)?.trim();
-    if (!note) return;
+  isFranchiseDetailExpanded(id: string): boolean {
+    return this.expandedFranchiseDetails.has(id);
+  }
+
+  toggleFranchiseDetail(id: string): void {
+    const next = new Set(this.expandedFranchiseDetails);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.expandedFranchiseDetails = next;
+  }
+
+  get bulkAvailableDates(): string[] {
+    const dates = new Set<string>();
+    for (const franchise of this.monthlyData?.franchises ?? []) {
+      for (const day of franchise.days ?? []) dates.add(day.date);
+    }
+    return [...dates].sort();
+  }
+
+  // Cuadrícula del mes de monthlyData (único mes con datos disponibles para incidencias),
+  // con los días fuera de rango de la semana rellenados para completar filas de 7 -- igual
+  // que un calendario normal, pero sin navegación entre meses porque no hay datos que mostrar
+  // fuera de este mes.
+  get bulkCalendarWeeks(): { date: string; day: number; inMonth: boolean; available: boolean }[][] {
+    const month = this.monthlyData?.month;
+    if (!month) return [];
+    const [year, mon] = month.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+    const firstWeekday = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7; // 0 = lunes
+    const available = new Set(this.bulkAvailableDates);
+
+    const cells: { date: string; day: number; inMonth: boolean; available: boolean }[] = [];
+    for (let i = firstWeekday; i > 0; i -= 1) {
+      const d = new Date(Date.UTC(year, mon - 1, 1 - i));
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, available: false });
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const d = new Date(Date.UTC(year, mon - 1, day));
+      const iso = this.isoDate(d);
+      cells.push({ date: iso, day, inMonth: true, available: available.has(iso) });
+    }
+    while (cells.length % 7 !== 0) {
+      const d = new Date(`${cells[cells.length - 1].date}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, available: false });
+    }
+
+    const weeks: { date: string; day: number; inMonth: boolean; available: boolean }[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+  }
+
+  get bulkCalendarLabel(): string {
+    if (!this.monthlyData?.monthLabel) return '';
+    const year = this.monthlyData.month?.slice(0, 4) ?? '';
+    return `${this.monthlyData.monthLabel} ${year}`.toUpperCase();
+  }
+
+  openBulkIncidentModal(): void {
+    this.bulkFranchiseIds = new Set((this.monthlyData?.franchises ?? []).map((franchise: any) => franchise.id));
+    this.bulkSelectedDates = new Set();
+    this.bulkDragPreviewEnd = '';
+    this.bulkNote = '';
+    this.bulkError = '';
+    this.showBulkIncidentModal = true;
+  }
+
+  closeBulkIncidentModal(): void {
+    this.showBulkIncidentModal = false;
+  }
+
+  toggleBulkFranchise(id: string): void {
+    const next = new Set(this.bulkFranchiseIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.bulkFranchiseIds = next;
+  }
+
+  // Un solo clic (sin arrastre) alterna ese día suelto -- así se seleccionan días salteados.
+  // Clic y arrastre a otro día rellena todo el rango entre ambos -- así se selecciona un rango.
+  // Ambas interacciones comparten el mismo conjunto de días seleccionados.
+  onCalendarPointerDown(cell: { date: string; available: boolean }): void {
+    if (!cell.available) return;
+    this.bulkDragStart = cell.date;
+    this.bulkDragMoved = false;
+    this.bulkDragPreviewEnd = cell.date;
+  }
+
+  onCalendarPointerEnter(cell: { date: string; available: boolean }): void {
+    if (!this.bulkDragStart || !cell.available) return;
+    this.bulkDragMoved = true;
+    this.bulkDragPreviewEnd = cell.date;
+    this.refresh();
+  }
+
+  onCalendarPointerUp(cell: { date: string; available: boolean }): void {
+    const start = this.bulkDragStart;
+    this.bulkDragStart = null;
+    this.bulkDragPreviewEnd = '';
+    if (!start || !cell.available) { this.refresh(); return; }
+
+    const next = new Set(this.bulkSelectedDates);
+    if (this.bulkDragMoved && cell.date !== start) {
+      const [from, to] = [start, cell.date].sort();
+      for (const date of this.bulkAvailableDates) {
+        if (date >= from && date <= to) next.add(date);
+      }
+    } else {
+      next.has(start) ? next.delete(start) : next.add(start);
+    }
+    this.bulkSelectedDates = next;
+    this.refresh();
+  }
+
+  @HostListener('document:pointerup')
+  onDocumentPointerUp(): void {
+    this.bulkDragStart = null;
+    this.bulkDragPreviewEnd = '';
+  }
+
+  isInBulkDragPreview(date: string): boolean {
+    if (!this.bulkDragStart || !this.bulkDragPreviewEnd) return false;
+    const [from, to] = [this.bulkDragStart, this.bulkDragPreviewEnd].sort();
+    return date >= from && date <= to;
+  }
+
+  bulkSelectionSummary(): string {
+    const count = this.bulkSelectedDates.size;
+    if (!count) return 'Ningún día seleccionado';
+    const sorted = [...this.bulkSelectedDates].sort();
+    const inRange = this.bulkAvailableDates.filter((date) => date >= sorted[0] && date <= sorted[sorted.length - 1]);
+    const isContiguous = inRange.length === sorted.length && inRange.every((date, i) => date === sorted[i]);
+    if (isContiguous && count > 1) return `${this.shortDate(sorted[0])} — ${this.shortDate(sorted[sorted.length - 1])}`;
+    return `${count} día${count === 1 ? '' : 's'} seleccionado${count === 1 ? '' : 's'}`;
+  }
+
+  private isoDate(d: Date): string {
+    return d.toISOString().slice(0, 10);
+  }
+
+  async confirmBulkIncident(): Promise<void> {
+    if (this.bulkSaving) return;
+    const note = this.bulkNote.trim();
+    const dates = [...this.bulkSelectedDates];
+    const franchiseIds = [...this.bulkFranchiseIds];
+    if (!note) { this.bulkError = 'Describe la incidencia que justifica estos días.'; this.refresh(); return; }
+    if (!dates.length) { this.bulkError = 'Selecciona al menos un día hábil.'; this.refresh(); return; }
+    if (!franchiseIds.length) { this.bulkError = 'Selecciona al menos una franquicia.'; this.refresh(); return; }
+    this.bulkSaving = true;
+    this.bulkError = '';
+    this.refresh();
     try {
-      await this.api.guardarIncidencia(franchise, date, note);
+      const results = await Promise.allSettled(
+        franchiseIds.flatMap((franchiseId) => dates.map((date) => this.api.guardarIncidencia(franchiseId, date, note))),
+      );
+      const failed = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
       this.monthlyData = await this.api.gestionesMes(this.monthlyData?.month ?? '');
+      if (failed.length) {
+        this.bulkError = `${failed.length} de ${results.length} registros no se pudieron guardar.`;
+      } else {
+        this.showBulkIncidentModal = false;
+      }
     } catch (error: any) {
-      this.monthlyError = error.message;
+      this.bulkError = error.message;
     } finally {
+      this.bulkSaving = false;
       this.refresh();
     }
   }

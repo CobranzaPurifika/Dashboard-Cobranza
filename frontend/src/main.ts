@@ -3,6 +3,7 @@ import { ChangeDetectorRef, NgZone, provideZoneChangeDetection } from '@angular/
 import { provideIonicAngular } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  addCircleOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
@@ -25,6 +26,7 @@ import {
 import { AppComponent } from './app/app.component';
 
 addIcons({
+  addCircleOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
