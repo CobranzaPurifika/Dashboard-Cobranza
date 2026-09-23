@@ -40,7 +40,7 @@ export class PresentationComponent implements OnChanges, OnDestroy {
   error = '';
 
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
-  funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
+  funnel: { bars?: SafeHtml; rates?: SafeHtml } = {};
   recoveryChart?: SafeHtml;
   overdueChart?: SafeHtml;
 
@@ -92,6 +92,17 @@ export class PresentationComponent implements OnChanges, OnDestroy {
     this.refresh();
   }
 
+  get isFullscreen(): boolean {
+    return !!document.fullscreenElement;
+  }
+
+  toggleFullscreen(): void {
+    const request = document.fullscreenElement
+      ? document.exitFullscreen?.()
+      : document.documentElement.requestFullscreen?.();
+    request?.catch(() => {}).finally(() => this.refresh());
+  }
+
   selectFranchise(index: number): void {
     if (index === this.activeIndex) return;
     this.activeIndex = index;
@@ -140,9 +151,16 @@ export class PresentationComponent implements OnChanges, OnDestroy {
     const donut = renderDonut(this.data.saldos ?? [], { incluirCorriente: true });
     const funnel = renderFunnel(this.data.funnel ?? {}, this.data.expectativaCobro ?? 0);
     this.donut = { svg: this.safe(donut.svg), legend: this.safe(donut.legend) };
-    this.funnel = { bars: this.safe(funnel.bars), rates: this.safe(funnel.rates), promise: this.safe(funnel.promise) };
+    this.funnel = { bars: this.safe(funnel.bars), rates: this.safe(funnel.rates) };
     this.recoveryChart = this.safe(buildLineChartRecuperado(this.data.historico ?? []));
     this.overdueChart = this.safe(buildLineChartVencida(this.data.historicoVencida ?? []));
+  }
+
+  portfolioSummary(): string {
+    if (!this.data?.portfolio) return '';
+    const count = Number(this.data.portfolio.clientes ?? 0).toLocaleString('es-MX');
+    const balance = Number(this.data.portfolio.saldo ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+    return `${count} clientes · $${balance} en cartera`;
   }
 
   money(value: unknown): string {
@@ -151,6 +169,14 @@ export class PresentationComponent implements OnChanges, OnDestroy {
 
   countLabel(count: number): string {
     return `${Number(count ?? 0).toLocaleString('es-MX')} ${Number(count) === 1 ? 'pago' : 'pagos'}`;
+  }
+
+  shortDate(value: string): string {
+    if (!value) return '';
+    const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(year, month - 1, day)))
+      .replace('.', '');
   }
 
   private safe(html: string): SafeHtml {

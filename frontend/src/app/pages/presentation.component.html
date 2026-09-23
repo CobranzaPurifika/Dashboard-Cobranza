@@ -2,7 +2,7 @@
   <header class="pres-topbar">
     <div class="pres-fr">
       <span class="name">{{ active?.label ?? '—' }}</span>
-      <span class="sub">Modo presentación</span>
+      <span class="sub">{{ portfolioSummary() }}</span>
     </div>
     <div class="pres-controls">
       <div class="pres-progress"><div class="pres-progress-fill" [style.width.%]="progressPct"></div></div>
@@ -13,6 +13,9 @@
       </div>
       <button class="pres-btn" type="button" [title]="paused ? 'Reanudar rotación' : 'Pausar rotación'" (click)="togglePause()">
         <ion-icon [name]="paused ? 'play-outline' : 'pause-outline'"></ion-icon>
+      </button>
+      <button class="pres-btn" type="button" [title]="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'" (click)="toggleFullscreen()">
+        <ion-icon [name]="isFullscreen ? 'contract-outline' : 'expand-outline'"></ion-icon>
       </button>
       <button class="pres-btn" type="button" title="Salir de presentación (Esc)" (click)="exitPresentation()">
         <ion-icon name="close-outline"></ion-icon>
@@ -57,14 +60,32 @@
       </div>
 
       <div class="pres-card recuperado">
-        <div class="ptitle">Recuperado (semana) y expectativa de cobro</div>
+        <div class="ptitle">Recuperado y expectativa — mes en curso</div>
         <div class="pres-recuperado-body">
           <div class="pres-rec-block">
-            <div class="rlabel">Recuperado esta semana</div>
-            <div class="pres-rec-amt">{{ money(data.recuperadoSemanal?.total) }}</div>
-            <div class="pres-rec-sub">{{ countLabel(data.recuperadoSemanal?.count) }}</div>
+            <div class="rlabel">Monto recuperado</div>
+            <div class="pres-rec-amt">{{ money(data.recuperadoMensual?.total) }}</div>
+            <div class="pres-rec-sub">{{ countLabel(data.recuperadoMensual?.count) }} aplicados</div>
+            <div class="pres-rec-list">
+              @for (row of (data.recuperadoMensual?.rows ?? []).slice(0, 4); track $index) {
+                <div class="pres-rec-row"><span>{{ row.name || 'Cliente' }}</span><strong>{{ money(row.monto) }}</strong></div>
+              } @empty {
+                <div class="pres-rec-empty">Sin pagos aplicados este mes.</div>
+              }
+            </div>
           </div>
-          <div class="pres-rec-block expectativa" [innerHTML]="funnel.promise"></div>
+          <div class="pres-rec-block expectativa">
+            <div class="rlabel">Expectativa de cobro</div>
+            <div class="pres-rec-amt">{{ money(data.expectativaCobro) }}</div>
+            <div class="pres-rec-sub">Promesas activas</div>
+            <div class="pres-rec-list">
+              @for (row of (data.expectativaCobroDetalle ?? []).slice(0, 4); track $index) {
+                <div class="pres-rec-row"><span>{{ row.name || 'Cliente' }}</span><strong>{{ shortDate(row.deadline) }}</strong></div>
+              } @empty {
+                <div class="pres-rec-empty">Sin promesas de pago activas.</div>
+              }
+            </div>
+          </div>
         </div>
       </div>
 
