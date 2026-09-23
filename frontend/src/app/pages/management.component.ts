@@ -43,6 +43,15 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   monthlyLoading = false;
   monthlyError = '';
   monthlyData: any = null;
+  showBulkIncidentModal = false;
+  bulkMode: 'range' | 'days' = 'range';
+  bulkFranchiseIds = new Set<string>();
+  bulkStartDate = '';
+  bulkEndDate = '';
+  bulkSelectedDates = new Set<string>();
+  bulkNote = '';
+  bulkSaving = false;
+  bulkError = '';
 
   gestionStatus = '';
   gestionComment = '';
@@ -247,15 +256,73 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.showStats = false;
   }
 
-  async markIncident(franchise: string, date: string, currentNote = ''): Promise<void> {
-    const note = window.prompt('Describe la incidencia que justifica este día:', currentNote)?.trim();
-    if (!note) return;
+  get bulkAvailableDates(): string[] {
+    const dates = new Set<string>();
+    for (const franchise of this.monthlyData?.franchises ?? []) {
+      for (const day of franchise.days ?? []) dates.add(day.date);
+    }
+    return [...dates].sort();
+  }
+
+  openBulkIncidentModal(): void {
+    this.bulkMode = 'range';
+    this.bulkFranchiseIds = new Set((this.monthlyData?.franchises ?? []).map((franchise: any) => franchise.id));
+    const dates = this.bulkAvailableDates;
+    this.bulkStartDate = dates[0] ?? '';
+    this.bulkEndDate = dates[dates.length - 1] ?? '';
+    this.bulkSelectedDates = new Set();
+    this.bulkNote = '';
+    this.bulkError = '';
+    this.showBulkIncidentModal = true;
+  }
+
+  closeBulkIncidentModal(): void {
+    this.showBulkIncidentModal = false;
+  }
+
+  toggleBulkFranchise(id: string): void {
+    const next = new Set(this.bulkFranchiseIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.bulkFranchiseIds = next;
+  }
+
+  toggleBulkDate(date: string): void {
+    const next = new Set(this.bulkSelectedDates);
+    next.has(date) ? next.delete(date) : next.add(date);
+    this.bulkSelectedDates = next;
+  }
+
+  bulkDatesInRange(): string[] {
+    if (!this.bulkStartDate || !this.bulkEndDate) return [];
+    return this.bulkAvailableDates.filter((date) => date >= this.bulkStartDate && date <= this.bulkEndDate);
+  }
+
+  async confirmBulkIncident(): Promise<void> {
+    if (this.bulkSaving) return;
+    const note = this.bulkNote.trim();
+    const dates = this.bulkMode === 'range' ? this.bulkDatesInRange() : [...this.bulkSelectedDates];
+    const franchiseIds = [...this.bulkFranchiseIds];
+    if (!note) { this.bulkError = 'Describe la incidencia que justifica estos días.'; this.refresh(); return; }
+    if (!dates.length) { this.bulkError = 'Selecciona al menos un día hábil.'; this.refresh(); return; }
+    if (!franchiseIds.length) { this.bulkError = 'Selecciona al menos una franquicia.'; this.refresh(); return; }
+    this.bulkSaving = true;
+    this.bulkError = '';
+    this.refresh();
     try {
-      await this.api.guardarIncidencia(franchise, date, note);
+      const results = await Promise.allSettled(
+        franchiseIds.flatMap((franchiseId) => dates.map((date) => this.api.guardarIncidencia(franchiseId, date, note))),
+      );
+      const failed = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
       this.monthlyData = await this.api.gestionesMes(this.monthlyData?.month ?? '');
+      if (failed.length) {
+        this.bulkError = `${failed.length} de ${results.length} registros no se pudieron guardar.`;
+      } else {
+        this.showBulkIncidentModal = false;
+      }
     } catch (error: any) {
-      this.monthlyError = error.message;
+      this.bulkError = error.message;
     } finally {
+      this.bulkSaving = false;
       this.refresh();
     }
   }

@@ -220,7 +220,10 @@
         </section>
 
         <section class="monthly-section monthly-detail">
-          <h3>Detalle e incidencias por franquicia</h3>
+          <div class="monthly-detail-header">
+            <h3>Detalle e incidencias por franquicia</h3>
+            @if (canManage) { <button class="incident-bulk-action" type="button" (click)="openBulkIncidentModal()"><ion-icon name="add-circle-outline"></ion-icon>Marcar incidencia en lote</button> }
+          </div>
           @for (franchise of monthlyData.franchises; track franchise.id) {
             <div class="franchise-detail">
               <h4>{{ franchise.label }} <span>— meta {{ franchise.goal }}/día</span></h4>
@@ -230,8 +233,6 @@
                   <b [class.complete]="day.pct >= 100" [class.incomplete]="day.pct < 100">{{ day.incident ? '—' : day.pct + '%' }}</b>
                   @if (day.incident) {
                     <span class="incident-badge">Justificado — {{ day.incident.note }}<button type="button" title="Quitar incidencia" (click)="removeIncident(franchise.id, day.date)"><ion-icon name="close-outline"></ion-icon></button></span>
-                  } @else if (canManage) {
-                    <button class="incident-action" type="button" (click)="markIncident(franchise.id, day.date)">Marcar incidencia</button>
                   }
                 </div>
               }
@@ -241,4 +242,56 @@
       }
     </div>
   </aside>
+}
+
+@if (showBulkIncidentModal) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeBulkIncidentModal()"></button>
+  <section class="dialog-card bulk-incident-dialog" role="dialog" aria-modal="true" aria-label="Marcar incidencia en lote">
+    <header><div><h2>Marcar incidencia en lote</h2><p>Justifica varios días y franquicias en una sola acción</p></div><button type="button" aria-label="Cerrar" (click)="closeBulkIncidentModal()"><ion-icon name="close-outline"></ion-icon></button></header>
+    <div class="dialog-content bulk-incident-fields">
+      <div class="bulk-field">
+        <span>Franquicias</span>
+        <div class="bulk-chip-row">
+          @for (franchise of monthlyData?.franchises ?? []; track franchise.id) {
+            <label class="bulk-chip" [class.active]="bulkFranchiseIds.has(franchise.id)">
+              <input type="checkbox" [checked]="bulkFranchiseIds.has(franchise.id)" (change)="toggleBulkFranchise(franchise.id)" />
+              {{ franchise.label }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="bulk-field">
+        <span>Días</span>
+        <div class="bulk-mode-toggle">
+          <button type="button" [class.active]="bulkMode === 'range'" (click)="bulkMode = 'range'">Rango de fechas</button>
+          <button type="button" [class.active]="bulkMode === 'days'" (click)="bulkMode = 'days'">Días específicos</button>
+        </div>
+        @if (bulkMode === 'range') {
+          <div class="bulk-range-fields">
+            <label>Desde<input type="date" [(ngModel)]="bulkStartDate" [min]="bulkAvailableDates[0]" [max]="bulkEndDate || bulkAvailableDates[bulkAvailableDates.length - 1]" /></label>
+            <label>Hasta<input type="date" [(ngModel)]="bulkEndDate" [min]="bulkStartDate || bulkAvailableDates[0]" [max]="bulkAvailableDates[bulkAvailableDates.length - 1]" /></label>
+          </div>
+          <small class="bulk-range-summary">{{ bulkDatesInRange().length }} día(s) hábil(es) en el rango</small>
+        } @else {
+          <div class="bulk-day-grid">
+            @for (date of bulkAvailableDates; track date) {
+              <label class="bulk-chip" [class.active]="bulkSelectedDates.has(date)">
+                <input type="checkbox" [checked]="bulkSelectedDates.has(date)" (change)="toggleBulkDate(date)" />
+                {{ shortDate(date) }}
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <label class="bulk-field">Nota<textarea [(ngModel)]="bulkNote" rows="3" placeholder="Ej. Cierre por mantenimiento de sucursal…"></textarea></label>
+
+      @if (bulkError) { <div class="error-banner">{{ bulkError }}</div> }
+    </div>
+    <footer>
+      <button type="button" (click)="closeBulkIncidentModal()">Cancelar</button>
+      <button class="confirm" type="button" [disabled]="bulkSaving" (click)="confirmBulkIncident()">{{ bulkSaving ? 'Guardando…' : 'Registrar incidencia' }}</button>
+    </footer>
+  </section>
 }
