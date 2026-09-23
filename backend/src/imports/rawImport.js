@@ -417,7 +417,7 @@ async function loadFranchiseContext(db, franchiseId) {
   };
 }
 
-function resolveSnapshotClients(snapshot, context) {
+export function resolveSnapshotClients(snapshot, context) {
   const claimed = new Map();
   const invoiceClaimed = new Map();
   for (const imported of snapshot.clients) {
@@ -431,14 +431,23 @@ function resolveSnapshotClients(snapshot, context) {
     const invoiceMatches = new Set(imported.invoices
       .map((invoice) => context.mappingByInvoice.get(normalizeInvoiceKey(invoice.folio)))
       .filter(Boolean));
-    if (invoiceMatches.size > 1) {
+    // Los folios se reasignan con el tiempo entre clientes reales distintos, así que el
+    // historial de facturas a veces queda ambiguo. Si el nombre del grupo ya identifica sin
+    // duda a un cliente existente, se prefiere ese nombre sobre facturas históricas dudosas.
+    const byName = context.clientsByName.get(imported.groupKey)?.id;
+    if (invoiceMatches.size > 1 && !byName) {
       throw new Error(`${snapshot.franchiseId}: las facturas de ${imported.name} apuntan a clientes distintos`);
     }
-    const byInvoice = [...invoiceMatches][0];
-    const byName = context.clientsByName.get(imported.groupKey)?.id;
+    const byInvoice = invoiceMatches.size === 1 ? [...invoiceMatches][0] : undefined;
     let id = byInvoice || byName || imported.idCandidate;
     const collision = context.clientsById.get(id);
-    if (!byInvoice && !byName && collision && normalizeBusinessKey(collision.name) !== imported.groupKey) {
+    const dbConflict = !byInvoice && !byName
+      && collision && normalizeBusinessKey(collision.name) !== imported.groupKey;
+    // Dos grupos nuevos de esta misma corrida (o un grupo nuevo cuyo folio quedó ligado por
+    // error a otro cliente ya existente) pueden resolver al mismo id -- se conserva el primero
+    // y el resto se registra como cliente aparte en vez de abortar toda la corrida.
+    const batchConflict = claimed.has(id) && claimed.get(id) !== imported.groupKey;
+    if (dbConflict || batchConflict) {
       id = `${imported.idCandidate.slice(0, 43)}-${shortHash(imported.groupKey)}`;
     }
     if (isDegenerateName(imported.name) && !byInvoice && !byName) {

@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { validateCompleteBddBatch, validateCompleteBddAndPagosBatch } from "../src/imports/rawImport.js";
-import { hasCompletePagosBatch } from "../src/imports/consolidation.js";
+import {
+  validateCompleteBddBatch,
+  validateCompleteBddAndPagosBatch,
+  resolveSnapshotClients,
+} from "../src/imports/rawImport.js";
+import { hasCompletePagosBatch, normalizeBusinessKey } from "../src/imports/consolidation.js";
 
 function rawBddRow(overrides = {}) {
   const payload = Array(29).fill("");
@@ -84,4 +88,84 @@ test("validateCompleteBddAndPagosBatch marca statusCode 422 para que la corrida 
   } catch (error) {
     assert.equal(error.statusCode, 422);
   }
+});
+
+function importedClient(overrides = {}) {
+  return {
+    groupKey: overrides.groupKey ?? "cliente demo",
+    name: overrides.name ?? "Cliente Demo",
+    idCandidate: overrides.idCandidate ?? "ags-cliente-demo",
+    invoices: overrides.invoices ?? [],
+  };
+}
+
+function emptyContext(overrides = {}) {
+  return {
+    clientsByName: new Map(),
+    clientsById: new Map(),
+    mappingByInvoice: new Map(),
+    ...overrides,
+  };
+}
+
+test("resolveSnapshotClients desambigua dos grupos nuevos que truncan al mismo ClienteId (caso real: Sistemas Integrales /ADT vs /HSBC)", () => {
+  const snapshot = {
+    franchiseId: "aguascalientes",
+    clients: [
+      importedClient({ groupKey: "sistemas integrales de purificacion de agua /adt", name: "SISTEMAS INTEGRALES DE PURIFICACIÓN DE AGUA /ADT", idCandidate: "ags-sistemas-integrales-de-purificacion-de-a" }),
+      importedClient({ groupKey: "sistemas integrales de purificacion de agua/ hsbc", name: "SISTEMAS INTEGRALES DE PURIFICACION DE AGUA/ HSBC", idCandidate: "ags-sistemas-integrales-de-purificacion-de-a" }),
+    ],
+  };
+  assert.doesNotThrow(() => resolveSnapshotClients(snapshot, emptyContext()));
+  const [first, second] = snapshot.clients;
+  assert.equal(first.id, "ags-sistemas-integrales-de-purificacion-de-a");
+  assert.notEqual(second.id, first.id);
+});
+
+test("resolveSnapshotClients desambigua un grupo nuevo cuyo id truncado choca con un cliente existente distinto", () => {
+  const snapshot = {
+    franchiseId: "aguascalientes",
+    clients: [importedClient({ groupKey: "cliente nuevo largo", idCandidate: "ags-choque" })],
+  };
+  const context = emptyContext({
+    clientsById: new Map([["ags-choque", { id: "ags-choque", name: "Otro Cliente Existente" }]]),
+  });
+  resolveSnapshotClients(snapshot, context);
+  assert.notEqual(snapshot.clients[0].id, "ags-choque");
+});
+
+test("resolveSnapshotClients prefiere el nombre del grupo cuando el historial de facturas queda ambiguo por reuso de folios (caso real: ADVANCE AGS)", () => {
+  const snapshot = {
+    franchiseId: "aguascalientes",
+    clients: [importedClient({
+      groupKey: "advance ags",
+      name: "ADVANCE AGS",
+      idCandidate: "ags-advance-ags",
+      invoices: [{ folio: "AGS 4017" }, { folio: "AGS 3977" }],
+    })],
+  };
+  const context = emptyContext({
+    clientsByName: new Map([[normalizeBusinessKey("ADVANCE AGS"), { id: "ags-advance-ags", name: "ADVANCE AGS" }]]),
+    mappingByInvoice: new Map([
+      ["ags4017", "ags-advance-ags"],
+      ["ags3977", "ags-advance-ags-175386"],
+    ]),
+  });
+  assert.doesNotThrow(() => resolveSnapshotClients(snapshot, context));
+  assert.equal(snapshot.clients[0].id, "ags-advance-ags");
+});
+
+test("resolveSnapshotClients sigue rechazando facturas ambiguas cuando el nombre del grupo no identifica a ningún cliente", () => {
+  const snapshot = {
+    franchiseId: "aguascalientes",
+    clients: [importedClient({
+      groupKey: "grupo desconocido",
+      name: "Grupo Desconocido",
+      invoices: [{ folio: "AGS 1" }, { folio: "AGS 2" }],
+    })],
+  };
+  const context = emptyContext({
+    mappingByInvoice: new Map([["ags1", "ags-cliente-a"], ["ags2", "ags-cliente-b"]]),
+  });
+  assert.throws(() => resolveSnapshotClients(snapshot, context), /apuntan a clientes distintos/);
 });
