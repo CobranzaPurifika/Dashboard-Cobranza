@@ -43,6 +43,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   monthlyLoading = false;
   monthlyError = '';
   monthlyData: any = null;
+  dailyCountExpanded = false;
+  expandedFranchiseDetails = new Set<string>();
   showBulkIncidentModal = false;
   bulkMode: 'range' | 'days' = 'range';
   bulkFranchiseIds = new Set<string>();
@@ -236,6 +238,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.showStats = true;
     this.monthlyLoading = true;
     this.monthlyError = '';
+    this.dailyCountExpanded = false;
+    this.expandedFranchiseDetails = new Set();
     try {
       const data = await this.api.gestionesMes('', controller.signal);
       if (!controller.signal.aborted && requestId === this.monthlyRequest) this.monthlyData = data;
@@ -254,6 +258,16 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.monthlyRequest += 1;
     this.monthlyLoading = false;
     this.showStats = false;
+  }
+
+  isFranchiseDetailExpanded(id: string): boolean {
+    return this.expandedFranchiseDetails.has(id);
+  }
+
+  toggleFranchiseDetail(id: string): void {
+    const next = new Set(this.expandedFranchiseDetails);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.expandedFranchiseDetails = next;
   }
 
   get bulkAvailableDates(): string[] {

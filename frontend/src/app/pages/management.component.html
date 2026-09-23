@@ -214,27 +214,34 @@
           }
         </section>
 
+        @if (canManage) { <button class="incident-bulk-action incident-bulk-action-top" type="button" (click)="openBulkIncidentModal()"><ion-icon name="add-circle-outline"></ion-icon>Marcar incidencia en lote</button> }
+
         <section class="monthly-section compact-counts">
           <h3>Recuento diario — clientes únicos gestionados</h3>
-          @for (day of monthlyData.daily; track day.date) { <div><strong>{{ shortDate(day.date) }}</strong><span>{{ compactDaily(day) }}</span></div> }
+          @for (day of (dailyCountExpanded ? monthlyData.daily : monthlyData.daily.slice(0, 5)); track day.date) { <div><strong>{{ shortDate(day.date) }}</strong><span>{{ compactDaily(day) }}</span></div> }
+          @if (monthlyData.daily.length > 5) {
+            <button class="monthly-expand-toggle" type="button" (click)="dailyCountExpanded = !dailyCountExpanded">{{ dailyCountExpanded ? 'Ver menos' : 'Ver todos' }}</button>
+          }
         </section>
 
         <section class="monthly-section monthly-detail">
-          <div class="monthly-detail-header">
-            <h3>Detalle e incidencias por franquicia</h3>
-            @if (canManage) { <button class="incident-bulk-action" type="button" (click)="openBulkIncidentModal()"><ion-icon name="add-circle-outline"></ion-icon>Marcar incidencia en lote</button> }
-          </div>
+          <h3>Detalle e incidencias por franquicia</h3>
           @for (franchise of monthlyData.franchises; track franchise.id) {
             <div class="franchise-detail">
-              <h4>{{ franchise.label }} <span>— meta {{ franchise.goal }}/día</span></h4>
-              @for (day of franchise.days; track day.date) {
-                <div class="day-row">
-                  <strong>{{ shortDate(day.date) }}</strong><span>{{ day.count }} / {{ day.goal }}</span>
-                  <b [class.complete]="day.pct >= 100" [class.incomplete]="day.pct < 100">{{ day.incident ? '—' : day.pct + '%' }}</b>
-                  @if (day.incident) {
-                    <span class="incident-badge">Justificado — {{ day.incident.note }}<button type="button" title="Quitar incidencia" (click)="removeIncident(franchise.id, day.date)"><ion-icon name="close-outline"></ion-icon></button></span>
-                  }
-                </div>
+              <button class="franchise-detail-toggle" type="button" (click)="toggleFranchiseDetail(franchise.id)" [attr.aria-expanded]="isFranchiseDetailExpanded(franchise.id)">
+                <h4>{{ franchise.label }} <span>— meta {{ franchise.goal }}/día</span></h4>
+                <ion-icon class="chevron" [name]="isFranchiseDetailExpanded(franchise.id) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              </button>
+              @if (isFranchiseDetailExpanded(franchise.id)) {
+                @for (day of franchise.days; track day.date) {
+                  <div class="day-row">
+                    <strong>{{ shortDate(day.date) }}</strong><span>{{ day.count }} / {{ day.goal }}</span>
+                    <b [class.complete]="day.pct >= 100" [class.incomplete]="day.pct < 100">{{ day.incident ? '—' : day.pct + '%' }}</b>
+                    @if (day.incident) {
+                      <span class="incident-badge">Justificado — {{ day.incident.note }}<button type="button" title="Quitar incidencia" (click)="removeIncident(franchise.id, day.date)"><ion-icon name="close-outline"></ion-icon></button></span>
+                    }
+                  </div>
+                }
               }
             </div>
           }
