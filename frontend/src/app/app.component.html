@@ -43,18 +43,12 @@
       <aside class="settings-popover">
         <header><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
 
-        <section class="settings-section">
-          <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('sync')" [attr.aria-expanded]="isSectionExpanded('sync')">
-            <ion-icon name="refresh-outline"></ion-icon><span>Actualizar datos</span>
-            <ion-icon class="chevron" [name]="isSectionExpanded('sync') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-          </button>
-          @if (isSectionExpanded('sync')) {
-            <div class="settings-section-body">
-              <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
-              <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
-              @if (syncStatus) { <small>{{ syncStatus }}</small> }
-            </div>
-          }
+        <section class="settings-section settings-section-static">
+          <div class="settings-section-body">
+            <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
+            <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
+            @if (syncStatus) { <small>{{ syncStatus }}</small> }
+          </div>
         </section>
 
         <section class="settings-section">
