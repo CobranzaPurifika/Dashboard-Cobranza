@@ -117,3 +117,36 @@ gestionRouter.post(
     }
   }
 );
+
+// DELETE /api/clientes/:id/promise
+// Descarta la promesa de pago incumplida sin abrir la ficha (botón ✕ de "Pendientes" en
+// Gestión). Cancela la promesa activa en la bitácora igual que al registrar una nueva
+// gestión, pero sin crear un evento nuevo -- el gestor simplemente la está quitando de la
+// lista de pendientes.
+gestionRouter.delete(
+  "/:id/promise",
+  requireRole("admin", "gestor"),
+  requireClientAccess(),
+  async (req, res, next) => {
+    const { id } = req.params;
+    try {
+      await pool.query(
+        `update payment_promises set status = 'cancelled'
+         where cliente_id = $1 and status = 'active'`,
+        [id]
+      );
+
+      const { rows } = await pool.query(
+        `update clientes
+         set promise_gestion_iso = null, promise_deadline_iso = null, updated_at = now()
+         where id = $1
+         returning *`,
+        [id]
+      );
+      if (rows.length === 0) return res.status(404).json({ error: "Cliente no encontrado" });
+      res.json(rows[0]);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
