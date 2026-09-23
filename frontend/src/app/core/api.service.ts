@@ -17,6 +17,18 @@ export class ApiService {
       method: 'PUT', body: JSON.stringify(body),
     });
   }
+
+  crearStatus(label: string) {
+    return this.request('/status-gestion', { method: 'POST', body: JSON.stringify({ label }) });
+  }
+
+  eliminarStatus(value: string) {
+    return this.request(`/status-gestion/${encodeURIComponent(value)}`, { method: 'DELETE' });
+  }
+
+  reordenarStatus(order: string[]) {
+    return this.request('/status-gestion/reorder', { method: 'PUT', body: JSON.stringify({ order }) });
+  }
   cliente = (id: string, signal?: AbortSignal) => this.request(`/clientes/${id}`, { signal });
   seguimiento = (franchise: string, signal?: AbortSignal) =>
     this.request(`/seguimiento?franchise=${encodeURIComponent(franchise)}`, { signal });
@@ -46,6 +58,14 @@ export class ApiService {
   quitarIncidencia(franchise: string, date: string) {
     return this.request(`/gestiones-mes/incidents/${encodeURIComponent(franchise)}/${date}`, {
       method: 'DELETE',
+    });
+  }
+
+  metasGestion = () => this.request('/gestiones-mes/goals');
+
+  guardarMeta(franchise: string, dailyGoal: number) {
+    return this.request(`/gestiones-mes/goals/${encodeURIComponent(franchise)}`, {
+      method: 'PUT', body: JSON.stringify({ dailyGoal }),
     });
   }
 

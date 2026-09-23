@@ -4,6 +4,7 @@ import { provideIonicAngular } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   addCircleOutline,
+  addOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
@@ -11,17 +12,23 @@ import {
   chevronUpOutline,
   closeOutline,
   colorPaletteOutline,
+  contractOutline,
   eyeOffOutline,
   eyeOutline,
   expandOutline,
+  flagOutline,
   logInOutline,
   logOutOutline,
   moonOutline,
+  optionsOutline,
+  pauseOutline,
   peopleOutline,
+  playOutline,
   refreshOutline,
   searchOutline,
   settingsOutline,
   sunnyOutline,
+  trashOutline,
   waterOutline,
 } from 'ionicons/icons';
 
@@ -29,6 +36,7 @@ import { AppComponent } from './app/app.component';
 
 addIcons({
   addCircleOutline,
+  addOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
@@ -36,17 +44,23 @@ addIcons({
   chevronUpOutline,
   closeOutline,
   colorPaletteOutline,
+  contractOutline,
   eyeOffOutline,
   eyeOutline,
   expandOutline,
+  flagOutline,
   logInOutline,
   logOutOutline,
   moonOutline,
+  optionsOutline,
+  pauseOutline,
   peopleOutline,
+  playOutline,
   refreshOutline,
   searchOutline,
   settingsOutline,
   sunnyOutline,
+  trashOutline,
   waterOutline,
 });
 

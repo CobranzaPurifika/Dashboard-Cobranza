@@ -22,6 +22,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   @Input() franchise = 'todas';
   @Input() user: any;
   @Input() statusCatalog: any[] = [];
+  @Input() priorityDensity: 'comfortable' | 'compact' = 'comfortable';
   @Output() refreshRequested = new EventEmitter<void>();
 
   priority: any[] = [];

@@ -6,5 +6,6 @@ export function sanitizeDashboardForViewer(data, user) {
     distribucion: data.distribucion.map((item) => ({ ...item, names: [] })),
     recuperadoSemanal: { ...data.recuperadoSemanal, rows: [] },
     recuperadoMensual: { ...(data.recuperadoMensual ?? {}), rows: [] },
+    expectativaCobroDetalle: [],
   };
 }
