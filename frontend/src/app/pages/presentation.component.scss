@@ -1,0 +1,153 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: block;
+  background: var(--app-bg);
+}
+
+.pres-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 30px 18px;
+  box-sizing: border-box;
+}
+
+.pres-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex: none;
+}
+
+.pres-fr {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  .name { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+  .sub { font-size: 0.88rem; color: var(--muted); font-weight: 600; }
+}
+
+.pres-controls { display: flex; align-items: center; gap: 10px; }
+
+.pres-progress {
+  width: 220px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pres-progress-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+
+.pres-dots { display: flex; gap: 6px; margin-left: 2px; }
+.pres-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--line); border: none; padding: 0; cursor: pointer;
+  transition: all 0.2s;
+}
+.pres-dot.active { background: var(--accent); width: 16px; border-radius: 4px; }
+
+.pres-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft); cursor: pointer; flex: none;
+}
+.pres-btn:hover { border-color: var(--accent); color: var(--accent); }
+.pres-btn ion-icon { font-size: 15px; }
+
+.pres-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+
+.pres-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+  flex: none;
+}
+.pres-kpi-tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 18px;
+  border-left: 4px solid var(--kpi-color, var(--accent));
+  .klabel { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 3px; }
+  .kvalue { font-size: 1.75rem; font-weight: 800; line-height: 1.1; color: var(--kpi-color, var(--ink)); }
+  .kmonto { font-size: 0.78rem; color: var(--ink-soft); margin-top: 3px; }
+  &.good { --kpi-color: #1e7e34; }
+  &.warning { --kpi-color: #a15c00; }
+  &.critical { --kpi-color: #c0392b; }
+}
+
+.pres-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+.pres-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  .ptitle { font-size: 0.72rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 6px; flex: none; }
+}
+.pres-card.saldos { grid-column: 1; grid-row: 1; }
+.pres-card.funnel { grid-column: 2; grid-row: 1; }
+.pres-card.recuperado { grid-column: 3; grid-row: 1; }
+.pres-card.historico { grid-column: 1 / span 2; grid-row: 2; }
+.pres-card.tendencia { grid-column: 3; grid-row: 2; }
+
+.pres-pie-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+  .donut { width: 140px; flex: none; }
+  .donut svg { width: 100%; height: auto; }
+  .legend { width: 100%; }
+}
+
+.pres-mini-funnel { flex: 1.15; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.pres-funnel-rates { flex: none; margin-top: 8px; }
+
+.pres-recuperado-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-height: 0;
+}
+.pres-rec-block {
+  border-left: 3px solid #35aa69;
+  border-radius: 6px;
+  padding: 8px 10px 8px 12px;
+  .rlabel { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #258453; margin-bottom: 3px; }
+}
+.pres-rec-amt { font-size: 1.42rem; font-weight: 800; color: #258453; line-height: 1.15; }
+.pres-rec-sub { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+.pres-lc-wrap { flex: 1; min-height: 0; }
+.pres-lc-wrap svg { width: 100%; height: 100%; display: block; }
+
+@media (max-width: 1050px) {
+  .pres-grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); }
+  .pres-card.saldos { grid-column: 1; grid-row: 1; }
+  .pres-card.funnel { grid-column: 2; grid-row: 1; }
+  .pres-card.recuperado { grid-column: 1 / span 2; grid-row: 2; }
+  .pres-card.historico { grid-column: 1; grid-row: 3; }
+  .pres-card.tendencia { grid-column: 2; grid-row: 3; }
+}

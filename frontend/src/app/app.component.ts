@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostBinding, OnInit } from '@angular/core';
+import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
+import { PresentationComponent } from './pages/presentation.component';
 
 interface FranchiseOption { id: string; label: string }
 
@@ -19,7 +20,7 @@ const FRANCHISES: FranchiseOption[] = [
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonApp, IonContent, IonIcon, IonSpinner, DashboardComponent, ManagementComponent],
+  imports: [CommonModule, FormsModule, IonApp, IonContent, IonIcon, IonSpinner, DashboardComponent, ManagementComponent, PresentationComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -57,6 +58,8 @@ export class AppComponent implements OnInit {
     void this.openApp();
   }
 
+  presentationFranchises: FranchiseOption[] = [];
+
   get isAnonymous(): boolean { return this.user?.isAnonymous === true; }
   get isAdmin(): boolean { return this.user?.role === 'admin'; }
 
@@ -66,6 +69,7 @@ export class AppComponent implements OnInit {
     try {
       this.user = await this.api.me();
       this.franchises = this.franchisesForUser(this.user);
+      this.presentationFranchises = this.franchises.filter((option) => option.id !== 'todas');
       if (!this.franchises.length) throw new Error('Tu cuenta todavía no tiene franquicias asignadas');
       if (!this.franchises.some((option) => option.id === this.franchise)) this.franchise = this.franchises[0].id;
       // Al recargar se conserva el Dashboard como pantalla de entrada. Antes se cambiaba
@@ -197,6 +201,11 @@ export class AppComponent implements OnInit {
   togglePresentation(): void {
     this.presentationMode = !this.presentationMode;
     if (this.presentationMode) this.view = 'dashboard';
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.presentationMode) this.togglePresentation();
   }
 
   portfolioSummary(): string {

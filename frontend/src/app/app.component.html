@@ -1,6 +1,9 @@
 <ion-app>
   <ion-content [fullscreen]="true">
   <div class="app-canvas">
+    @if (presentationMode) {
+    <app-presentation [franchises]="presentationFranchises" (exit)="togglePresentation()"></app-presentation>
+    } @else {
     <header class="topbar">
       <button class="brand" type="button" (click)="setView('dashboard')" aria-label="Ir al dashboard">
         <span class="drop"><ion-icon name="water-outline"></ion-icon></span>
@@ -64,9 +67,6 @@
         <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>
-
-    @if (presentationMode) {
-      <button type="button" class="exit-presentation" (click)="togglePresentation()"><ion-icon name="close-outline"></ion-icon>Salir de presentación</button>
     }
   </div>
   </ion-content>
