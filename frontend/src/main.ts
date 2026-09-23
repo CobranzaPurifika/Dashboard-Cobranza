@@ -3,6 +3,7 @@ import { ChangeDetectorRef, NgZone, provideZoneChangeDetection } from '@angular/
 import { provideIonicAngular } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  addOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
@@ -12,9 +13,11 @@ import {
   colorPaletteOutline,
   contractOutline,
   expandOutline,
+  flagOutline,
   logInOutline,
   logOutOutline,
   moonOutline,
+  optionsOutline,
   pauseOutline,
   peopleOutline,
   playOutline,
@@ -22,12 +25,14 @@ import {
   searchOutline,
   settingsOutline,
   sunnyOutline,
+  trashOutline,
   waterOutline,
 } from 'ionicons/icons';
 
 import { AppComponent } from './app/app.component';
 
 addIcons({
+  addOutline,
   analyticsOutline,
   callOutline,
   chevronDownOutline,
@@ -37,9 +42,11 @@ addIcons({
   colorPaletteOutline,
   contractOutline,
   expandOutline,
+  flagOutline,
   logInOutline,
   logOutOutline,
   moonOutline,
+  optionsOutline,
   pauseOutline,
   peopleOutline,
   playOutline,
@@ -47,6 +54,7 @@ addIcons({
   searchOutline,
   settingsOutline,
   sunnyOutline,
+  trashOutline,
   waterOutline,
 });
 

@@ -2,10 +2,48 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireRole } from "../auth/authorization.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
-import { buildMonthlyManagement } from "../domain/monthlyManagement.js";
+import { buildMonthlyManagement, parseDailyGoal } from "../domain/monthlyManagement.js";
 import { mexicoTodayISO } from "../domain/dates.js";
 
 export const monthlyManagementRouter = Router();
+
+monthlyManagementRouter.get("/goals", requireRole("admin"), async (req, res, next) => {
+  try {
+    const allowed = resolveFranchiseScope(req.user, "todas");
+    const { rows } = await pool.query(
+      `select g.franchise_id, f.label, g.daily_goal
+       from management_daily_goals g
+       join franquicias f on f.id = g.franchise_id
+       where g.franchise_id = any($1::text[])
+       order by array_position(array['aguascalientes','cancun','merida'], g.franchise_id)`,
+      [allowed]
+    );
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+monthlyManagementRouter.put("/goals/:franchise", requireRole("admin"), async (req, res, next) => {
+  try {
+    const { franchise } = req.params;
+    resolveFranchiseScope(req.user, franchise);
+    const dailyGoal = parseDailyGoal(req.body?.dailyGoal);
+    if (dailyGoal === null) {
+      return res.status(400).json({ error: "La meta diaria debe ser un entero entre 1 y 100" });
+    }
+    const { rows } = await pool.query(
+      `insert into management_daily_goals (franchise_id, daily_goal)
+       values ($1, $2)
+       on conflict (franchise_id) do update set daily_goal = excluded.daily_goal
+       returning franchise_id, daily_goal`,
+      [franchise, dailyGoal]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
 
 monthlyManagementRouter.get("/", async (req, res, next) => {
   try {

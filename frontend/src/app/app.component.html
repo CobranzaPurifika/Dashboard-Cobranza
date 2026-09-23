@@ -2,7 +2,12 @@
   <ion-content [fullscreen]="true">
   <div class="app-canvas">
     @if (presentationMode) {
-    <app-presentation [franchises]="presentationFranchises" (exit)="togglePresentation()"></app-presentation>
+    <app-presentation
+      [franchises]="presentationFranchises"
+      [durationSeconds]="preferences.presentation.durationSeconds"
+      [autoStart]="preferences.presentation.autoStart"
+      [hideControls]="preferences.presentation.hideControls"
+      (exit)="togglePresentation()"></app-presentation>
     } @else {
     <header class="topbar">
       <button class="brand" type="button" (click)="setView('dashboard')" aria-label="Ir al dashboard">
@@ -36,23 +41,133 @@
 
     @if (settingsVisible && isAdmin) {
       <aside class="settings-popover">
-        <header><div><span>ADMINISTRACIÓN</span><strong>Fuentes de datos</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
-        <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
-        <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
-        @if (syncStatus) { <small>{{ syncStatus }}</small> }
-        <section class="status-settings">
-          <h3>Estatus de gestión</h3>
-          <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard.</p>
-          @for (status of statusCatalog; track status.value) {
-            <div class="status-editor">
-              <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" />
-              <input [(ngModel)]="status.bg" [attr.aria-label]="'Color de ' + status.label" pattern="#[0-9a-fA-F]{6}" maxlength="7" />
-              <input type="number" [(ngModel)]="status.sort_order" [attr.aria-label]="'Orden de ' + status.label" min="0" max="999" />
-              <label><input type="checkbox" [(ngModel)]="status.efectiva" /> Efectiva</label>
-              <button type="button" [disabled]="statusSaving === status.value" (click)="saveStatus(status)">{{ statusSaving === status.value ? 'Guardando…' : 'Guardar' }}</button>
+        <header><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
+
+        <section class="settings-section settings-section-static">
+          <div class="settings-section-body">
+            <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
+            <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
+            @if (syncStatus) { <small>{{ syncStatus }}</small> }
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('preferences')" [attr.aria-expanded]="isSectionExpanded('preferences')">
+            <ion-icon name="options-outline"></ion-icon><span>Preferencias</span>
+            <ion-icon class="chevron" [name]="isSectionExpanded('preferences') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          @if (isSectionExpanded('preferences')) {
+            <div class="settings-section-body pref-body">
+              <div class="pref-row">
+                <span>Tema</span>
+                <button type="button" class="pref-theme-toggle" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ darkTheme ? 'Oscuro' : 'Claro' }}</button>
+              </div>
+              <div class="pref-row">
+                <span>Franquicia por defecto</span>
+                <select [ngModel]="preferences.defaultFranchise" (ngModelChange)="setDefaultFranchise($event)">
+                  @for (option of franchises; track option.id) { <option [value]="option.id">{{ option.label }}</option> }
+                </select>
+              </div>
+              <div class="pref-row">
+                <span>Densidad de la lista de prioridad</span>
+                <div class="pref-segmented">
+                  <button type="button" [class.active]="preferences.priorityDensity === 'comfortable'" (click)="setPriorityDensity('comfortable')">Cómoda</button>
+                  <button type="button" [class.active]="preferences.priorityDensity === 'compact'" (click)="setPriorityDensity('compact')">Compacta</button>
+                </div>
+              </div>
             </div>
           }
-          @if (statusError) { <small class="settings-error">{{ statusError }}</small> }
+        </section>
+
+        <section class="settings-section">
+          <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('presentation')" [attr.aria-expanded]="isSectionExpanded('presentation')">
+            <ion-icon name="expand-outline"></ion-icon><span>Modo Presentación</span>
+            <ion-icon class="chevron" [name]="isSectionExpanded('presentation') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          @if (isSectionExpanded('presentation')) {
+            <div class="settings-section-body pref-body">
+              <div class="pref-row">
+                <span>Duración por franquicia (segundos)</span>
+                <input type="number" min="5" max="120" [ngModel]="preferences.presentation.durationSeconds" (ngModelChange)="setPresentationDuration($event)" />
+              </div>
+              <div class="pref-row pref-row-wrap">
+                <span>Franquicias a incluir</span>
+                <div class="pref-chip-row">
+                  @for (option of franchises; track option.id) {
+                    @if (option.id !== 'todas') {
+                      <label class="pref-chip" [class.active]="isPresentationFranchiseIncluded(option.id)">
+                        <input type="checkbox" [checked]="isPresentationFranchiseIncluded(option.id)" (change)="togglePresentationFranchise(option.id)" />
+                        {{ option.label }}
+                      </label>
+                    }
+                  }
+                </div>
+              </div>
+              <div class="pref-row">
+                <span>Auto-iniciar rotación</span>
+                <label class="pref-switch"><input type="checkbox" [ngModel]="preferences.presentation.autoStart" (ngModelChange)="setPresentationAutoStart($event)" /><i></i></label>
+              </div>
+              <div class="pref-row">
+                <span>Ocultar controles</span>
+                <label class="pref-switch"><input type="checkbox" [ngModel]="preferences.presentation.hideControls" (ngModelChange)="setPresentationHideControls($event)" /><i></i></label>
+              </div>
+            </div>
+          }
+        </section>
+
+        <section class="settings-section">
+          <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('status')" [attr.aria-expanded]="isSectionExpanded('status')">
+            <ion-icon name="color-palette-outline"></ion-icon><span>Estatus de gestión</span>
+            <ion-icon class="chevron" [name]="isSectionExpanded('status') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          @if (isSectionExpanded('status')) {
+            <div class="settings-section-body">
+              <p>La clave se conserva; puedes cambiar cómo se muestra y se calcula en el Dashboard. Los cambios se guardan al momento.</p>
+              @for (status of statusCatalog; track status.value; let i = $index; let first = $first; let last = $last) {
+                <div class="status-editor">
+                  <div class="status-reorder">
+                    <button type="button" [disabled]="first || !!statusSaving" title="Subir" aria-label="Subir" (click)="moveStatus(i, -1)"><ion-icon name="chevron-up-outline"></ion-icon></button>
+                    <button type="button" [disabled]="last || !!statusSaving" title="Bajar" aria-label="Bajar" (click)="moveStatus(i, 1)"><ion-icon name="chevron-down-outline"></ion-icon></button>
+                  </div>
+                  <label class="color-swatch" [style.background]="status.bg" [attr.aria-label]="'Color de ' + status.label">
+                    <input type="color" [(ngModel)]="status.bg" (change)="saveStatus(status)" />
+                  </label>
+                  <input [(ngModel)]="status.label" [attr.aria-label]="'Nombre de ' + status.value" maxlength="80" (blur)="saveStatus(status)" />
+                  <label class="status-effective"><input type="checkbox" [(ngModel)]="status.efectiva" (change)="saveStatus(status)" /> Efectiva</label>
+                  <button type="button" class="status-delete" [disabled]="!!statusSaving" title="Eliminar" aria-label="Eliminar" (click)="deleteStatus(status)"><ion-icon name="trash-outline"></ion-icon></button>
+                </div>
+              }
+              @if (statusError) { <small class="settings-error">{{ statusError }}</small> }
+              <div class="status-add">
+                <input [(ngModel)]="newStatusLabel" placeholder="Nombre del nuevo estatus" maxlength="80" (keydown.enter)="addStatus()" />
+                <button type="button" [disabled]="!newStatusLabel.trim() || !!statusSaving" (click)="addStatus()"><ion-icon name="add-outline"></ion-icon>Añadir estatus</button>
+              </div>
+            </div>
+          }
+        </section>
+
+        <section class="settings-section">
+          <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('goals')" [attr.aria-expanded]="isSectionExpanded('goals')">
+            <ion-icon name="flag-outline"></ion-icon><span>Metas</span>
+            <ion-icon class="chevron" [name]="isSectionExpanded('goals') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          @if (isSectionExpanded('goals')) {
+            <div class="settings-section-body">
+              <p>Meta de clientes únicos gestionados por día, por franquicia.</p>
+              @if (goalsLoading) {
+                <div class="settings-loading"><ion-spinner name="crescent"></ion-spinner></div>
+              } @else {
+                @for (goal of dailyGoals; track goal.franchise_id) {
+                  <div class="goal-editor">
+                    <span>{{ goal.label }}</span>
+                    <input type="number" min="1" max="100" [(ngModel)]="goal.daily_goal" [attr.aria-label]="'Meta diaria de ' + goal.label" />
+                    <button type="button" [disabled]="goalSaving === goal.franchise_id" (click)="saveGoal(goal)">{{ goalSaving === goal.franchise_id ? 'Guardando…' : 'Guardar' }}</button>
+                  </div>
+                }
+              }
+              @if (goalsError) { <small class="settings-error">{{ goalsError }}</small> }
+            </div>
+          }
         </section>
       </aside>
     }
@@ -64,7 +179,7 @@
       } @else if (view === 'dashboard') {
         <app-dashboard [data]="dashboardData" [loading]="loading"></app-dashboard>
       } @else {
-        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" (refreshRequested)="loadDashboard()"></app-management>
+        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [priorityDensity]="preferences.priorityDensity" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>
     }
