@@ -73,16 +73,17 @@ el alta y el retiro se realizan únicamente desde la ficha del cliente.
 ## Sincronización de Drive
 
 El backend relee siempre los tres archivos fijos de Antigüedad de Saldos (pestaña inicial `BDD`)
-y el archivo fijo de Pagos mes en curso (pestaña inicial `PAGOS`). Con
-`IMPORT_SCHEDULER_ENABLED=true`, BDD corre a las 10:00, 13:00 y 16:00 y Pagos a las 17:00 en
-`America/Mexico_City`. El administrador también dispone del botón **Actualizar datos ahora**,
-que ejecuta BDD y después Pagos.
+y el archivo fijo de Pagos mes en curso (pestaña inicial `PAGOS`). No hay corridas automáticas ni
+programadas: la única forma de actualizar es que un administrador presione el botón **Actualizar
+datos ahora**, que exige que las tres antigüedades y Pagos tengan datos válidos antes de aplicar
+nada.
 
 La consolidación BDD es atómica para las tres franquicias: si alguna solo tiene encabezados o no
-contiene cartera válida, no cambia ninguna. También se rechazan caídas no explicadas mayores al
-10% del día 1 al 5 o al 2% desde el día 6. Un cliente ausente solo se liquida cuando todos sus
-folios abiertos tienen evidencia de pago; de lo contrario conserva su último saldo como
-`Pendiente de validar`. Al liquidarse sale de cartera, Seguimiento y Lista negra, pero conserva
+contiene cartera válida, o si Pagos no tiene datos válidos, no se aplica ningún cambio. También se
+rechazan caídas no explicadas mayores al 10% del día 1 al 5 o al 2% desde el día 6. Los pagos
+recién subidos se aplican antes de decidir qué hacer con cada cliente ausente: si tiene evidencia
+completa de pago pasa a liquidado; si no, pasa de inmediato a `Fuera de cartera` (sale de cartera,
+Seguimiento y Lista negra en esa misma corrida, sin esperar una revisión posterior), pero conserva
 pagos, gestiones y notas.
 
 Para producción, el repositorio incluye un contenedor único que sirve frontend y API, además de
