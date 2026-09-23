@@ -85,6 +85,10 @@ export function buildBddSnapshot(franchiseId, rawRows) {
   };
 }
 
+export function hasCompletePagosBatch(rawRows) {
+  return rawRows.length > 0 && buildPayments(rawRows).length > 0;
+}
+
 export function buildPayments(rawRows) {
   const payments = [];
   const seen = new Set();

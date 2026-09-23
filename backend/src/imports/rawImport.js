@@ -6,6 +6,7 @@ import {
   buildBddSnapshot,
   buildPayments,
   evaluateSnapshotDrop,
+  hasCompletePagosBatch,
   isDegenerateName,
   normalizeBusinessKey,
   normalizeInvoiceKey,
@@ -79,30 +80,182 @@ export async function runRawImport(sourceType, triggerType = "manual") {
   }
 }
 
+// El botón Actualizar: valida las 3 antigüedades de saldos y la base de Pagos ANTES de tocar
+// la BDD -- si falta alguna, no se aplica nada. Los pagos se insertan primero (contra los
+// clientes vigentes antes de esta corrida) para que, al decidir qué cliente ausente de la BDD
+// ya se pagó, se use el Pagos recién subido y no el de una corrida anterior; ya no queda nadie
+// en un estado intermedio esperando la siguiente corrida.
 export async function runAllImports(triggerType = "manual") {
-  const bdd = await runRawImport("bdd", triggerType);
-  if (bdd.status !== "applied") return { bdd, pagos: null };
-  return { bdd, pagos: await runRawImport("pagos", triggerType) };
+  const bddRun = await createRun("bdd", triggerType);
+  const pagosRun = await createRun("pagos", triggerType);
+  let bddRowsRead = 0;
+  let pagosRowsRead = 0;
+
+  try {
+    const [bddDownloaded, pagosDownloaded] = await Promise.all([
+      downloadSources("bdd"),
+      downloadSources("pagos"),
+    ]);
+    bddRowsRead = bddDownloaded.reduce((sum, item) => sum + item.rows.length, 0);
+    pagosRowsRead = pagosDownloaded.reduce((sum, item) => sum + item.rows.length, 0);
+    validateCompleteBddAndPagosBatch(bddDownloaded, pagosDownloaded);
+
+    const db = await pool.connect();
+    try {
+      await db.query("begin");
+      const bddRowsInserted = await storeRawRows(db, bddRun.id, "bdd", bddDownloaded);
+      const pagosRowsInserted = await storeRawRows(db, pagosRun.id, "pagos", pagosDownloaded);
+
+      const pagosApplication = await applyPayments(
+        db, buildPayments(pagosDownloaded.flatMap((item) => item.rows))
+      );
+      const bddApplication = await applyBddBatch(db, bddDownloaded);
+
+      if (bddApplication.status !== "applied") {
+        await db.query("rollback");
+        return finishSkippedJointRun({
+          bddRun, pagosRun, bddRowsRead, pagosRowsRead, bddApplication,
+        });
+      }
+
+      await Promise.all([
+        db.query(
+          `update import_runs
+           set status = $1, rows_read = $2, rows_inserted = $3, rows_applied = $4,
+               details = $5::jsonb, finished_at = now()
+           where id = $6`,
+          [bddApplication.status, bddRowsRead, bddRowsInserted, bddApplication.rowsApplied,
+            JSON.stringify(bddApplication.details), bddRun.id]
+        ),
+        db.query(
+          `update import_runs
+           set status = $1, rows_read = $2, rows_inserted = $3, rows_applied = $4,
+               details = $5::jsonb, finished_at = now()
+           where id = $6`,
+          [pagosApplication.status, pagosRowsRead, pagosRowsInserted, pagosApplication.rowsApplied,
+            JSON.stringify(pagosApplication.details), pagosRun.id]
+        ),
+      ]);
+      await db.query("commit");
+      return {
+        bdd: {
+          id: bddRun.id, sourceType: "bdd", status: bddApplication.status, rowsRead: bddRowsRead,
+          rowsInserted: bddRowsInserted, rowsApplied: bddApplication.rowsApplied,
+          details: bddApplication.details,
+        },
+        pagos: {
+          id: pagosRun.id, sourceType: "pagos", status: pagosApplication.status, rowsRead: pagosRowsRead,
+          rowsInserted: pagosRowsInserted, rowsApplied: pagosApplication.rowsApplied,
+          details: pagosApplication.details,
+        },
+      };
+    } catch (error) {
+      await db.query("rollback");
+      throw error;
+    } finally {
+      db.release();
+    }
+  } catch (error) {
+    if (error.statusCode === 422) {
+      const details = { reason: error.message, incompleteBatch: true };
+      await Promise.all([
+        pool.query(
+          `update import_runs
+           set status = 'skipped', rows_read = $1, rows_applied = 0,
+               details = $2::jsonb, error_message = null, finished_at = now()
+           where id = $3`,
+          [bddRowsRead, JSON.stringify(details), bddRun.id]
+        ),
+        pool.query(
+          `update import_runs
+           set status = 'skipped', rows_read = $1, rows_applied = 0,
+               details = $2::jsonb, error_message = null, finished_at = now()
+           where id = $3`,
+          [pagosRowsRead, JSON.stringify(details), pagosRun.id]
+        ),
+      ]);
+      return {
+        bdd: { id: bddRun.id, sourceType: "bdd", status: "skipped", rowsRead: bddRowsRead, rowsInserted: 0, rowsApplied: 0, details },
+        pagos: { id: pagosRun.id, sourceType: "pagos", status: "skipped", rowsRead: pagosRowsRead, rowsInserted: 0, rowsApplied: 0, details },
+      };
+    }
+    const message = String(error.message ?? error).slice(0, 2000);
+    await Promise.all([
+      pool.query(`update import_runs set status = 'failed', error_message = $1, finished_at = now() where id = $2`, [message, bddRun.id]),
+      pool.query(`update import_runs set status = 'failed', error_message = $1, finished_at = now() where id = $2`, [message, pagosRun.id]),
+    ]);
+    throw error;
+  }
 }
 
-function validateCompleteBddBatch(downloaded) {
-  if (downloaded.length !== 3) throw new Error("La corrida BDD requiere exactamente 3 franquicias");
-  const empty = [];
+async function finishSkippedJointRun({ bddRun, pagosRun, bddRowsRead, pagosRowsRead, bddApplication }) {
+  await Promise.all([
+    pool.query(
+      `update import_runs
+       set status = 'skipped', rows_read = $1, rows_applied = 0, details = $2::jsonb, finished_at = now()
+       where id = $3`,
+      [bddRowsRead, JSON.stringify(bddApplication.details), bddRun.id]
+    ),
+    pool.query(
+      `update import_runs
+       set status = 'skipped', rows_read = $1, rows_applied = 0,
+           details = $2::jsonb, finished_at = now()
+       where id = $3`,
+      [pagosRowsRead, JSON.stringify({ reason: "BDD no se aplicó; Pagos tampoco se aplica en esta corrida" }), pagosRun.id]
+    ),
+  ]);
+  return {
+    bdd: { id: bddRun.id, sourceType: "bdd", status: "skipped", rowsRead: bddRowsRead, rowsInserted: 0, rowsApplied: 0, details: bddApplication.details },
+    pagos: { id: pagosRun.id, sourceType: "pagos", status: "skipped", rowsRead: pagosRowsRead, rowsInserted: 0, rowsApplied: 0, details: { reason: "BDD no se aplicó" } },
+  };
+}
+
+async function downloadSources(sourceType) {
+  const sources = getDriveSources(sourceType);
+  const parser = parsers[sourceType];
+  return Promise.all(
+    sources.map(async (source) => ({
+      source,
+      rows: parser(await downloadSheetAsCsv(source.fileId, source.sheetName)),
+    }))
+  );
+}
+
+export function validateCompleteBddBatch(downloaded) {
+  const problems = bddBatchProblems(downloaded);
+  if (problems.length > 0) {
+    const error = new Error(`BDD no actualizada; el lote de 3 franquicias está incompleto (${problems.join("; ")})`);
+    error.statusCode = 422;
+    throw error;
+  }
+}
+
+export function validateCompleteBddAndPagosBatch(bddDownloaded, pagosDownloaded) {
+  const problems = bddBatchProblems(bddDownloaded);
+  for (const item of pagosDownloaded) {
+    if (!hasCompletePagosBatch(item.rows)) problems.push(`${item.source.label}: sin pagos válidos`);
+  }
+  if (problems.length > 0) {
+    const error = new Error(`Actualización cancelada; faltan datos completos de BDD y/o Pagos (${problems.join("; ")})`);
+    error.statusCode = 422;
+    throw error;
+  }
+}
+
+function bddBatchProblems(downloaded) {
+  if (downloaded.length !== 3) return ["La corrida BDD requiere exactamente 3 franquicias"];
+  const problems = [];
   for (const item of downloaded) {
     if (item.rows.length === 0) {
-      empty.push(`${item.source.label}: solo encabezados`);
+      problems.push(`${item.source.label}: solo encabezados`);
       continue;
     }
     const snapshot = buildBddSnapshot(item.source.franchiseId, item.rows);
     if (snapshot.clients.length === 0 || snapshot.invoiceCount === 0) {
-      empty.push(`${item.source.label}: sin cartera válida`);
+      problems.push(`${item.source.label}: sin cartera válida`);
     }
   }
-  if (empty.length > 0) {
-    const error = new Error(`BDD no actualizada; el lote de 3 franquicias está incompleto (${empty.join("; ")})`);
-    error.statusCode = 422;
-    throw error;
-  }
+  return problems;
 }
 
 async function storeRawRows(db, runId, sourceType, downloaded) {
@@ -133,15 +286,15 @@ async function applyBddBatch(db, downloaded) {
     resolveSnapshotClients(snapshot, context);
     const presentIds = new Set(snapshot.clients.map((client) => client.id));
     const absent = context.clients.filter(
-      (client) => client.portfolio_status !== "settled" && !presentIds.has(client.id)
+      (client) => client.portfolio_status === "active" && !presentIds.has(client.id)
     );
     const settled = absent.filter((client) => hasFullPaymentEvidence(client, context));
     const settledIds = new Set(settled.map((client) => client.id));
-    const pending = absent.filter((client) => !settledIds.has(client.id));
+    const fueraDeCartera = absent.filter((client) => !settledIds.has(client.id));
     const check = evaluateSnapshotDrop({
-      previousCount: context.clients.filter((client) => client.portfolio_status !== "settled").length,
+      previousCount: context.clients.filter((client) => client.portfolio_status === "active").length,
       previousBalance: context.clients
-        .filter((client) => client.portfolio_status !== "settled")
+        .filter((client) => client.portfolio_status === "active")
         .reduce((sum, client) => sum + Number(client.saldo), 0),
       nextCount: snapshot.clientCount,
       nextBalance: snapshot.balance,
@@ -151,10 +304,10 @@ async function applyBddBatch(db, downloaded) {
     details.threshold = check.threshold;
     details.franchises[snapshot.franchiseId] = {
       clients: snapshot.clientCount, invoices: snapshot.invoiceCount, balance: snapshot.balance,
-      settled: settled.length, pendingValidation: pending.length,
+      settled: settled.length, fueraDeCartera: fueraDeCartera.length,
       clientDrop: check.clientDrop, balanceDrop: check.balanceDrop,
     };
-    prepared.push({ snapshot, settled, pending, check });
+    prepared.push({ snapshot, settled, fueraDeCartera, check });
   }
 
   const anomalies = prepared.filter(({ check }) => check.anomalous);
@@ -192,7 +345,7 @@ async function captureMonthlyPortfolioBaseline(db) {
     `with client_totals as (
        select franchise_id, coalesce(sum(saldo), 0)::numeric as saldo_total
        from clientes
-       where portfolio_status != 'settled'
+       where portfolio_status = 'active'
        group by franchise_id
      ), invoice_totals as (
        select c.franchise_id,
@@ -202,7 +355,7 @@ async function captureMonthlyPortfolioBaseline(db) {
          coalesce(sum(f.monto) filter (where f.dias_vencida > 60), 0)::numeric as mas60
        from facturas f
        join clientes c on c.id = f.cliente_id
-       where c.portfolio_status != 'settled'
+       where c.portfolio_status = 'active'
        group by c.franchise_id
      ), detail as (
        select c.franchise_id, c.saldo_total, i.total_facturado,
@@ -312,7 +465,7 @@ function hasFullPaymentEvidence(client, context) {
   });
 }
 
-async function persistBddSnapshot(db, { snapshot, settled, pending }) {
+async function persistBddSnapshot(db, { snapshot, settled, fueraDeCartera }) {
   const clientRows = snapshot.clients.map((client) => ({
     id: client.id, name: client.persistedName, rfc: client.rfc || null,
     segment: client.segment, segment_label: client.segmentLabel, saldo: client.balance,
@@ -332,7 +485,7 @@ async function persistBddSnapshot(db, { snapshot, settled, pending }) {
          name = excluded.name, rfc = excluded.rfc, segment = excluded.segment,
          segment_label = excluded.segment_label, saldo = excluded.saldo,
          tramo = excluded.tramo, tramo_label = excluded.tramo_label,
-         portfolio_status = 'active', pending_validation_since = null,
+         portfolio_status = 'active',
          last_bdd_seen_at = now(), updated_at = now()`,
     [snapshot.franchiseId, JSON.stringify(clientRows)]
   );
@@ -363,15 +516,9 @@ async function persistBddSnapshot(db, { snapshot, settled, pending }) {
     [snapshot.franchiseId, JSON.stringify(invoiceRows.map(({ folio, cliente_id }) => ({ folio, cliente_id })))]
   );
 
-  if (pending.length > 0) {
-    await db.query(
-      `update clientes set portfolio_status = 'pending_validation',
-         pending_validation_since = coalesce(pending_validation_since, now()), updated_at = now()
-       where id = any($1::text[])`, [pending.map((client) => client.id)]
-    );
-  }
+  if (fueraDeCartera.length > 0) await markFueraDeCartera(db, fueraDeCartera.map((client) => client.id));
   if (settled.length > 0) await settleClients(db, settled.map((client) => client.id));
-  return snapshot.clients.length + invoiceRows.length + pending.length + settled.length;
+  return snapshot.clients.length + invoiceRows.length + fueraDeCartera.length + settled.length;
 }
 
 async function applyPayments(db, payments) {
@@ -413,10 +560,9 @@ async function applyPayments(db, payments) {
   const matched = result.rows.filter((row) => row.cliente_id).length;
   await attachUnmatchedPaymentsByInvoice(db);
   const promisesFulfilled = await reconcilePromises(db);
-  const settled = await settlePendingClients(db);
   return {
     status: "applied", rowsApplied: inserted,
-    details: { validPayments: payments.length, inserted, matched, promisesFulfilled, settled },
+    details: { validPayments: payments.length, inserted, matched, promisesFulfilled },
   };
 }
 
@@ -448,18 +594,20 @@ async function reconcilePromises(db) {
   return result.rowCount;
 }
 
-async function settlePendingClients(db) {
-  const franchises = await db.query(`select distinct franchise_id from clientes where portfolio_status = 'pending_validation'`);
-  let settled = 0;
-  for (const { franchise_id: franchiseId } of franchises.rows) {
-    const context = await loadFranchiseContext(db, franchiseId);
-    for (const client of context.clients.filter((row) => row.portfolio_status === "pending_validation")) {
-      if (!hasFullPaymentEvidence(client, context)) continue;
-      await settleClients(db, [client.id]);
-      settled++;
-    }
-  }
-  return settled;
+// El cliente desaparece de las vistas activas de inmediato -- sin esperar la siguiente
+// corrida -- pero conserva su timeline, notas y facturas para consulta histórica.
+async function markFueraDeCartera(db, clientIds) {
+  await db.query(
+    `update payment_promises set status = 'cancelled'
+     where cliente_id = any($1::text[]) and status = 'active'`, [clientIds]
+  );
+  await db.query(
+    `update clientes set portfolio_status = 'fuera_de_cartera',
+       agenda_active = false, agenda_fecha_iso = null, agenda_hora = null,
+       agenda_nota = null, agenda_detail = null,
+       promise_gestion_iso = null, promise_deadline_iso = null, updated_at = now()
+     where id = any($1::text[])`, [clientIds]
+  );
 }
 
 async function settleClients(db, clientIds) {
@@ -470,7 +618,7 @@ async function settleClients(db, clientIds) {
   await db.query(`delete from blacklist where id = any($1::text[])`, [clientIds]);
   await db.query(
     `update clientes set saldo = 0, tramo = 'good', tramo_label = 'Al corriente',
-       portfolio_status = 'settled', pending_validation_since = null,
+       portfolio_status = 'settled',
        is_blacklisted = false, agenda_active = false, agenda_fecha_iso = null,
        agenda_hora = null, agenda_nota = null, agenda_detail = null,
        promise_gestion_iso = null, promise_deadline_iso = null, updated_at = now()

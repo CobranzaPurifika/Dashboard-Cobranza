@@ -17,8 +17,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
   try {
     const allowed = resolveFranchiseScope(req.user, franchise);
     const params = [allowed];
-    const whereClientes = "where franchise_id = any($1::text[]) and portfolio_status != 'settled'";
-    const andClientes = "and c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'";
+    const whereClientes = "where franchise_id = any($1::text[]) and portfolio_status = 'active'";
+    const andClientes = "and c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'";
 
     const [
       portfolio,
@@ -47,7 +47,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
            coalesce(sum(f.monto) filter (where f.dias_vencida > 60), 0)::float as mas60_monto,
            coalesce(sum(f.monto), 0)::float as total
          from facturas f join clientes c on c.id = f.cliente_id
-         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'`,
+         where c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'`,
         params
       ),
       pool.query(
@@ -58,7 +58,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
                 when f.dias_vencida <= 60 then '31-60 días' else '+60 días' end as label,
            coalesce(sum(f.monto),0)::float as value, count(distinct f.cliente_id)::int as clientes
          from facturas f join clientes c on c.id = f.cliente_id
-         where c.franchise_id = any($1::text[]) and c.portfolio_status != 'settled'
+         where c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'
          group by 1, 2 order by array_position(array['good','warning','serious','critical'],
            case when f.dias_vencida <= 0 then 'good' when f.dias_vencida <= 30 then 'warning'
                 when f.dias_vencida <= 60 then 'serious' else 'critical' end)`,
@@ -152,7 +152,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
          from status_gestion s
          left join clientes c on c.estatus_value = s.value
            and c.franchise_id = any($1::text[])
-           and c.portfolio_status != 'settled'
+           and c.portfolio_status = 'active'
          group by s.value, s.label, s.bg, s.efectiva, s.sort_order
          order by s.sort_order`,
         params
