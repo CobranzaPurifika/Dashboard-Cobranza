@@ -7,6 +7,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+const cdr = { detectChanges: () => {} } as any;
+
 describe('ManagementComponent', () => {
   it('conserva el resultado del último filtro aunque una respuesta previa llegue después', async () => {
     const commercial = deferred<any>();
@@ -14,7 +16,7 @@ describe('ManagementComponent', () => {
     const api = {
       prioridad: () => commercial.promise,
     } as any;
-    const component = new ManagementComponent(api);
+    const component = new ManagementComponent(api, cdr);
 
     const first = component.loadPriority();
     api.prioridad = () => residential.promise;
@@ -33,7 +35,7 @@ describe('ManagementComponent', () => {
     const api = {
       gestionesMes: async () => { throw new Error('Falta aplicar la migración'); },
     } as any;
-    const component = new ManagementComponent(api);
+    const component = new ManagementComponent(api, cdr);
 
     await component.openMonthlyStats();
 
