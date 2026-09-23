@@ -10,7 +10,7 @@
           <p>Urgencia por tramo y monto · gestionados hoy al final</p>
         </div>
         <div class="priority-total">
-          @if (loading && !loaded) { <ion-spinner name="crescent"></ion-spinner><span>Cargando</span> }
+          @if (priorityLoading && !loaded) { <ion-spinner name="crescent"></ion-spinner><span>Cargando</span> }
           @else { <strong>{{ priorityShown }}</strong><span>de {{ priorityTotal }}</span> }
         </div>
       </header>
@@ -26,8 +26,8 @@
         <input type="search" [(ngModel)]="query" (ngModelChange)="onSearch()" placeholder="Buscar cliente o folio…" />
       </label>
 
-      <div class="priority-list">
-        @if (loading && !loaded) {
+      <div class="priority-list" [class.is-loading]="priorityLoading && loaded">
+        @if (priorityLoading && !loaded) {
           <div class="priority-skeleton" aria-label="Cargando prioridad"><i></i><i></i><i></i><i></i><i></i></div>
         } @else { @for (client of priority; track client.id) {
           <div class="priority-row" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted">
