@@ -55,9 +55,15 @@
 .recovered-summary strong { color: var(--ink); font-size: 32px; letter-spacing: -.04em; }
 .recovered-summary span { color: var(--muted); font-size: 12px; }
 .payments-table { border-top: 1px solid var(--line); }
-.payments-table div { display: grid; grid-template-columns: 1fr auto auto; gap: 15px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--ink-soft); }
-.payments-table div span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.payments-table strong { color: var(--ink); }
+.payments-client-toggle { display: grid; width: 100%; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; padding: 11px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink-soft); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.payments-client-toggle:hover { color: var(--ink); }
+.payments-client-toggle ion-icon { color: var(--muted); font-size: 11px; }
+.payments-client-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payments-client-toggle strong { color: var(--ink); }
+.payments-invoices { padding: 2px 0 6px 24px; border-bottom: 1px solid var(--line); }
+.payments-invoices div { display: grid; grid-template-columns: 1fr auto auto; gap: 15px; padding: 6px 0; font-size: 10px; color: var(--muted); }
+.payments-invoices span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payments-invoices b { color: var(--ink-soft); font-weight: 700; }
 .empty-state { display: grid; min-height: 120px; place-items: center; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; font-size: 12px; }
 .balance-card { grid-column: 1; }
 .funnel-card { grid-column: 2; }

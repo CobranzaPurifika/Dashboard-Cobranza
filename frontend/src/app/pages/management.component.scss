@@ -75,6 +75,11 @@ button, input, select, textarea { font: inherit; }
 .followup-section button strong, .blacklist-card strong { font-size: 11px; }
 .followup-section button span { margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.35; }
 .followup-section button small, .blacklist-card small { margin-top: 3px; color: var(--accent-strong); font-size: 8px; text-transform: capitalize; }
+.followup-row { display: flex; align-items: stretch; gap: 2px; }
+.followup-row .followup-open { flex: 1; min-width: 0; }
+.followup-row .followup-dismiss { display: grid; flex: none; width: 22px; height: 22px; align-self: center; margin-right: 4px; padding: 0; border-radius: 6px; color: var(--muted); place-items: center; }
+.followup-row .followup-dismiss:hover { background: var(--surface-hover); color: #dc4b3e; }
+.followup-row .followup-dismiss ion-icon { font-size: 13px; }
 .empty-line { margin: 8px 2px; color: var(--muted); font-size: 10px; }
 .blacklist-card button { border-bottom: 1px solid var(--line); border-radius: 0; }
 .blacklist-card button span { display: flex; justify-content: space-between; align-items: center; }
@@ -212,4 +217,10 @@ button, input, select, textarea { font: inherit; }
   .monthly-fab { left: 14px; bottom: 14px; }
   .monthly-summary { grid-template-columns: 1fr; }
   .day-row { grid-template-columns: 58px 45px 35px 1fr; }
+  // En celular las dos tarjetas del costado se apilan; sin este ajuste heredaban la
+  // altura mínima de 420px pensada para el layout de dos columnas de escritorio, y la
+  // tarjeta "Pendientes" por sí sola ocupaba casi toda la pantalla.
+  .management-side { grid-template-rows: none; gap: 12px; }
+  .followup-card { max-height: 46vh; }
+  .followup-list { max-height: 160px; }
 }

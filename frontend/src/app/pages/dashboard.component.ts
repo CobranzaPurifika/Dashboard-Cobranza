@@ -30,11 +30,13 @@ export class DashboardComponent implements OnChanges {
   segmentation: { svg?: SafeHtml; legend?: SafeHtml } = {};
   recoveryChart?: SafeHtml;
   overdueChart?: SafeHtml;
+  expandedRecoveryClients = new Set<string>();
 
   constructor(private readonly sanitizer: DomSanitizer) {}
 
   ngOnChanges(): void {
     if (!this.data) return;
+    this.expandedRecoveryClients = new Set();
     this.renderCharts();
   }
 
@@ -45,6 +47,7 @@ export class DashboardComponent implements OnChanges {
 
   setRecoveryPeriod(period: 'semana' | 'mes'): void {
     this.recoveryPeriod = period;
+    this.expandedRecoveryClients = new Set();
   }
 
   recoveryData(): any {
@@ -53,8 +56,31 @@ export class DashboardComponent implements OnChanges {
       : this.data?.recuperadoSemanal ?? { total: 0, count: 0, rows: [] };
   }
 
-  recoveredRows(): any[] {
-    return (this.recoveryData().rows ?? []).slice(0, 10);
+  // El artefacto original mostraba, por cliente, qué facturas se pagaron y por cuánto --
+  // aquí se agrupan los pagos individuales (planos por fecha) en una fila por cliente con
+  // el detalle expandible, en vez de una lista plana de pagos.
+  recoveredClients(): { key: string; name: string; franchiseId: string; total: number; payments: any[] }[] {
+    const groups = new Map<string, { key: string; name: string; franchiseId: string; total: number; payments: any[] }>();
+    for (const payment of this.recoveryData().rows ?? []) {
+      const key = payment.cliente_id || `${payment.franchise_id}|${String(payment.name ?? '').toLowerCase()}`;
+      const group = groups.get(key) ?? {
+        key, name: payment.name || 'Cliente', franchiseId: payment.franchise_id, total: 0, payments: [],
+      };
+      group.total += Number(payment.monto ?? 0);
+      group.payments.push(payment);
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 10);
+  }
+
+  isRecoveryClientExpanded(key: string): boolean {
+    return this.expandedRecoveryClients.has(key);
+  }
+
+  toggleRecoveryClient(key: string): void {
+    const next = new Set(this.expandedRecoveryClients);
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.expandedRecoveryClients = next;
   }
 
   deltaLabel(metric: any): string {

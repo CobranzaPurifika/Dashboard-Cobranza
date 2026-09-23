@@ -88,6 +88,14 @@ export class ApiService {
     return this.request(`/clientes/${id}/blacklist`, { method: 'DELETE' });
   }
 
+  quitarAgenda(id: string) {
+    return this.request(`/clientes/${id}/agenda`, { method: 'DELETE' });
+  }
+
+  descartarPromesa(id: string) {
+    return this.request(`/clientes/${id}/promise`, { method: 'DELETE' });
+  }
+
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.auth.getValidAccessToken();
     const response = await fetch(`${this.apiBase}${path}`, {

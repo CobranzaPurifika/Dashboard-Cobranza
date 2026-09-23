@@ -52,17 +52,22 @@
 
     <aside class="management-side">
       <article class="side-card followup-card">
-        <header><h2>Pendientes</h2><span class="side-count">{{ loading && !loaded ? '…' : overdue.length + scheduled.length }}</span></header>
+        <header><div><span class="eyebrow">SEGUIMIENTO</span><h2>Pendientes</h2></div><span class="side-count">{{ loading && !loaded ? '…' : overdue.length + scheduled.length }}</span></header>
 
         <section class="followup-section overdue-section">
           <button class="section-toggle" type="button" (click)="overdueExpanded = !overdueExpanded" [attr.aria-expanded]="overdueExpanded"><span class="signal overdue"></span><strong>Promesas incumplidas</strong><i>{{ overdue.length }}</i><ion-icon [name]="overdueExpanded ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button>
           @if (overdueExpanded) { <div class="followup-list">
             @for (client of overdue; track client.id) {
-              <button type="button" (click)="openDetail(client.id)">
-                <strong>{{ client.name }}</strong>
-                <span>Prometió el {{ shortDate(client.promise_deadline_iso) }} · {{ client.days_overdue }} días de retraso</span>
-                <small>{{ client.franchise_id }}</small>
-              </button>
+              <div class="followup-row">
+                <button type="button" class="followup-open" (click)="openDetail(client.id)">
+                  <strong>{{ client.name }}</strong>
+                  <span>Prometió el {{ shortDate(client.promise_deadline_iso) }} · {{ client.days_overdue }} días de retraso</span>
+                  <small>{{ client.franchise_id }}</small>
+                </button>
+                @if (canManage) {
+                  <button type="button" class="followup-dismiss" title="Descartar promesa incumplida" aria-label="Descartar promesa incumplida" (click)="discardPromise(client, $event)"><ion-icon name="close-outline"></ion-icon></button>
+                }
+              </div>
             } @empty { <p class="empty-line">Sin promesas vencidas.</p> }
           </div> }
         </section>
@@ -71,11 +76,16 @@
           <button class="section-toggle" type="button" (click)="scheduledExpanded = !scheduledExpanded" [attr.aria-expanded]="scheduledExpanded"><span class="signal scheduled"></span><strong>Agendados</strong><i>{{ scheduled.length }}</i><ion-icon [name]="scheduledExpanded ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button>
           @if (scheduledExpanded) { <div class="followup-list">
             @for (client of scheduled; track client.id) {
-              <button type="button" (click)="openDetail(client.id)">
-                <strong>{{ client.name }}</strong>
-                <span>{{ client.agenda_detail || ('Contactar el ' + shortDate(client.agenda_fecha_iso)) }}</span>
-                <small>{{ client.franchise_id }}</small>
-              </button>
+              <div class="followup-row">
+                <button type="button" class="followup-open" (click)="openDetail(client.id)">
+                  <strong>{{ client.name }}</strong>
+                  <span>{{ client.agenda_detail || ('Contactar el ' + shortDate(client.agenda_fecha_iso)) }}</span>
+                  <small>{{ client.franchise_id }}</small>
+                </button>
+                @if (canManage) {
+                  <button type="button" class="followup-dismiss" title="Descartar agenda" aria-label="Descartar agenda" (click)="discardAgenda(client, $event)"><ion-icon name="close-outline"></ion-icon></button>
+                }
+              </div>
             } @empty { <p class="empty-line">Sin llamadas agendadas.</p> }
           </div> }
         </section>

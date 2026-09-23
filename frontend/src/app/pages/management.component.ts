@@ -189,6 +189,33 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     }
   }
 
+  // Descartan un pendiente directamente desde la lista, sin abrir la ficha del cliente
+  // (event.stopPropagation evita que el clic también dispare el botón de abrir detalle,
+  // ya que ambos comparten fila).
+  async discardPromise(client: any, event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      await this.api.descartarPromesa(client.id);
+      this.overdue = this.overdue.filter((c) => c.id !== client.id);
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.refresh();
+    }
+  }
+
+  async discardAgenda(client: any, event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      await this.api.quitarAgenda(client.id);
+      this.scheduled = this.scheduled.filter((c) => c.id !== client.id);
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.refresh();
+    }
+  }
+
   async loadBlacklist(): Promise<void> {
     this.blacklistAbort?.abort();
     const controller = new AbortController();
