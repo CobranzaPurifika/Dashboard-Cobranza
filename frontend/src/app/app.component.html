@@ -188,15 +188,20 @@
 
   @if (loginVisible) {
     <div class="login-screen">
-      <form class="login-card" (ngSubmit)="signIn()">
+      <form class="login-card" (ngSubmit)="signIn()" [attr.aria-busy]="loginLoading">
         <div class="login-brand"><span class="drop"><ion-icon name="water-outline"></ion-icon></span><span><strong>PURIFIKA</strong><small>COBRANZA</small></span></div>
         <h1>Bienvenido</h1>
         <p>Ingresa con la cuenta administrativa asignada.</p>
-        <label>Correo<input type="email" name="email" [(ngModel)]="loginEmail" autocomplete="username" required /></label>
-        <label>Contraseña<input type="password" name="password" [(ngModel)]="loginPassword" autocomplete="current-password" required /></label>
+        <label for="login-email">Correo</label>
+        <input id="login-email" type="email" name="email" [(ngModel)]="loginEmail" autocomplete="username" [disabled]="loginLoading" required />
+        <label for="login-password">Contraseña</label>
+        <span class="password-field">
+          <input id="login-password" [type]="showLoginPassword ? 'text' : 'password'" name="password" [(ngModel)]="loginPassword" autocomplete="current-password" [disabled]="loginLoading" required />
+          <button class="password-toggle" type="button" [disabled]="loginLoading" [attr.aria-label]="showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="showLoginPassword" [title]="showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" (click)="toggleLoginPassword()"><ion-icon [name]="showLoginPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon></button>
+        </span>
         @if (loginError) { <div class="login-error" role="alert">{{ loginError }}</div> }
         <button class="login-submit" type="submit" [disabled]="loginLoading">@if (loginLoading) { <ion-spinner name="crescent"></ion-spinner> }{{ loginLoading ? 'Ingresando…' : 'Iniciar sesión' }}</button>
-        <button class="login-cancel" type="button" (click)="loginVisible = false">Volver al tablero</button>
+        <button class="login-cancel" type="button" [disabled]="loginLoading" (click)="loginVisible = false">Volver al tablero</button>
       </form>
     </div>
   }

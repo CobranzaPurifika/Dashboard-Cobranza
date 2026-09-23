@@ -39,6 +39,7 @@ export class AppComponent implements OnInit {
   loginVisible = false;
   loginEmail = '';
   loginPassword = '';
+  showLoginPassword = false;
   loginError = '';
   loginLoading = false;
   syncLoading = false;
@@ -74,6 +75,9 @@ export class AppComponent implements OnInit {
   get isAdmin(): boolean { return this.user?.role === 'admin'; }
 
   async openApp(): Promise<void> {
+    // getValidAccessToken() limpia una sesión que ya no se puede renovar. Conservamos
+    // este dato antes de cargar para mostrar el acceso, no un error de cartera, al usuario.
+    const hadSession = this.auth.hasSession();
     this.loading = true;
     this.appError = '';
     try {
@@ -91,7 +95,7 @@ export class AppComponent implements OnInit {
       this.loginVisible = false;
       await this.loadDashboard();
     } catch (error: any) {
-      if (this.auth.hasSession()) {
+      if (hadSession) {
         this.auth.clearSession();
         this.showLogin(error.message);
       } else {
@@ -111,6 +115,7 @@ export class AppComponent implements OnInit {
       this.view = 'management';
       await this.openApp();
       this.loginPassword = '';
+      this.showLoginPassword = false;
     } catch (error: any) {
       this.auth.clearSession();
       this.loginError = error.message;
@@ -132,7 +137,12 @@ export class AppComponent implements OnInit {
 
   showLogin(message = ''): void {
     this.loginError = message;
+    this.showLoginPassword = false;
     this.loginVisible = true;
+  }
+
+  toggleLoginPassword(): void {
+    this.showLoginPassword = !this.showLoginPassword;
   }
 
   async setView(view: 'dashboard' | 'management'): Promise<void> {

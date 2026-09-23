@@ -15,6 +15,7 @@ import { seguimientoRouter } from "./routes/seguimiento.js";
 import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
 import { notasRouter } from "./routes/notas.js";
 import { startImportSchedules } from "./imports/scheduler.js";
+import { startSnapshotSchedule } from "./jobs/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
 const app = express();
@@ -69,4 +70,5 @@ const port = process.env.PORT ?? 3001;
 app.listen(port, () => {
   console.log(`Cobranza Purifika API escuchando en :${port}`);
   startImportSchedules();
+  startSnapshotSchedule();
 });
