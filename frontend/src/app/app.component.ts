@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
+import { AppPreferences, DEFAULT_PREFERENCES, loadPreferences, savePreferences } from './core/preferences';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
 import { PresentationComponent } from './pages/presentation.component';
@@ -46,6 +47,13 @@ export class AppComponent implements OnInit {
   statusError = '';
   settingsVisible = false;
   appError = '';
+  preferences: AppPreferences = { ...DEFAULT_PREFERENCES };
+  expandedSettingsSections = new Set<string>();
+  dailyGoals: any[] = [];
+  goalsLoaded = false;
+  goalsLoading = false;
+  goalsError = '';
+  goalSaving = '';
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
 
@@ -54,6 +62,7 @@ export class AppComponent implements OnInit {
   ngOnInit(): void {
     const savedTheme = localStorage.getItem('cobranza-purifika.theme');
     this.darkTheme = savedTheme ? savedTheme === 'dark' : true;
+    this.preferences = loadPreferences(localStorage);
     window.addEventListener('auth-required', () => this.showLogin('Tu sesión terminó. Ingresa nuevamente.'));
     void this.openApp();
   }
@@ -69,9 +78,10 @@ export class AppComponent implements OnInit {
     try {
       this.user = await this.api.me();
       this.franchises = this.franchisesForUser(this.user);
-      this.presentationFranchises = this.franchises.filter((option) => option.id !== 'todas');
+      this.applyPresentationFranchises();
       if (!this.franchises.length) throw new Error('Tu cuenta todavía no tiene franquicias asignadas');
-      if (!this.franchises.some((option) => option.id === this.franchise)) this.franchise = this.franchises[0].id;
+      const preferred = this.preferences.defaultFranchise;
+      this.franchise = this.franchises.some((option) => option.id === preferred) ? preferred : this.franchises[0].id;
       // Al recargar se conserva el Dashboard como pantalla de entrada. Antes se cambiaba
       // a Gestión mientras aún llegaban las respuestas; junto con el render diferido eso
       // hacía que un clic en tema revelara una vista distinta a la esperada.
@@ -203,6 +213,90 @@ export class AppComponent implements OnInit {
     if (this.presentationMode) this.view = 'dashboard';
   }
 
+  isSectionExpanded(section: string): boolean {
+    return this.expandedSettingsSections.has(section);
+  }
+
+  toggleSettingsSection(section: string): void {
+    const next = new Set(this.expandedSettingsSections);
+    if (next.has(section)) {
+      next.delete(section);
+    } else {
+      next.add(section);
+      if (section === 'goals' && !this.goalsLoaded) void this.loadGoals();
+    }
+    this.expandedSettingsSections = next;
+  }
+
+  setDefaultFranchise(id: string): void {
+    this.preferences = { ...this.preferences, defaultFranchise: id };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  setPriorityDensity(density: 'comfortable' | 'compact'): void {
+    this.preferences = { ...this.preferences, priorityDensity: density };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  setPresentationDuration(seconds: number): void {
+    const durationSeconds = Number.isFinite(seconds) && seconds >= 5 ? Math.round(seconds) : this.preferences.presentation.durationSeconds;
+    this.preferences = { ...this.preferences, presentation: { ...this.preferences.presentation, durationSeconds } };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  setPresentationAutoStart(autoStart: boolean): void {
+    this.preferences = { ...this.preferences, presentation: { ...this.preferences.presentation, autoStart } };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  setPresentationHideControls(hideControls: boolean): void {
+    this.preferences = { ...this.preferences, presentation: { ...this.preferences.presentation, hideControls } };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  togglePresentationFranchise(id: string): void {
+    const current = this.preferences.presentation.franchiseIds;
+    const allIds = this.franchises.filter((option) => option.id !== 'todas').map((option) => option.id);
+    const selected = new Set(current ?? allIds);
+    selected.has(id) ? selected.delete(id) : selected.add(id);
+    const franchiseIds = selected.size && selected.size < allIds.length ? [...selected] : null;
+    this.preferences = { ...this.preferences, presentation: { ...this.preferences.presentation, franchiseIds } };
+    savePreferences(localStorage, this.preferences);
+    this.applyPresentationFranchises();
+  }
+
+  isPresentationFranchiseIncluded(id: string): boolean {
+    const ids = this.preferences.presentation.franchiseIds;
+    return !ids || ids.includes(id);
+  }
+
+  async loadGoals(): Promise<void> {
+    this.goalsLoading = true;
+    this.goalsError = '';
+    try {
+      this.dailyGoals = await this.api.metasGestion();
+      this.goalsLoaded = true;
+    } catch (error: any) {
+      this.goalsError = error.message;
+    } finally {
+      this.goalsLoading = false;
+    }
+  }
+
+  async saveGoal(row: any): Promise<void> {
+    if (this.goalSaving) return;
+    this.goalSaving = row.franchise_id;
+    this.goalsError = '';
+    try {
+      const updated = await this.api.guardarMeta(row.franchise_id, Number(row.daily_goal));
+      this.dailyGoals = this.dailyGoals.map((item) => item.franchise_id === updated.franchise_id ? { ...item, daily_goal: updated.daily_goal } : item);
+    } catch (error: any) {
+      this.goalsError = error.message;
+    } finally {
+      this.goalSaving = '';
+    }
+  }
+
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.presentationMode) this.togglePresentation();
@@ -220,6 +314,12 @@ export class AppComponent implements OnInit {
     if (displayName) return displayName;
     const email = String(this.user?.email ?? '').trim();
     return email || (this.isAnonymous ? 'Acceso' : 'Salir');
+  }
+
+  private applyPresentationFranchises(): void {
+    const all = this.franchises.filter((option) => option.id !== 'todas');
+    const ids = this.preferences.presentation.franchiseIds;
+    this.presentationFranchises = ids ? all.filter((option) => ids.includes(option.id)) : all;
   }
 
   private franchisesForUser(user: any): FranchiseOption[] {

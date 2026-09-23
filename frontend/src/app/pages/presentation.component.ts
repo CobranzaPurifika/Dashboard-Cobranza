@@ -18,7 +18,6 @@ interface FranchiseOption { id: string; label: string }
 // mismas gráficas de charts.ts (donut/funnel/líneas) que ya usa DashboardComponent -- solo cambia
 // el layout a una parrilla compacta pensada para TV/sala, con controles de pausa y navegación
 // por puntos, igual que el mockup aprobado ("pres-screen", "pres-grid", "pres-dots" del Artifact).
-const DURATION_MS = 18000;
 const TICK_MS = 100;
 
 @Component({
@@ -30,6 +29,9 @@ const TICK_MS = 100;
 })
 export class PresentationComponent implements OnChanges, OnDestroy {
   @Input() franchises: FranchiseOption[] = [];
+  @Input() durationSeconds = 18;
+  @Input() autoStart = true;
+  @Input() hideControls = false;
   @Output() exit = new EventEmitter<void>();
 
   activeIndex = 0;
@@ -64,6 +66,7 @@ export class PresentationComponent implements OnChanges, OnDestroy {
     if (!this.franchises.length) return;
     if (this.activeIndex >= this.franchises.length) this.activeIndex = 0;
     if (!this.data) {
+      this.paused = !this.autoStart;
       void this.loadActive();
       this.start();
     }
@@ -106,7 +109,7 @@ export class PresentationComponent implements OnChanges, OnDestroy {
 
   private tick(): void {
     if (this.paused || this.franchises.length <= 1) return;
-    this.progressPct += (TICK_MS / DURATION_MS) * 100;
+    this.progressPct += (TICK_MS / (this.durationSeconds * 1000)) * 100;
     if (this.progressPct >= 100) {
       this.progressPct = 0;
       this.activeIndex = (this.activeIndex + 1) % this.franchises.length;

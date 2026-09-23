@@ -26,7 +26,7 @@
         <input type="search" [(ngModel)]="query" (ngModelChange)="onSearch()" placeholder="Buscar cliente o folio…" />
       </label>
 
-      <div class="priority-list">
+      <div class="priority-list" [class.density-compact]="priorityDensity === 'compact'">
         @if (loading && !loaded) {
           <div class="priority-skeleton" aria-label="Cargando prioridad"><i></i><i></i><i></i><i></i><i></i></div>
         } @else { @for (client of priority; track client.id) {

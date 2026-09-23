@@ -32,6 +32,7 @@
 }
 
 .pres-controls { display: flex; align-items: center; gap: 10px; }
+.pres-screen.controls-hidden .pres-controls { display: none; }
 
 .pres-progress {
   width: 220px;

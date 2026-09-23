@@ -49,6 +49,14 @@ export class ApiService {
     });
   }
 
+  metasGestion = () => this.request('/gestiones-mes/goals');
+
+  guardarMeta(franchise: string, dailyGoal: number) {
+    return this.request(`/gestiones-mes/goals/${encodeURIComponent(franchise)}`, {
+      method: 'PUT', body: JSON.stringify({ dailyGoal }),
+    });
+  }
+
   clientes(params: Record<string, string>) {
     return this.request(`/clientes?${this.query(params)}`);
   }
