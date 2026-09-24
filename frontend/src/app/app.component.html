@@ -27,14 +27,18 @@
       </nav>
 
       @if (isAnonymous) {
-        <div class="lector-search">
+        <div class="lector-search" [class.expanded]="lectorSearchExpanded">
+          <button type="button" class="lector-search-toggle" aria-label="Buscar cliente" (click)="toggleLectorSearchExpanded()"><ion-icon name="search-outline"></ion-icon></button>
           <span class="lector-search-box">
             <ion-icon name="search-outline"></ion-icon>
-            <input type="text" placeholder="Buscar cliente…" [(ngModel)]="lectorSearchQuery" (ngModelChange)="onLectorSearchInput()"
+            <input #lectorSearchInput type="text" placeholder="Buscar cliente…" [(ngModel)]="lectorSearchQuery" (ngModelChange)="onLectorSearchInput()"
               (focus)="lectorSearchResults.length && (lectorSearchOpen = true)" />
             @if (lectorSearchLoading) { <ion-spinner name="crescent"></ion-spinner> }
             @if (lectorSearchQuery && !lectorSearchLoading) {
               <button type="button" aria-label="Limpiar búsqueda" (click)="lectorSearchQuery = ''; onLectorSearchInput()"><ion-icon name="close-outline"></ion-icon></button>
+            }
+            @if (lectorSearchExpanded) {
+              <button type="button" class="lector-search-collapse" aria-label="Cerrar buscador" (click)="toggleLectorSearchExpanded()"><ion-icon name="chevron-up-outline"></ion-icon></button>
             }
           </span>
           @if (lectorSearchOpen) {

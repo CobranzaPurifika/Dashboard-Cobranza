@@ -127,6 +127,9 @@
 // pero duplicada aquí porque app-root y app-management son componentes distintos y Angular
 // no comparte estilos con encapsulación de vista entre ellos.
 .lector-search { position: relative; flex: 1; max-width: 380px; }
+// Oculto salvo en móvil (ver media query) -- ahí el buscador es un ícono y esta barra se
+// expande a su propia fila al tocarlo, en vez de ocupar todo el ancho permanentemente.
+.lector-search-toggle { display: none; height: 40px; min-width: 40px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); font-size: 16px; cursor: pointer; }
 .lector-search-box { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--input); color: var(--muted); }
 .lector-search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
 .lector-search-box input { flex: 1; min-width: 0; padding: 11px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 12px; }
@@ -184,8 +187,10 @@
 @media (max-width: 1024px) {
   .portfolio-summary { display: none; }
   .topbar { flex-wrap: wrap; gap: 7px; padding-top: 8px; padding-bottom: 8px; }
-  .franchise-tabs { order: 5; width: 100%; overflow: auto; }
-  .lector-search { order: 5; width: 100%; max-width: none; }
+  // Límite de ancho + centrado: sin esto la fila ocupa todo el ancho del dispositivo y se ve
+  // pegada a lo que sigue debajo (franquicias contra buscador, una encima de la otra).
+  .franchise-tabs { order: 5; width: 100%; max-width: 420px; margin: 0 auto; justify-content: center; overflow: auto; }
+  .lector-search { order: 5; width: 100%; max-width: 420px; margin: 0 auto; }
 }
 @media (max-width: 700px) {
   .topbar { padding-left: 14px; padding-right: 14px; }
@@ -199,4 +204,14 @@
   .header-actions .account-button span { display: none; }
   .workspace { width: min(100% - 24px, 1440px); padding-top: 13px; }
   .login-card { padding: 28px 23px 24px; }
+
+  // En pantallas de teléfono el buscador del Lector es solo un ícono junto al resto de
+  // botones de la barra (no una fila completa) -- al tocarlo se expande a su propia fila,
+  // igual que hacen las franquicias arriba.
+  .lector-search { order: 3; width: auto; max-width: none; margin: 0 0 0 auto; }
+  .lector-search-toggle { display: inline-flex; }
+  .lector-search-box { display: none; }
+  .lector-search.expanded { order: 5; width: 100%; max-width: none; margin: 0; }
+  .lector-search.expanded .lector-search-toggle { display: none; }
+  .lector-search.expanded .lector-search-box { display: flex; }
 }

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ApplicationRef, Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { ApplicationRef, Component, ElementRef, HostBinding, HostListener, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
@@ -65,9 +65,12 @@ export class AppComponent implements OnInit {
   lectorSearchResults: any[] = [];
   lectorSearchLoading = false;
   lectorSearchOpen = false;
+  // En móvil el buscador es solo un ícono; este flag expande la barra a su propia fila.
+  lectorSearchExpanded = false;
   lectorDetail: any = null;
   lectorDetailLoading = false;
   lectorDetailError = '';
+  @ViewChild('lectorSearchInput') private lectorSearchInputRef?: ElementRef<HTMLInputElement>;
   private lectorSearchTimer?: ReturnType<typeof setTimeout>;
   private lectorSearchAbort?: AbortController;
   private lectorDetailAbort?: AbortController;
@@ -244,6 +247,7 @@ export class AppComponent implements OnInit {
 
   async openLectorDetail(id: string): Promise<void> {
     this.lectorSearchOpen = false;
+    this.lectorSearchExpanded = false;
     this.lectorDetailAbort?.abort();
     const controller = new AbortController();
     this.lectorDetailAbort = controller;
@@ -270,6 +274,15 @@ export class AppComponent implements OnInit {
 
   closeLectorSearch(): void {
     this.lectorSearchOpen = false;
+  }
+
+  toggleLectorSearchExpanded(): void {
+    this.lectorSearchExpanded = !this.lectorSearchExpanded;
+    if (this.lectorSearchExpanded) {
+      setTimeout(() => this.lectorSearchInputRef?.nativeElement.focus());
+    } else {
+      this.lectorSearchOpen = false;
+    }
   }
 
   lectorMaxDiasVencida(): number {
