@@ -56,7 +56,20 @@
 .recovered-summary span { color: var(--muted); font-size: 12px; }
 // Sin tope fijo la tarjeta crece al tamaño real de la lista (sin espacio en blanco cuando
 // hay pocos clientes); con muchos, el scroll queda contenido aquí y no empuja el resto del grid.
-.payments-table { max-height: 420px; overflow-y: auto; border-top: 1px solid var(--line); }
+// padding-right + scrollbar angosto: el nativo de escritorio (grueso, siempre visible aquí
+// por overflow-y auto con muchas filas) quedaba pegado al texto/monto de cada fila.
+.payments-table {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
+  border-top: 1px solid var(--line);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.payments-table::-webkit-scrollbar { width: 7px; }
+.payments-table::-webkit-scrollbar-track { background: transparent; }
+.payments-table::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+.payments-table::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .payments-client-toggle { display: grid; width: 100%; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; padding: 11px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink-soft); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
 .payments-client-toggle:hover { color: var(--ink); }
 .payments-client-toggle ion-icon { color: var(--muted); font-size: 11px; }

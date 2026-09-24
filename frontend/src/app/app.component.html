@@ -55,6 +55,7 @@
     }
 
     @if (settingsVisible && isAdmin) {
+      <button class="settings-backdrop" type="button" aria-label="Cerrar configuración" (click)="settingsVisible = false"></button>
       <aside class="settings-popover">
         <header><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
 
