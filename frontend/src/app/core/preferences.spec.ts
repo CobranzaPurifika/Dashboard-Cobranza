@@ -20,12 +20,14 @@ describe('preferencias de la aplicación', () => {
       [PREFERENCES_KEY]: JSON.stringify({
         defaultFranchise: 'cancun',
         priorityDensity: 'compact',
+        startView: 'management',
         presentation: { durationSeconds: 30, franchiseIds: ['cancun', 'merida'], autoStart: false, hideControls: true },
       }),
     });
     expect(loadPreferences(target)).toEqual({
       defaultFranchise: 'cancun',
       priorityDensity: 'compact',
+      startView: 'management',
       presentation: { durationSeconds: 30, franchiseIds: ['cancun', 'merida'], autoStart: false, hideControls: true },
     });
   });
@@ -35,6 +37,7 @@ describe('preferencias de la aplicación', () => {
       [PREFERENCES_KEY]: JSON.stringify({
         defaultFranchise: '',
         priorityDensity: 'gigante',
+        startView: 'gigante',
         presentation: { durationSeconds: 2, franchiseIds: [], autoStart: 'sí' },
       }),
     });
@@ -51,6 +54,7 @@ describe('preferencias de la aplicación', () => {
     const custom = {
       defaultFranchise: 'merida',
       priorityDensity: 'compact' as const,
+      startView: 'management' as const,
       presentation: { durationSeconds: 12, franchiseIds: ['merida'], autoStart: true, hideControls: false },
     };
     savePreferences(target, custom);

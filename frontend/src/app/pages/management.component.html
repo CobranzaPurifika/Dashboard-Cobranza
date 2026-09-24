@@ -30,7 +30,7 @@
         @if (priorityLoading && !loaded) {
           <div class="priority-skeleton" aria-label="Cargando prioridad"><i></i><i></i><i></i><i></i><i></i></div>
         } @else { @for (client of priority; track client.id) {
-          <div class="priority-row" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted">
+          <div class="priority-row" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted" (click)="openDetail(client.id)">
             <span class="segment-dot" [class.commercial]="client.segment === 'comercial'"></span>
             <span class="client-main">
               <strong>{{ client.name }}</strong>
@@ -41,7 +41,9 @@
               @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
             </span>
             <strong class="balance">{{ money(client.saldo) }}</strong>
-            <button class="manage-action" type="button" (click)="openDetail(client.id)">Gestionar <ion-icon name="chevron-forward-outline"></ion-icon></button>
+            <button class="manage-action" type="button" (click)="openDetail(client.id); $event.stopPropagation()">
+              <span class="manage-action-label">Gestionar</span><ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
           </div>
         } @empty {
           <div class="empty-state">No hay contactos para estos filtros.</div>

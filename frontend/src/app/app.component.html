@@ -32,6 +32,7 @@
         <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button>
         <button type="button" title="Cambiar tema" aria-label="Cambiar tema" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon></button>
         @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
+        <button type="button" class="more-button" title="Más opciones" aria-label="Más opciones" [attr.aria-expanded]="moreMenuVisible" (click)="toggleMoreMenu()"><ion-icon name="ellipsis-vertical-outline"></ion-icon></button>
         <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Cerrar sesión'" (click)="accountAction()">
           <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'log-out-outline'"></ion-icon>
           <span>{{ accountLabel() }}</span>
@@ -39,7 +40,17 @@
       </div>
     </header>
 
+    @if (moreMenuVisible) {
+      <button class="more-backdrop" type="button" aria-label="Cerrar menú" (click)="closeMoreMenu()"></button>
+      <nav class="more-menu" aria-label="Más opciones">
+        <button type="button" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon>Modo presentación</button>
+        <button type="button" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon>{{ darkTheme ? 'Tema claro' : 'Tema oscuro' }}</button>
+        @if (isAdmin) { <button type="button" (click)="openSettingsFromMenu()"><ion-icon name="settings-outline"></ion-icon>Configuración</button> }
+      </nav>
+    }
+
     @if (settingsVisible && isAdmin) {
+      <button class="settings-backdrop" type="button" aria-label="Cerrar configuración" (click)="settingsVisible = false"></button>
       <aside class="settings-popover">
         <header><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
 
@@ -73,6 +84,13 @@
                 <div class="pref-segmented">
                   <button type="button" [class.active]="preferences.priorityDensity === 'comfortable'" (click)="setPriorityDensity('comfortable')">Cómoda</button>
                   <button type="button" [class.active]="preferences.priorityDensity === 'compact'" (click)="setPriorityDensity('compact')">Compacta</button>
+                </div>
+              </div>
+              <div class="pref-row">
+                <span>Pantalla al iniciar sesión</span>
+                <div class="pref-segmented">
+                  <button type="button" [class.active]="preferences.startView === 'dashboard'" (click)="setStartView('dashboard')">Dashboard</button>
+                  <button type="button" [class.active]="preferences.startView === 'management'" (click)="setStartView('management')">Gestión</button>
                 </div>
               </div>
             </div>

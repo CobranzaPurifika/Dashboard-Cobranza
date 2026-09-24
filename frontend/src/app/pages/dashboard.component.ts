@@ -70,7 +70,7 @@ export class DashboardComponent implements OnChanges {
       group.payments.push(payment);
       groups.set(key, group);
     }
-    return [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 10);
+    return [...groups.values()].sort((a, b) => b.total - a.total);
   }
 
   isRecoveryClientExpanded(key: string): boolean {
