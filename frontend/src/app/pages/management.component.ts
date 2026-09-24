@@ -375,6 +375,50 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return [...dates].sort();
   }
 
+  // Vista de calendario del cumplimiento diario por franquicia -- mismo generador de
+  // cuadrícula que bulkCalendarWeeks, pero cada celda trae el día de gestiones (o null en
+  // fines de semana/fuera del mes/días aún no alcanzados) en vez de un flag de disponibilidad.
+  franchiseCalendarWeeks(franchise: any): { date: string; day: number; inMonth: boolean; data: any | null }[][] {
+    const month = this.monthlyData?.month;
+    if (!month) return [];
+    const [year, mon] = month.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+    const firstWeekday = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7;
+    const dayMap = new Map((franchise?.days ?? []).map((day: any) => [day.date, day]));
+
+    const cells: { date: string; day: number; inMonth: boolean; data: any | null }[] = [];
+    for (let i = firstWeekday; i > 0; i -= 1) {
+      const d = new Date(Date.UTC(year, mon - 1, 1 - i));
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, data: null });
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const d = new Date(Date.UTC(year, mon - 1, day));
+      const iso = this.isoDate(d);
+      cells.push({ date: iso, day, inMonth: true, data: dayMap.get(iso) ?? null });
+    }
+    while (cells.length % 7 !== 0) {
+      const d = new Date(`${cells[cells.length - 1].date}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, data: null });
+    }
+
+    const weeks: { date: string; day: number; inMonth: boolean; data: any | null }[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+  }
+
+  calendarDayStatus(data: any): 'complete' | 'partial' | 'incomplete' | 'justified' {
+    if (data.incident) return 'justified';
+    if (data.pct >= 100) return 'complete';
+    if (data.pct > 0) return 'partial';
+    return 'incomplete';
+  }
+
+  calendarDayTitle(data: any): string {
+    if (data.incident) return `Justificado — ${data.incident.note}`;
+    return `${data.count}/${data.goal} clientes únicos · ${data.pct}%`;
+  }
+
   // Cuadrícula del mes de monthlyData (único mes con datos disponibles para incidencias),
   // con los días fuera de rango de la semana rellenados para completar filas de 7 -- igual
   // que un calendario normal, pero sin navegación entre meses porque no hay datos que mostrar

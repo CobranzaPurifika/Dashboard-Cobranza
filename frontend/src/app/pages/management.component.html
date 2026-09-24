@@ -295,6 +295,31 @@
                 <ion-icon class="chevron" [name]="isFranchiseDetailExpanded(franchise.id) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
               </button>
               @if (isFranchiseDetailExpanded(franchise.id)) {
+                <div class="mgmt-calendar">
+                  <div class="mgmt-cal-weekdays"><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span></div>
+                  <div class="mgmt-cal-grid">
+                    @for (week of franchiseCalendarWeeks(franchise); track $index) {
+                      @for (cell of week; track cell.date) {
+                        <span
+                          class="mgmt-cal-day"
+                          [class.out-of-month]="!cell.inMonth"
+                          [class.status-complete]="cell.data && calendarDayStatus(cell.data) === 'complete'"
+                          [class.status-partial]="cell.data && calendarDayStatus(cell.data) === 'partial'"
+                          [class.status-incomplete]="cell.data && calendarDayStatus(cell.data) === 'incomplete'"
+                          [class.status-justified]="cell.data && calendarDayStatus(cell.data) === 'justified'"
+                          [attr.data-tooltip]="cell.data ? calendarDayTitle(cell.data) : null"
+                          [attr.tabindex]="cell.data ? 0 : null"
+                        >{{ cell.day }}</span>
+                      }
+                    }
+                  </div>
+                  <div class="mgmt-cal-legend">
+                    <span class="legend-dot status-complete"></span>100%
+                    <span class="legend-dot status-partial"></span>Parcial
+                    <span class="legend-dot status-incomplete"></span>Sin gestión
+                    <span class="legend-dot status-justified"></span>Justificado
+                  </div>
+                </div>
                 @for (day of franchise.days; track day.date) {
                   <div class="day-row">
                     <strong>{{ shortDate(day.date) }}</strong><span>{{ day.count }} / {{ day.goal }}</span>
