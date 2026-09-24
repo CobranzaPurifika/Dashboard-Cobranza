@@ -132,16 +132,28 @@ button, input, select, textarea { font: inherit; }
 .drawer-section { padding: 20px 0; border-bottom: 1px solid var(--line); }
 .drawer-section h3, .section-heading h3 { margin: 0 0 12px; color: var(--ink); font-size: 13px; }
 .management-form label { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; font-weight: 650; }
-.management-form select, .management-form textarea, .agenda-fields input, .agenda-fields select, .agenda-fields textarea, .blacklist-control textarea { width: 100%; margin-top: 5px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); resize: vertical; }
+.management-form select, .management-form textarea, .agenda-fields input, .agenda-fields select, .agenda-fields textarea, .blacklist-control textarea { width: 100%; margin-top: 5px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); font-size: 11px; resize: vertical; }
 .management-form select:focus, .management-form textarea:focus, .agenda-fields input:focus, .agenda-fields select:focus, .agenda-fields textarea:focus { border-color: var(--accent); }
 .agenda-fields { margin-top: 12px; padding: 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--surface-soft)); }
 .agenda-fields > span { color: var(--accent-strong); font-size: 10px; font-weight: 750; }
 .agenda-fields > div { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
-.primary-action, .blacklist-control button { margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #07373a; font-weight: 800; cursor: pointer; }
-.primary-action { width: 100%; }
-.primary-action:disabled, .blacklist-control button:disabled { opacity: .55; }
-.notes-section textarea { width: 100%; margin-top: 5px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); resize: vertical; }
+// Mismo diseño (sutil, con borde) que tenía el botón "Gestionar" de la lista de Prioridad,
+// antes de quitarlo por redundante -- ya no hay un botón sólido sobrecargando la ficha.
+.primary-action { width: 100%; margin-top: 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--accent-strong); font-size: 12px; font-weight: 750; cursor: pointer; }
+.primary-action:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.primary-action:disabled { opacity: .55; }
+.blacklist-control button { width: 100%; margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 8px; background: #d84f43; color: white; font-size: 12px; font-weight: 800; cursor: pointer; }
+.blacklist-control button:disabled { opacity: .55; }
+.notes-section textarea { width: 100%; margin-top: 5px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); font-size: 11px; resize: vertical; }
 .notes-section textarea:focus { border-color: var(--accent); }
+.notes-text { margin: 8px 0 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink-soft); font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
+.notes-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.icon-text-button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
+.icon-text-button ion-icon { font-size: 13px; }
+.icon-text-button.danger { border-color: color-mix(in srgb, #d84036 40%, var(--line)); color: #d84036; }
+.icon-text-button:hover { background: var(--surface-hover); }
+.text-action { padding: 7px 10px; border: 0; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
+.text-action:hover { color: var(--ink-soft); }
 .secondary-action, .timeline-more { margin-top: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
 .secondary-action:disabled { opacity: .55; cursor: progress; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; }

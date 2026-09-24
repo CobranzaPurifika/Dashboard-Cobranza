@@ -67,7 +67,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   saving = false;
   noteSaving = false;
   clientNotes = '';
-  showAllTimeline = false;
+  noteEditing = false;
+  timelineTier: 'min' | 'mid' | 'all' = 'min';
   showInvoicesModal = false;
   selectedInvoiceIds = new Set<number>();
   private queryTimer?: ReturnType<typeof setTimeout>;
@@ -243,14 +244,17 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       const detail = await this.api.cliente(id, controller.signal);
       if (controller.signal.aborted || requestId !== this.detailRequest) return;
       this.detail = detail;
-      this.gestionStatus = this.detail.estatus_value || this.statusCatalog[0]?.value || '';
+      // Sin valor por defecto: registrar gestión es una acción nueva cada vez, no debe
+      // heredar en silencio el último estatus guardado.
+      this.gestionStatus = '';
       this.gestionComment = '';
       this.blacklistReason = '';
       this.agendaDate = this.dateOnly(this.detail.agenda_fecha_iso) || this.todayMexico();
       this.agendaHour = this.hours.includes(this.detail.agenda_hora) ? this.detail.agenda_hora : this.suggestedHour();
       this.agendaNote = this.detail.agenda_nota ?? '';
       this.clientNotes = this.detail.notas ?? '';
-      this.showAllTimeline = false;
+      this.noteEditing = false;
+      this.timelineTier = 'min';
       this.blacklistPanelOpen = false;
       this.showInvoicesModal = false;
       this.selectedInvoiceIds = new Set();
@@ -590,7 +594,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.saving = true;
     this.error = '';
     try {
-      const body: any = { estatusValue: this.gestionStatus, comentario: this.gestionComment };
+      // Con "Llamar más tarde" el campo Comentario se oculta y solo se pide la Nota de
+      // agenda -- esa misma nota alimenta el comentario del historial, para no pedir el
+      // mismo contexto dos veces en dos campos que antes se guardaban por separado.
+      const comentario = this.callLaterSelected ? this.agendaNote : this.gestionComment;
+      const body: any = { estatusValue: this.gestionStatus, comentario };
       if (this.callLaterSelected) {
         body.agenda = { fechaISO: this.agendaDate, hora: this.agendaHour, nota: this.agendaNote };
       }
@@ -611,12 +619,49 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     try {
       const updated = await this.api.guardarNota(this.detail.id, this.clientNotes);
       if (this.detail?.id === updated.id) this.detail = { ...this.detail, notas: updated.notas };
+      this.clientNotes = updated.notas ?? '';
+      this.noteEditing = false;
     } catch (error: any) {
       this.error = error.message;
     } finally {
       this.noteSaving = false;
       this.refresh();
     }
+  }
+
+  cancelNoteEdit(): void {
+    this.clientNotes = this.detail?.notas ?? '';
+    this.noteEditing = false;
+  }
+
+  async deleteNote(): Promise<void> {
+    if (!this.detail || this.noteSaving || !window.confirm('¿Borrar esta nota?')) return;
+    this.clientNotes = '';
+    await this.saveNote();
+  }
+
+  // 3 visibles de entrada; "Ver más" pasa a 15; si aún hay más, un segundo "Ver más" muestra
+  // todas -- evita cargar de golpe un historial largo cuando solo interesan los últimos eventos.
+  timelineVisibleCount(): number {
+    if (this.timelineTier === 'min') return 3;
+    if (this.timelineTier === 'mid') return 15;
+    return this.detail?.timeline?.length ?? 0;
+  }
+
+  expandTimeline(): void {
+    this.timelineTier = this.timelineTier === 'min' ? 'mid' : 'all';
+  }
+
+  collapseTimeline(): void {
+    this.timelineTier = 'min';
+  }
+
+  // Colorea sutilmente cada opción del estatus con el mismo color asignado en Configuración
+  // (status.bg), a baja opacidad -- referencia visual rápida sin la saturación plena del
+  // artifact original.
+  statusOptionBg(status: any): string {
+    const hex = String(status?.bg ?? '').trim();
+    return hex ? `color-mix(in srgb, ${hex} 18%, var(--input))` : '';
   }
 
   async addBlacklist(): Promise<void> {

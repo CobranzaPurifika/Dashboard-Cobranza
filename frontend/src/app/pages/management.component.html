@@ -167,20 +167,35 @@
       <section class="drawer-section">
         <div class="section-heading"><h3>Historial de gestiones</h3><span>{{ detail.timeline.length }}</span></div>
         <div class="timeline">
-          @for (event of (showAllTimeline ? detail.timeline : detail.timeline.slice(0, 15)); track event.id) {
+          @for (event of detail.timeline.slice(0, timelineVisibleCount()); track event.id) {
             <div><i [style.background]="event.dot_color || '#999'"></i><span><strong>{{ shortDate(event.fecha_iso) }}</strong><p>{{ event.descripcion }}</p></span></div>
           } @empty { <p>Sin gestiones previas.</p> }
         </div>
-        @if (detail.timeline.length > 15) {
-          <button class="timeline-more" type="button" (click)="showAllTimeline = !showAllTimeline">{{ showAllTimeline ? 'Ver menos' : 'Ver todas (' + detail.timeline.length + ')' }}</button>
+        @if (detail.timeline.length > timelineVisibleCount()) {
+          <button class="timeline-more" type="button" (click)="expandTimeline()">{{ timelineTier === 'min' ? 'Ver más' : 'Ver todas (' + detail.timeline.length + ')' }}</button>
+        } @else if (timelineTier !== 'min' && detail.timeline.length > 3) {
+          <button class="timeline-more" type="button" (click)="collapseTimeline()">Ver menos</button>
         }
       </section>
 
       <section class="drawer-section notes-section">
         <h3>Notas y pendientes</h3>
-        <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
-        @if (canManage) {
-          <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar nota' }}</button>
+        @if (noteEditing) {
+          <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
+          <div class="notes-actions">
+            <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar' }}</button>
+            <button class="text-action" type="button" [disabled]="noteSaving" (click)="cancelNoteEdit()">Cancelar</button>
+          </div>
+        } @else if (clientNotes) {
+          <p class="notes-text">{{ clientNotes }}</p>
+          @if (canManage) {
+            <div class="notes-actions">
+              <button class="icon-text-button" type="button" (click)="noteEditing = true"><ion-icon name="create-outline"></ion-icon>Editar</button>
+              <button class="icon-text-button danger" type="button" (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon>Borrar</button>
+            </div>
+          }
+        } @else if (canManage) {
+          <button class="secondary-action" type="button" (click)="noteEditing = true">Agregar nota</button>
         }
       </section>
 
@@ -189,12 +204,15 @@
           <h3>Registrar gestión</h3>
           <label>Estatus
             <select [(ngModel)]="gestionStatus">
-              @for (status of statusCatalog; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
+              <option value="" disabled>Seleccionar estatus</option>
+              @for (status of statusCatalog; track status.value) { <option [value]="status.value" [style.background-color]="statusOptionBg(status)">{{ status.label }}</option> }
             </select>
           </label>
-          <label>Comentario
-            <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
-          </label>
+          @if (!callLaterSelected) {
+            <label>Comentario
+              <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
+            </label>
+          }
           @if (callLaterSelected) {
             <div class="agenda-fields">
               <span>Agendar llamada</span>
@@ -202,7 +220,7 @@
               <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
             </div>
           }
-          <button class="primary-action" type="button" [disabled]="saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
+          <button class="primary-action" type="button" [disabled]="!gestionStatus || saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
         </section>
       }
 
