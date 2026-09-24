@@ -236,7 +236,7 @@
       @if (blacklistPanelOpen) {
         <section class="drawer-section blacklist-control">
           @if (detail.is_blacklisted) {
-            <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" (click)="removeBlacklist()">Quitar</button> }</div>
+            <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" class="icon-text-button danger" (click)="removeBlacklist()"><ion-icon name="person-remove-outline"></ion-icon>Quitar</button> }</div>
           } @else if (canManage) {
             <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
             <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
@@ -251,7 +251,7 @@
   <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"></button>
   <section class="dialog-card invoices-dialog" role="dialog" aria-modal="true" aria-label="Ver facturas">
     <header>
-      <div><h2>Ver facturas</h2><p>{{ detail.name }} · Saldo actual {{ money(detail.saldo) }}</p></div>
+      <div><h2>Ver facturas</h2><p>{{ detail.name }} · Saldo actual {{ moneyExact(detail.saldo) }}</p></div>
       <button type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"><ion-icon name="close-outline"></ion-icon></button>
     </header>
     <div class="dialog-content invoices-dialog-content">
@@ -266,16 +266,27 @@
             <input type="checkbox" [checked]="selectedInvoiceIds.has(invoice.id)" (change)="toggleInvoiceSelection(invoice.id)" />
             <span class="invoice-folio">{{ invoice.folio }}</span>
             <span class="invoice-date">{{ shortDate(invoice.fecha_facturacion) }}</span>
-            <b class="invoice-amount">{{ money(invoice.monto) }}</b>
+            <b class="invoice-amount">{{ moneyExact(invoice.monto) }}</b>
           </label>
         } @empty { <p class="empty-line">Sin facturas activas.</p> }
       </div>
       @if (detail.invoices.length) {
-        <div class="invoice-total-row"><span>Total seleccionado</span><strong>{{ money(selectedInvoicesTotal()) }}</strong></div>
+        <div class="invoice-total-row"><span>Total seleccionado</span><strong>{{ moneyExact(selectedInvoicesTotal()) }}</strong></div>
       }
     </div>
     <footer class="invoices-dialog-footer">
       <button type="button" class="confirm" (click)="closeInvoicesModal()">Cerrar</button>
+    </footer>
+  </section>
+}
+
+@if (confirmDialog) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cancelar" (click)="confirmDialogCancel()"></button>
+  <section class="dialog-card confirm-dialog" role="alertdialog" aria-modal="true">
+    <div class="dialog-content confirm-dialog-content"><p>{{ confirmDialog.message }}</p></div>
+    <footer>
+      <button type="button" (click)="confirmDialogCancel()">Cancelar</button>
+      <button type="button" class="confirm" (click)="confirmDialogAccept()">Confirmar</button>
     </footer>
   </section>
 }

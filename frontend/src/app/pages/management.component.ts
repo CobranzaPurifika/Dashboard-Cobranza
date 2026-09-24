@@ -273,6 +273,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailRequest += 1;
     this.detailLoading = false;
     this.detail = null;
+    this.confirmDialog = null;
   }
 
   // Deslizar para cerrar en móvil: el panel de detalle vive a la derecha, así que solo se
@@ -634,10 +635,30 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.noteEditing = false;
   }
 
-  async deleteNote(): Promise<void> {
-    if (!this.detail || this.noteSaving || !window.confirm('¿Borrar esta nota?')) return;
-    this.clientNotes = '';
-    await this.saveNote();
+  deleteNote(): void {
+    if (!this.detail || this.noteSaving) return;
+    this.askConfirm('¿Borrar esta nota?', async () => {
+      this.clientNotes = '';
+      await this.saveNote();
+    });
+  }
+
+  // Diálogo de confirmación propio (mismo patrón .dialog-card que el resto de la app) en vez
+  // de window.confirm -- se usa para cualquier acción destructiva de esta ficha.
+  confirmDialog: { message: string; onConfirm: () => void | Promise<void> } | null = null;
+
+  private askConfirm(message: string, onConfirm: () => void | Promise<void>): void {
+    this.confirmDialog = { message, onConfirm };
+  }
+
+  async confirmDialogAccept(): Promise<void> {
+    const action = this.confirmDialog?.onConfirm;
+    this.confirmDialog = null;
+    await action?.();
+  }
+
+  confirmDialogCancel(): void {
+    this.confirmDialog = null;
   }
 
   // 3 visibles de entrada; "Ver más" pasa a 15; si aún hay más, un segundo "Ver más" muestra
@@ -679,22 +700,32 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     }
   }
 
-  async removeBlacklist(): Promise<void> {
-    if (!this.detail || !window.confirm(`¿Quitar a ${this.detail.name} de Lista negra?`)) return;
-    this.saving = true;
-    try {
-      await this.api.quitarBlacklist(this.detail.id);
-      await this.refreshContext(this.detail.id);
-    } catch (error: any) {
-      this.error = error.message;
-    } finally {
-      this.saving = false;
-      this.refresh();
-    }
+  removeBlacklist(): void {
+    if (!this.detail) return;
+    const id = this.detail.id;
+    const name = this.detail.name;
+    this.askConfirm(`¿Quitar a ${name} de Lista negra?`, async () => {
+      this.saving = true;
+      try {
+        await this.api.quitarBlacklist(id);
+        await this.refreshContext(id);
+      } catch (error: any) {
+        this.error = error.message;
+      } finally {
+        this.saving = false;
+        this.refresh();
+      }
+    });
   }
 
   money(value: unknown): string {
     return `$${Number(value ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`;
+  }
+
+  // Solo para "Ver facturas": ahí sí importa el monto real, no el redondeado a entero que
+  // se usa en el resto de la ficha.
+  moneyExact(value: unknown): string {
+    return `$${Number(value ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   tramoLabel(tramo: string): string {

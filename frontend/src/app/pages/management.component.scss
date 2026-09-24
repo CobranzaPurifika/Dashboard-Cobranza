@@ -142,8 +142,8 @@ button, input, select, textarea { font: inherit; }
 .primary-action { width: 100%; margin-top: 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--accent-strong); font-size: 12px; font-weight: 750; cursor: pointer; }
 .primary-action:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .primary-action:disabled { opacity: .55; }
-.blacklist-control button { width: 100%; margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 8px; background: #d84f43; color: white; font-size: 12px; font-weight: 800; cursor: pointer; }
-.blacklist-control button:disabled { opacity: .55; }
+.blacklist-control > button { width: 100%; margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 8px; background: #d84f43; color: white; font-size: 12px; font-weight: 800; cursor: pointer; }
+.blacklist-control > button:disabled { opacity: .55; }
 .notes-section textarea { width: 100%; margin-top: 5px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); font-size: 11px; resize: vertical; }
 .notes-section textarea:focus { border-color: var(--accent); }
 .notes-text { margin: 8px 0 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink-soft); font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
@@ -154,7 +154,10 @@ button, input, select, textarea { font: inherit; }
 .icon-text-button:hover { background: var(--surface-hover); }
 .text-action { padding: 7px 10px; border: 0; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
 .text-action:hover { color: var(--ink-soft); }
-.secondary-action, .timeline-more { margin-top: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
+.secondary-action { margin-top: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
+// Texto centrado con chevron, sin caja de botón -- distinto de .secondary-action a propósito.
+.timeline-more { display: flex; width: 100%; align-items: center; justify-content: center; gap: 4px; margin-top: 10px; padding: 6px; border: 0; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
+.timeline-more ion-icon { font-size: 12px; }
 .secondary-action:disabled { opacity: .55; cursor: progress; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; }
 .section-heading span { color: var(--muted); font-size: 10px; }
@@ -169,7 +172,6 @@ button, input, select, textarea { font: inherit; }
 .timeline p { margin: 2px 0 0; color: var(--ink-soft); font-size: 10px; }
 .blacklist-active { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 10px; }
 .blacklist-control { padding-top: 16px; }
-.blacklist-control button { background: #d84f43; color: white; }
 .drawer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 20px 0 4px; }
 .action-button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .action-button:hover { background: var(--surface-hover); }
@@ -179,13 +181,16 @@ button, input, select, textarea { font: inherit; }
 .action-button.danger:hover, .action-button.danger.active { background: color-mix(in srgb, #d84036 10%, transparent); }
 .invoice-select-all { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
 .invoice-rows { display: grid; gap: 1px; }
-.invoice-row { display: grid; grid-template-columns: 18px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 11px; cursor: pointer; }
+.invoice-row { display: grid; grid-template-columns: 18px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 12px; cursor: pointer; }
 .invoice-row.selected { background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.invoice-date { color: var(--muted); font-size: 10px; }
-.invoice-amount { color: var(--ink); font-weight: 800; }
-.invoice-total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
-.invoice-total-row strong { color: var(--ink); font-size: 19px; }
+.invoice-date { color: var(--muted); font-size: 11px; }
+.invoice-amount { color: var(--ink); font-size: 13px; font-weight: 800; }
+.invoice-total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.invoice-total-row strong { color: var(--ink); font-size: 21px; }
 .dialog-card > footer.invoices-dialog-footer { grid-template-columns: 1fr; }
+.confirm-dialog { width: min(380px, calc(100vw - 28px)); }
+.confirm-dialog-content { padding: 20px; }
+.confirm-dialog-content p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
 .loading-detail { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; background: rgba(3, 14, 18, .25); }
 .loading-detail > div { display: grid; justify-items: center; gap: 10px; padding: 20px 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--ink-soft); font-size: 11px; }
 .loading-detail ion-spinner { color: var(--accent); }
