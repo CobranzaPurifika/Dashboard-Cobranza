@@ -126,6 +126,7 @@
       <div>
         <span class="eyebrow">DETALLE DE CLIENTE</span>
         <h2>{{ detail.name }}</h2>
+        @if (detail.is_blacklisted) { <span class="blacklist-header-badge"><ion-icon name="alert-circle-outline"></ion-icon>En lista negra</span> }
         <p>{{ detail.franchise_id }} · {{ detail.segment_label }} · RFC {{ detail.rfc || 'N/A' }}</p>
       </div>
       <button type="button" aria-label="Cerrar" (click)="closeDetail()"><ion-icon name="close-outline"></ion-icon></button>
@@ -133,51 +134,25 @@
 
     <div class="drawer-scroll">
       <section class="balance-summary">
-        <div><span>Saldo pendiente</span><strong>{{ money(detail.saldo) }}</strong></div>
-        <i class="badge" [class]="'badge ' + detail.tramo">{{ tramoLabel(detail.tramo) }}</i>
+        <div class="balance-summary-top">
+          <div><span>Saldo pendiente</span><strong>{{ money(detail.saldo) }}</strong></div>
+          <i class="badge" [class]="'badge ' + detail.tramo">{{ tramoLabel(detail.tramo) }}</i>
+        </div>
+        <p class="balance-meta">{{ maxDiasVencida() }} días de atraso · {{ tramoLabel(detail.tramo) }}</p>
+        <div class="tramo-scale">
+          <div class="tramo-scale-bar">
+            <i class="good" [class.active]="detail.tramo === 'good'"></i>
+            <i class="warning" [class.active]="detail.tramo === 'warning'"></i>
+            <i class="serious" [class.active]="detail.tramo === 'serious'"></i>
+            <i class="critical" [class.active]="detail.tramo === 'critical'"></i>
+          </div>
+          <div class="tramo-scale-labels"><span>Al corriente</span><span>1-30</span><span>31-60</span><span>+60</span></div>
+        </div>
+        <p class="last-status">Último estatus registrado: <strong>{{ detail.estatus_label || 'Sin estatus registrado' }}</strong></p>
       </section>
 
       @if (salesExecutives()) { <p class="sales-executive"><strong>Ejecutivo de ventas</strong><span>{{ salesExecutives() }}</span></p> }
       @if (collectionExecutives()) { <p class="sales-executive"><strong>Ejecutivo de cobranza</strong><span>{{ collectionExecutives() }}</span></p> }
-
-      @if (canManage) {
-        <section class="drawer-section management-form">
-          <h3>Guardar gestión</h3>
-          <label>Estatus
-            <select [(ngModel)]="gestionStatus">
-              @for (status of statusCatalog; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
-            </select>
-          </label>
-          <label>Comentario
-            <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
-          </label>
-          @if (callLaterSelected) {
-            <div class="agenda-fields">
-              <span>Agendar llamada</span>
-              <div><label>Fecha<input type="date" [(ngModel)]="agendaDate" /></label><label>Hora<select [(ngModel)]="agendaHour">@for (hour of hours; track hour) { <option [value]="hour">{{ hour }}</option> }</select></label></div>
-              <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
-            </div>
-          }
-          <button class="primary-action" type="button" [disabled]="saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
-        </section>
-      }
-
-      <section class="drawer-section notes-section">
-        <h3>Notas y pendientes</h3>
-        <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
-        @if (canManage) {
-          <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar nota' }}</button>
-        }
-      </section>
-
-      <section class="drawer-section">
-        <div class="section-heading"><h3>Facturas</h3><span>{{ detail.invoices.length }}</span></div>
-        <div class="compact-list">
-          @for (invoice of detail.invoices.slice(0, 12); track invoice.id) {
-            <div><span><strong>{{ invoice.folio }}</strong><small>{{ invoice.dias_vencida }} días</small></span><b>{{ money(invoice.monto) }}</b></div>
-          } @empty { <p>Sin facturas activas.</p> }
-        </div>
-      </section>
 
       <section class="drawer-section">
         <div class="section-heading"><h3>Pagos aplicados</h3><span>{{ detail.pagos.length }}</span></div>
@@ -200,17 +175,90 @@
         }
       </section>
 
-      <section class="drawer-section blacklist-control">
-        <h3>Lista negra</h3>
-        @if (detail.is_blacklisted) {
-          <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" (click)="removeBlacklist()">Quitar</button> }</div>
-        } @else if (canManage) {
-          <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
-          <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
+      <section class="drawer-section notes-section">
+        <h3>Notas y pendientes</h3>
+        <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
+        @if (canManage) {
+          <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar nota' }}</button>
         }
       </section>
+
+      @if (canManage) {
+        <section class="drawer-section management-form">
+          <h3>Registrar gestión</h3>
+          <label>Estatus
+            <select [(ngModel)]="gestionStatus">
+              @for (status of statusCatalog; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
+            </select>
+          </label>
+          <label>Comentario
+            <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
+          </label>
+          @if (callLaterSelected) {
+            <div class="agenda-fields">
+              <span>Agendar llamada</span>
+              <div><label>Fecha<input type="date" [(ngModel)]="agendaDate" /></label><label>Hora<select [(ngModel)]="agendaHour">@for (hour of hours; track hour) { <option [value]="hour">{{ hour }}</option> }</select></label></div>
+              <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
+            </div>
+          }
+          <button class="primary-action" type="button" [disabled]="saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
+        </section>
+      }
+
+      <section class="drawer-actions">
+        <button type="button" class="action-button" (click)="openInvoicesModal()">
+          <ion-icon name="document-text-outline"></ion-icon>Ver facturas<span class="action-count">{{ detail.invoices.length }}</span>
+        </button>
+        <button type="button" class="action-button danger" [class.active]="blacklistPanelOpen" (click)="blacklistPanelOpen = !blacklistPanelOpen">
+          <ion-icon name="alert-circle-outline"></ion-icon>Lista negra
+        </button>
+      </section>
+
+      @if (blacklistPanelOpen) {
+        <section class="drawer-section blacklist-control">
+          @if (detail.is_blacklisted) {
+            <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" (click)="removeBlacklist()">Quitar</button> }</div>
+          } @else if (canManage) {
+            <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
+            <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
+          }
+        </section>
+      }
     </div>
   </aside>
+}
+
+@if (showInvoicesModal && detail) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"></button>
+  <section class="dialog-card invoices-dialog" role="dialog" aria-modal="true" aria-label="Ver facturas">
+    <header>
+      <div><h2>Ver facturas</h2><p>{{ detail.name }} · Saldo actual {{ money(detail.saldo) }}</p></div>
+      <button type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"><ion-icon name="close-outline"></ion-icon></button>
+    </header>
+    <div class="dialog-content invoices-dialog-content">
+      @if (detail.invoices.length) {
+        <label class="invoice-select-all">
+          <input type="checkbox" [checked]="allInvoicesSelected()" (change)="toggleSelectAllInvoices()" />Seleccionar todas
+        </label>
+      }
+      <div class="invoice-rows">
+        @for (invoice of detail.invoices; track invoice.id) {
+          <label class="invoice-row" [class.selected]="selectedInvoiceIds.has(invoice.id)">
+            <input type="checkbox" [checked]="selectedInvoiceIds.has(invoice.id)" (change)="toggleInvoiceSelection(invoice.id)" />
+            <span class="invoice-folio">{{ invoice.folio }}</span>
+            <span class="invoice-date">{{ shortDate(invoice.fecha_facturacion) }}</span>
+            <b class="invoice-amount">{{ money(invoice.monto) }}</b>
+          </label>
+        } @empty { <p class="empty-line">Sin facturas activas.</p> }
+      </div>
+      @if (detail.invoices.length) {
+        <div class="invoice-total-row"><span>Total seleccionado</span><strong>{{ money(selectedInvoicesTotal()) }}</strong></div>
+      }
+    </div>
+    <footer class="invoices-dialog-footer">
+      <button type="button" class="confirm" (click)="closeInvoicesModal()">Cerrar</button>
+    </footer>
+  </section>
 }
 
 @if (showStats) {
@@ -302,7 +350,7 @@
                   [class.preview]="cell.available && isInBulkDragPreview(cell.date)"
                   [disabled]="!cell.available"
                   [attr.aria-label]="cell.date"
-                  (pointerdown)="onCalendarPointerDown(cell)"
+                  (pointerdown)="onCalendarPointerDown(cell, $event)"
                   (pointerenter)="onCalendarPointerEnter(cell)"
                   (pointerup)="onCalendarPointerUp(cell)"
                 >{{ cell.day }}</button>

@@ -63,10 +63,13 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   agendaHour = '12:00';
   agendaNote = '';
   blacklistReason = '';
+  blacklistPanelOpen = false;
   saving = false;
   noteSaving = false;
   clientNotes = '';
   showAllTimeline = false;
+  showInvoicesModal = false;
+  selectedInvoiceIds = new Set<number>();
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
@@ -248,6 +251,9 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.agendaNote = this.detail.agenda_nota ?? '';
       this.clientNotes = this.detail.notas ?? '';
       this.showAllTimeline = false;
+      this.blacklistPanelOpen = false;
+      this.showInvoicesModal = false;
+      this.selectedInvoiceIds = new Set();
     } catch (error: any) {
       if (error?.name !== 'AbortError') this.error = error.message;
     } finally {
@@ -430,8 +436,13 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   // Un solo clic (sin arrastre) alterna ese día suelto -- así se seleccionan días salteados.
   // Clic y arrastre a otro día rellena todo el rango entre ambos -- así se selecciona un rango.
   // Ambas interacciones comparten el mismo conjunto de días seleccionados.
-  onCalendarPointerDown(cell: { date: string; available: boolean }): void {
+  onCalendarPointerDown(cell: { date: string; available: boolean }, event: PointerEvent): void {
     if (!cell.available) return;
+    // En touch, el navegador captura implícitamente el puntero en el elemento donde inició
+    // el toque: pointerenter deja de disparar en las demás celdas al arrastrar el dedo (solo
+    // pasa con mouse), así que el rango nunca se rellenaba en móvil. Liberar la captura hace
+    // que el resto de la celdas vuelvan a recibir pointerenter igual que con el mouse.
+    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
     this.bulkDragStart = cell.date;
     this.bulkDragMoved = false;
     this.bulkDragPreviewEnd = cell.date;
@@ -613,6 +624,44 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   compactDaily(day: any): string {
     const counts = day?.counts ?? {};
     return `AGS: ${counts.aguascalientes ?? 0} - CUN: ${counts.cancun ?? 0} - MID: ${counts.merida ?? 0}`;
+  }
+
+  openInvoicesModal(): void {
+    this.showInvoicesModal = true;
+  }
+
+  closeInvoicesModal(): void {
+    this.showInvoicesModal = false;
+  }
+
+  toggleInvoiceSelection(id: number): void {
+    const next = new Set(this.selectedInvoiceIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.selectedInvoiceIds = next;
+  }
+
+  allInvoicesSelected(): boolean {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices.length > 0 && invoices.every((invoice: any) => this.selectedInvoiceIds.has(invoice.id));
+  }
+
+  toggleSelectAllInvoices(): void {
+    const invoices = this.detail?.invoices ?? [];
+    this.selectedInvoiceIds = this.allInvoicesSelected() ? new Set() : new Set(invoices.map((invoice: any) => invoice.id));
+  }
+
+  selectedInvoicesTotal(): number {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices
+      .filter((invoice: any) => this.selectedInvoiceIds.has(invoice.id))
+      .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
+  }
+
+  // Máximo dias_vencida entre las facturas del cliente -- no existe un campo de "días de
+  // atraso" a nivel cliente, se deriva de las facturas ya cargadas en el detalle.
+  maxDiasVencida(): number {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices.reduce((max: number, invoice: any) => Math.max(max, Number(invoice.dias_vencida ?? 0)), 0);
   }
 
   salesExecutives(): string {
