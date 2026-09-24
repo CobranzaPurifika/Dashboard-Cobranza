@@ -63,10 +63,14 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   agendaHour = '12:00';
   agendaNote = '';
   blacklistReason = '';
+  blacklistPanelOpen = false;
   saving = false;
   noteSaving = false;
   clientNotes = '';
-  showAllTimeline = false;
+  noteEditing = false;
+  timelineTier: 'min' | 'mid' | 'all' = 'min';
+  showInvoicesModal = false;
+  selectedInvoiceIds = new Set<number>();
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
@@ -240,14 +244,20 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       const detail = await this.api.cliente(id, controller.signal);
       if (controller.signal.aborted || requestId !== this.detailRequest) return;
       this.detail = detail;
-      this.gestionStatus = this.detail.estatus_value || this.statusCatalog[0]?.value || '';
+      // Sin valor por defecto: registrar gestión es una acción nueva cada vez, no debe
+      // heredar en silencio el último estatus guardado.
+      this.gestionStatus = '';
       this.gestionComment = '';
       this.blacklistReason = '';
       this.agendaDate = this.dateOnly(this.detail.agenda_fecha_iso) || this.todayMexico();
       this.agendaHour = this.hours.includes(this.detail.agenda_hora) ? this.detail.agenda_hora : this.suggestedHour();
       this.agendaNote = this.detail.agenda_nota ?? '';
       this.clientNotes = this.detail.notas ?? '';
-      this.showAllTimeline = false;
+      this.noteEditing = false;
+      this.timelineTier = 'min';
+      this.blacklistPanelOpen = false;
+      this.showInvoicesModal = false;
+      this.selectedInvoiceIds = new Set();
     } catch (error: any) {
       if (error?.name !== 'AbortError') this.error = error.message;
     } finally {
@@ -263,6 +273,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailRequest += 1;
     this.detailLoading = false;
     this.detail = null;
+    this.confirmDialog = null;
   }
 
   // Deslizar para cerrar en móvil: el panel de detalle vive a la derecha, así que solo se
@@ -369,6 +380,50 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return [...dates].sort();
   }
 
+  // Vista de calendario del cumplimiento diario por franquicia -- mismo generador de
+  // cuadrícula que bulkCalendarWeeks, pero cada celda trae el día de gestiones (o null en
+  // fines de semana/fuera del mes/días aún no alcanzados) en vez de un flag de disponibilidad.
+  franchiseCalendarWeeks(franchise: any): { date: string; day: number; inMonth: boolean; data: any | null }[][] {
+    const month = this.monthlyData?.month;
+    if (!month) return [];
+    const [year, mon] = month.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+    const firstWeekday = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7;
+    const dayMap = new Map((franchise?.days ?? []).map((day: any) => [day.date, day]));
+
+    const cells: { date: string; day: number; inMonth: boolean; data: any | null }[] = [];
+    for (let i = firstWeekday; i > 0; i -= 1) {
+      const d = new Date(Date.UTC(year, mon - 1, 1 - i));
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, data: null });
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const d = new Date(Date.UTC(year, mon - 1, day));
+      const iso = this.isoDate(d);
+      cells.push({ date: iso, day, inMonth: true, data: dayMap.get(iso) ?? null });
+    }
+    while (cells.length % 7 !== 0) {
+      const d = new Date(`${cells[cells.length - 1].date}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      cells.push({ date: this.isoDate(d), day: d.getUTCDate(), inMonth: false, data: null });
+    }
+
+    const weeks: { date: string; day: number; inMonth: boolean; data: any | null }[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+  }
+
+  calendarDayStatus(data: any): 'complete' | 'partial' | 'incomplete' | 'justified' {
+    if (data.incident) return 'justified';
+    if (data.pct >= 100) return 'complete';
+    if (data.pct > 0) return 'partial';
+    return 'incomplete';
+  }
+
+  calendarDayTitle(data: any): string {
+    if (data.incident) return `Justificado — ${data.incident.note}`;
+    return `${data.count}/${data.goal} clientes únicos · ${data.pct}%`;
+  }
+
   // Cuadrícula del mes de monthlyData (único mes con datos disponibles para incidencias),
   // con los días fuera de rango de la semana rellenados para completar filas de 7 -- igual
   // que un calendario normal, pero sin navegación entre meses porque no hay datos que mostrar
@@ -430,8 +485,13 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   // Un solo clic (sin arrastre) alterna ese día suelto -- así se seleccionan días salteados.
   // Clic y arrastre a otro día rellena todo el rango entre ambos -- así se selecciona un rango.
   // Ambas interacciones comparten el mismo conjunto de días seleccionados.
-  onCalendarPointerDown(cell: { date: string; available: boolean }): void {
+  onCalendarPointerDown(cell: { date: string; available: boolean }, event: PointerEvent): void {
     if (!cell.available) return;
+    // En touch, el navegador captura implícitamente el puntero en el elemento donde inició
+    // el toque: pointerenter deja de disparar en las demás celdas al arrastrar el dedo (solo
+    // pasa con mouse), así que el rango nunca se rellenaba en móvil. Liberar la captura hace
+    // que el resto de la celdas vuelvan a recibir pointerenter igual que con el mouse.
+    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
     this.bulkDragStart = cell.date;
     this.bulkDragMoved = false;
     this.bulkDragPreviewEnd = cell.date;
@@ -535,7 +595,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.saving = true;
     this.error = '';
     try {
-      const body: any = { estatusValue: this.gestionStatus, comentario: this.gestionComment };
+      // Con "Llamar más tarde" el campo Comentario se oculta y solo se pide la Nota de
+      // agenda -- esa misma nota alimenta el comentario del historial, para no pedir el
+      // mismo contexto dos veces en dos campos que antes se guardaban por separado.
+      const comentario = this.callLaterSelected ? this.agendaNote : this.gestionComment;
+      const body: any = { estatusValue: this.gestionStatus, comentario };
       if (this.callLaterSelected) {
         body.agenda = { fechaISO: this.agendaDate, hora: this.agendaHour, nota: this.agendaNote };
       }
@@ -556,12 +620,69 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     try {
       const updated = await this.api.guardarNota(this.detail.id, this.clientNotes);
       if (this.detail?.id === updated.id) this.detail = { ...this.detail, notas: updated.notas };
+      this.clientNotes = updated.notas ?? '';
+      this.noteEditing = false;
     } catch (error: any) {
       this.error = error.message;
     } finally {
       this.noteSaving = false;
       this.refresh();
     }
+  }
+
+  cancelNoteEdit(): void {
+    this.clientNotes = this.detail?.notas ?? '';
+    this.noteEditing = false;
+  }
+
+  deleteNote(): void {
+    if (!this.detail || this.noteSaving) return;
+    this.askConfirm('¿Borrar esta nota?', async () => {
+      this.clientNotes = '';
+      await this.saveNote();
+    });
+  }
+
+  // Diálogo de confirmación propio (mismo patrón .dialog-card que el resto de la app) en vez
+  // de window.confirm -- se usa para cualquier acción destructiva de esta ficha.
+  confirmDialog: { message: string; onConfirm: () => void | Promise<void> } | null = null;
+
+  private askConfirm(message: string, onConfirm: () => void | Promise<void>): void {
+    this.confirmDialog = { message, onConfirm };
+  }
+
+  async confirmDialogAccept(): Promise<void> {
+    const action = this.confirmDialog?.onConfirm;
+    this.confirmDialog = null;
+    await action?.();
+  }
+
+  confirmDialogCancel(): void {
+    this.confirmDialog = null;
+  }
+
+  // 3 visibles de entrada; "Ver más" pasa a 15; si aún hay más, un segundo "Ver más" muestra
+  // todas -- evita cargar de golpe un historial largo cuando solo interesan los últimos eventos.
+  timelineVisibleCount(): number {
+    if (this.timelineTier === 'min') return 3;
+    if (this.timelineTier === 'mid') return 15;
+    return this.detail?.timeline?.length ?? 0;
+  }
+
+  expandTimeline(): void {
+    this.timelineTier = this.timelineTier === 'min' ? 'mid' : 'all';
+  }
+
+  collapseTimeline(): void {
+    this.timelineTier = 'min';
+  }
+
+  // Colorea sutilmente cada opción del estatus con el mismo color asignado en Configuración
+  // (status.bg), a baja opacidad -- referencia visual rápida sin la saturación plena del
+  // artifact original.
+  statusOptionBg(status: any): string {
+    const hex = String(status?.bg ?? '').trim();
+    return hex ? `color-mix(in srgb, ${hex} 18%, var(--input))` : '';
   }
 
   async addBlacklist(): Promise<void> {
@@ -579,22 +700,32 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     }
   }
 
-  async removeBlacklist(): Promise<void> {
-    if (!this.detail || !window.confirm(`¿Quitar a ${this.detail.name} de Lista negra?`)) return;
-    this.saving = true;
-    try {
-      await this.api.quitarBlacklist(this.detail.id);
-      await this.refreshContext(this.detail.id);
-    } catch (error: any) {
-      this.error = error.message;
-    } finally {
-      this.saving = false;
-      this.refresh();
-    }
+  removeBlacklist(): void {
+    if (!this.detail) return;
+    const id = this.detail.id;
+    const name = this.detail.name;
+    this.askConfirm(`¿Quitar a ${name} de Lista negra?`, async () => {
+      this.saving = true;
+      try {
+        await this.api.quitarBlacklist(id);
+        await this.refreshContext(id);
+      } catch (error: any) {
+        this.error = error.message;
+      } finally {
+        this.saving = false;
+        this.refresh();
+      }
+    });
   }
 
   money(value: unknown): string {
     return `$${Number(value ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`;
+  }
+
+  // Solo para "Ver facturas": ahí sí importa el monto real, no el redondeado a entero que
+  // se usa en el resto de la ficha.
+  moneyExact(value: unknown): string {
+    return `$${Number(value ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   tramoLabel(tramo: string): string {
@@ -615,12 +746,46 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return `AGS: ${counts.aguascalientes ?? 0} - CUN: ${counts.cancun ?? 0} - MID: ${counts.merida ?? 0}`;
   }
 
-  salesExecutives(): string {
-    return [...new Set((this.detail?.invoices ?? []).map((invoice: any) => invoice.ejecutivo_ventas).filter(Boolean))].join(', ');
+  openInvoicesModal(): void {
+    this.showInvoicesModal = true;
   }
 
-  collectionExecutives(): string {
-    return [...new Set((this.detail?.invoices ?? []).map((invoice: any) => invoice.ejecutivo_cobranza).filter(Boolean))].join(', ');
+  closeInvoicesModal(): void {
+    this.showInvoicesModal = false;
+  }
+
+  toggleInvoiceSelection(id: number): void {
+    const next = new Set(this.selectedInvoiceIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.selectedInvoiceIds = next;
+  }
+
+  allInvoicesSelected(): boolean {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices.length > 0 && invoices.every((invoice: any) => this.selectedInvoiceIds.has(invoice.id));
+  }
+
+  toggleSelectAllInvoices(): void {
+    const invoices = this.detail?.invoices ?? [];
+    this.selectedInvoiceIds = this.allInvoicesSelected() ? new Set() : new Set(invoices.map((invoice: any) => invoice.id));
+  }
+
+  selectedInvoicesTotal(): number {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices
+      .filter((invoice: any) => this.selectedInvoiceIds.has(invoice.id))
+      .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
+  }
+
+  // Máximo dias_vencida entre las facturas del cliente -- no existe un campo de "días de
+  // atraso" a nivel cliente, se deriva de las facturas ya cargadas en el detalle.
+  maxDiasVencida(): number {
+    const invoices = this.detail?.invoices ?? [];
+    return invoices.reduce((max: number, invoice: any) => Math.max(max, Number(invoice.dias_vencida ?? 0)), 0);
+  }
+
+  salesExecutives(): string {
+    return [...new Set((this.detail?.invoices ?? []).map((invoice: any) => invoice.ejecutivo_ventas).filter(Boolean))].join(', ');
   }
 
   private async refreshContext(id: string): Promise<void> {

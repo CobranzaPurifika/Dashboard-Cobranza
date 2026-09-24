@@ -40,6 +40,7 @@
               <i class="badge" [class]="'badge ' + client.tramo">{{ client.tramo_label || tramoLabel(client.tramo) }}</i>
               @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
             </span>
+            <span class="executive-col">{{ client.ejecutivo_ventas || '—' }}</span>
             <strong class="balance">{{ money(client.saldo) }}</strong>
           </div>
         } @empty {
@@ -126,58 +127,33 @@
       <div>
         <span class="eyebrow">DETALLE DE CLIENTE</span>
         <h2>{{ detail.name }}</h2>
+        @if (detail.is_blacklisted) { <span class="blacklist-header-badge"><ion-icon name="alert-circle-outline"></ion-icon>En lista negra</span> }
         <p>{{ detail.franchise_id }} · {{ detail.segment_label }} · RFC {{ detail.rfc || 'N/A' }}</p>
+        @if (salesExecutives()) { <p class="header-executive">Ejecutivo de ventas: <strong>{{ salesExecutives() }}</strong></p> }
       </div>
       <button type="button" aria-label="Cerrar" (click)="closeDetail()"><ion-icon name="close-outline"></ion-icon></button>
     </header>
 
     <div class="drawer-scroll">
       <section class="balance-summary">
-        <div><span>Saldo pendiente</span><strong>{{ money(detail.saldo) }}</strong></div>
-        <i class="badge" [class]="'badge ' + detail.tramo">{{ tramoLabel(detail.tramo) }}</i>
+        <div class="balance-summary-top">
+          <div><span>Saldo pendiente</span><strong>{{ money(detail.saldo) }}</strong></div>
+          <i class="badge" [class]="'badge ' + detail.tramo">{{ tramoLabel(detail.tramo) }}</i>
+        </div>
+        <p class="balance-meta">{{ maxDiasVencida() }} días de atraso · {{ tramoLabel(detail.tramo) }}</p>
+        <div class="tramo-scale">
+          <div class="tramo-scale-bar">
+            <i class="good" [class.active]="detail.tramo === 'good'"></i>
+            <i class="warning" [class.active]="detail.tramo === 'warning'"></i>
+            <i class="serious" [class.active]="detail.tramo === 'serious'"></i>
+            <i class="critical" [class.active]="detail.tramo === 'critical'"></i>
+          </div>
+          <div class="tramo-scale-labels"><span>Al corriente</span><span>1-30</span><span>31-60</span><span>+60</span></div>
+        </div>
+        <p class="last-status">Último estatus registrado: <strong>{{ detail.estatus_label || 'Sin estatus registrado' }}</strong></p>
       </section>
 
       @if (salesExecutives()) { <p class="sales-executive"><strong>Ejecutivo de ventas</strong><span>{{ salesExecutives() }}</span></p> }
-      @if (collectionExecutives()) { <p class="sales-executive"><strong>Ejecutivo de cobranza</strong><span>{{ collectionExecutives() }}</span></p> }
-
-      @if (canManage) {
-        <section class="drawer-section management-form">
-          <h3>Guardar gestión</h3>
-          <label>Estatus
-            <select [(ngModel)]="gestionStatus">
-              @for (status of statusCatalog; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
-            </select>
-          </label>
-          <label>Comentario
-            <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
-          </label>
-          @if (callLaterSelected) {
-            <div class="agenda-fields">
-              <span>Agendar llamada</span>
-              <div><label>Fecha<input type="date" [(ngModel)]="agendaDate" /></label><label>Hora<select [(ngModel)]="agendaHour">@for (hour of hours; track hour) { <option [value]="hour">{{ hour }}</option> }</select></label></div>
-              <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
-            </div>
-          }
-          <button class="primary-action" type="button" [disabled]="saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
-        </section>
-      }
-
-      <section class="drawer-section notes-section">
-        <h3>Notas y pendientes</h3>
-        <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
-        @if (canManage) {
-          <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar nota' }}</button>
-        }
-      </section>
-
-      <section class="drawer-section">
-        <div class="section-heading"><h3>Facturas</h3><span>{{ detail.invoices.length }}</span></div>
-        <div class="compact-list">
-          @for (invoice of detail.invoices.slice(0, 12); track invoice.id) {
-            <div><span><strong>{{ invoice.folio }}</strong><small>{{ invoice.dias_vencida }} días</small></span><b>{{ money(invoice.monto) }}</b></div>
-          } @empty { <p>Sin facturas activas.</p> }
-        </div>
-      </section>
 
       <section class="drawer-section">
         <div class="section-heading"><h3>Pagos aplicados</h3><span>{{ detail.pagos.length }}</span></div>
@@ -191,26 +167,128 @@
       <section class="drawer-section">
         <div class="section-heading"><h3>Historial de gestiones</h3><span>{{ detail.timeline.length }}</span></div>
         <div class="timeline">
-          @for (event of (showAllTimeline ? detail.timeline : detail.timeline.slice(0, 15)); track event.id) {
+          @for (event of detail.timeline.slice(0, timelineVisibleCount()); track event.id) {
             <div><i [style.background]="event.dot_color || '#999'"></i><span><strong>{{ shortDate(event.fecha_iso) }}</strong><p>{{ event.descripcion }}</p></span></div>
           } @empty { <p>Sin gestiones previas.</p> }
         </div>
-        @if (detail.timeline.length > 15) {
-          <button class="timeline-more" type="button" (click)="showAllTimeline = !showAllTimeline">{{ showAllTimeline ? 'Ver menos' : 'Ver todas (' + detail.timeline.length + ')' }}</button>
+        @if (detail.timeline.length > timelineVisibleCount()) {
+          <button class="timeline-more" type="button" (click)="expandTimeline()">{{ timelineTier === 'min' ? 'Ver más' : 'Ver todas (' + detail.timeline.length + ')' }}</button>
+        } @else if (timelineTier !== 'min' && detail.timeline.length > 3) {
+          <button class="timeline-more" type="button" (click)="collapseTimeline()">Ver menos</button>
         }
       </section>
 
-      <section class="drawer-section blacklist-control">
-        <h3>Lista negra</h3>
-        @if (detail.is_blacklisted) {
-          <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" (click)="removeBlacklist()">Quitar</button> }</div>
+      <section class="drawer-section notes-section">
+        <h3>Notas y pendientes</h3>
+        @if (noteEditing) {
+          <textarea [(ngModel)]="clientNotes" rows="3" placeholder="Agrega pendientes o contexto para el siguiente contacto"></textarea>
+          <div class="notes-actions">
+            <button class="secondary-action" type="button" [disabled]="noteSaving" (click)="saveNote()">{{ noteSaving ? 'Guardando…' : 'Guardar' }}</button>
+            <button class="text-action" type="button" [disabled]="noteSaving" (click)="cancelNoteEdit()">Cancelar</button>
+          </div>
+        } @else if (clientNotes) {
+          <p class="notes-text">{{ clientNotes }}</p>
+          @if (canManage) {
+            <div class="notes-actions">
+              <button class="icon-text-button" type="button" (click)="noteEditing = true"><ion-icon name="create-outline"></ion-icon>Editar</button>
+              <button class="icon-text-button danger" type="button" (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon>Borrar</button>
+            </div>
+          }
         } @else if (canManage) {
-          <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
-          <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
+          <button class="secondary-action" type="button" (click)="noteEditing = true">Agregar nota</button>
         }
       </section>
+
+      @if (canManage) {
+        <section class="drawer-section management-form">
+          <h3>Registrar gestión</h3>
+          <label>Estatus
+            <select [(ngModel)]="gestionStatus">
+              <option value="" disabled>Seleccionar estatus</option>
+              @for (status of statusCatalog; track status.value) { <option [value]="status.value" [style.background-color]="statusOptionBg(status)">{{ status.label }}</option> }
+            </select>
+          </label>
+          @if (!callLaterSelected) {
+            <label>Comentario
+              <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>
+            </label>
+          }
+          @if (callLaterSelected) {
+            <div class="agenda-fields">
+              <span>Agendar llamada</span>
+              <div><label>Fecha<input type="date" [(ngModel)]="agendaDate" /></label><label>Hora<select [(ngModel)]="agendaHour">@for (hour of hours; track hour) { <option [value]="hour">{{ hour }}</option> }</select></label></div>
+              <label>Nota<textarea [(ngModel)]="agendaNote" rows="2"></textarea></label>
+            </div>
+          }
+          <button class="primary-action" type="button" [disabled]="!gestionStatus || saving" (click)="saveManagement()">{{ saving ? 'Guardando…' : 'Guardar gestión' }}</button>
+        </section>
+      }
+
+      <section class="drawer-actions">
+        <button type="button" class="action-button" (click)="openInvoicesModal()">
+          <ion-icon name="document-text-outline"></ion-icon>Ver facturas<span class="action-count">{{ detail.invoices.length }}</span>
+        </button>
+        <button type="button" class="action-button danger" [class.active]="blacklistPanelOpen" (click)="blacklistPanelOpen = !blacklistPanelOpen">
+          <ion-icon name="alert-circle-outline"></ion-icon>Lista negra
+        </button>
+      </section>
+
+      @if (blacklistPanelOpen) {
+        <section class="drawer-section blacklist-control">
+          @if (detail.is_blacklisted) {
+            <div class="blacklist-active"><span>Este cliente está excluido de la prioridad normal.</span>@if (canManage) { <button type="button" class="icon-text-button danger" (click)="removeBlacklist()"><ion-icon name="person-remove-outline"></ion-icon>Quitar</button> }</div>
+          } @else if (canManage) {
+            <textarea [(ngModel)]="blacklistReason" rows="2" placeholder="Motivo obligatorio"></textarea>
+            <button type="button" [disabled]="!blacklistReason.trim() || saving" (click)="addBlacklist()">Agregar a Lista negra</button>
+          }
+        </section>
+      }
     </div>
   </aside>
+}
+
+@if (showInvoicesModal && detail) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"></button>
+  <section class="dialog-card invoices-dialog" role="dialog" aria-modal="true" aria-label="Ver facturas">
+    <header>
+      <div><h2>Ver facturas</h2><p>{{ detail.name }} · Saldo actual {{ moneyExact(detail.saldo) }}</p></div>
+      <button type="button" aria-label="Cerrar" (click)="closeInvoicesModal()"><ion-icon name="close-outline"></ion-icon></button>
+    </header>
+    <div class="dialog-content invoices-dialog-content">
+      @if (detail.invoices.length) {
+        <label class="invoice-select-all">
+          <input type="checkbox" [checked]="allInvoicesSelected()" (change)="toggleSelectAllInvoices()" />Seleccionar todas
+        </label>
+      }
+      <div class="invoice-rows">
+        @for (invoice of detail.invoices; track invoice.id) {
+          <label class="invoice-row" [class.selected]="selectedInvoiceIds.has(invoice.id)">
+            <input type="checkbox" [checked]="selectedInvoiceIds.has(invoice.id)" (change)="toggleInvoiceSelection(invoice.id)" />
+            <span class="invoice-folio">{{ invoice.folio }}</span>
+            <span class="invoice-date">{{ shortDate(invoice.fecha_facturacion) }}</span>
+            <b class="invoice-amount">{{ moneyExact(invoice.monto) }}</b>
+          </label>
+        } @empty { <p class="empty-line">Sin facturas activas.</p> }
+      </div>
+      @if (detail.invoices.length) {
+        <div class="invoice-total-row"><span>Total seleccionado</span><strong>{{ moneyExact(selectedInvoicesTotal()) }}</strong></div>
+      }
+    </div>
+    <footer class="invoices-dialog-footer">
+      <button type="button" class="confirm" (click)="closeInvoicesModal()">Cerrar</button>
+    </footer>
+  </section>
+}
+
+@if (confirmDialog) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cancelar" (click)="confirmDialogCancel()"></button>
+  <section class="dialog-card confirm-dialog" role="alertdialog" aria-modal="true">
+    <div class="dialog-content confirm-dialog-content"><p>{{ confirmDialog.message }}</p></div>
+    <footer>
+      <button type="button" (click)="confirmDialogCancel()">Cancelar</button>
+      <button type="button" class="confirm" (click)="confirmDialogAccept()">Confirmar</button>
+    </footer>
+  </section>
 }
 
 @if (showStats) {
@@ -247,6 +325,31 @@
                 <ion-icon class="chevron" [name]="isFranchiseDetailExpanded(franchise.id) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
               </button>
               @if (isFranchiseDetailExpanded(franchise.id)) {
+                <div class="mgmt-calendar">
+                  <div class="mgmt-cal-weekdays"><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span></div>
+                  <div class="mgmt-cal-grid">
+                    @for (week of franchiseCalendarWeeks(franchise); track $index) {
+                      @for (cell of week; track cell.date) {
+                        <span
+                          class="mgmt-cal-day"
+                          [class.out-of-month]="!cell.inMonth"
+                          [class.status-complete]="cell.data && calendarDayStatus(cell.data) === 'complete'"
+                          [class.status-partial]="cell.data && calendarDayStatus(cell.data) === 'partial'"
+                          [class.status-incomplete]="cell.data && calendarDayStatus(cell.data) === 'incomplete'"
+                          [class.status-justified]="cell.data && calendarDayStatus(cell.data) === 'justified'"
+                          [attr.data-tooltip]="cell.data ? calendarDayTitle(cell.data) : null"
+                          [attr.tabindex]="cell.data ? 0 : null"
+                        >{{ cell.day }}</span>
+                      }
+                    }
+                  </div>
+                  <div class="mgmt-cal-legend">
+                    <span class="legend-dot status-complete"></span>100%
+                    <span class="legend-dot status-partial"></span>Parcial
+                    <span class="legend-dot status-incomplete"></span>Sin gestión
+                    <span class="legend-dot status-justified"></span>Justificado
+                  </div>
+                </div>
                 @for (day of franchise.days; track day.date) {
                   <div class="day-row">
                     <strong>{{ shortDate(day.date) }}</strong><span>{{ day.count }} / {{ day.goal }}</span>
@@ -302,7 +405,7 @@
                   [class.preview]="cell.available && isInBulkDragPreview(cell.date)"
                   [disabled]="!cell.available"
                   [attr.aria-label]="cell.date"
-                  (pointerdown)="onCalendarPointerDown(cell)"
+                  (pointerdown)="onCalendarPointerDown(cell, $event)"
                   (pointerenter)="onCalendarPointerEnter(cell)"
                   (pointerup)="onCalendarPointerUp(cell)"
                 >{{ cell.day }}</button>
