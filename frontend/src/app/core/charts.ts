@@ -61,7 +61,7 @@ export function renderFunnel(f, expectativaCobro) {
     .map((s, i) => {
       const isLast = i === stages.length - 1;
       const bottomPct = isLast ? 72 : Math.min((stages[i + 1].pct / s.pct) * 100, 100);
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" title="${s.label}: ${s.value}"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
+      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
     })
     .join("");
 
@@ -71,7 +71,7 @@ export function renderFunnel(f, expectativaCobro) {
 
   const rates = `<div class="rate-box"><span class="rlabel">Contactabilidad</span><span class="rvalue">${contactabilidad.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Tasa de acuerdo</span><span class="rvalue">${tasaAcuerdo.toFixed(1)}%</span></div><div class="rate-box"><span class="rlabel">Cumplimiento</span><span class="rvalue">${indiceCumplimiento.toFixed(1)}%</span></div>`;
 
-  const promiseBox = `<div class="promise-box" title="Suma de la factura más vencida de cada cliente con promesa de pago activa"><span class="rlabel">Expectativa de Cobro</span><span class="rvalue">${fmtMoney(expectativaCobro)}</span><span class="rsub">Factura más vencida por cliente</span></div>`;
+  const promiseBox = `<div class="promise-box" data-tooltip="Suma de la factura más vencida de cada cliente con promesa de pago activa" tabindex="0"><span class="rlabel">Expectativa de Cobro</span><span class="rvalue">${fmtMoney(expectativaCobro)}</span><span class="rsub">Factura más vencida por cliente</span></div>`;
 
   return { bars, rates, promise: promiseBox };
 }
@@ -90,7 +90,7 @@ export function renderDistribucion(distribucion) {
         if (names.length > tooltipLines.length) tooltipText += `\n+${names.length - tooltipLines.length} más`;
       }
       const color = safeColor(d.bg);
-      return `<div class="dist-row" title="${escapeAttr(tooltipText)}"><span class="dist-dot" style="background:${color};"></span><span class="dist-label">${escapeHtml(d.label)}</span><div class="dist-track"><div class="dist-fill" style="width:${pct}%; background:${color};"></div></div><span class="dist-value">${d.count}</span></div>`;
+      return `<div class="dist-row" data-tooltip="${escapeAttr(tooltipText)}" tabindex="0"><span class="dist-dot" style="background:${color};"></span><span class="dist-label">${escapeHtml(d.label)}</span><div class="dist-track"><div class="dist-fill" style="width:${pct}%; background:${color};"></div></div><span class="dist-value">${d.count}</span></div>`;
     })
     .join("");
   return { rows, sub: `${total} gestiones del periodo · por resultado` };

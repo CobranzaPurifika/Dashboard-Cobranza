@@ -23,7 +23,7 @@ button, input, select, textarea { font: inherit; }
 .search-box input { width: 100%; padding: 11px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .priority-list { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
 .priority-list.is-loading { opacity: .6; pointer-events: none; transition: opacity .15s ease; }
-.priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) 90px 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
+.priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
 .priority-list.density-compact .priority-row { padding: 7px 22px; gap: 10px; contain-intrinsic-size: auto 37px; }
 .priority-list.density-compact .client-main small { display: none; }
 .priority-row:hover { background: var(--surface-hover); }
@@ -42,9 +42,6 @@ button, input, select, textarea { font: inherit; }
 .badge.critical { color: #cd4036; background: color-mix(in srgb, #dc4b3e 14%, transparent); }
 .blacklist-badge { color: #d84036; background: color-mix(in srgb, #d84036 12%, transparent); }
 .balance { font-size: 12px; text-align: right; }
-.manage-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 3px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--accent-strong); font-size: 11px; font-weight: 750; cursor: pointer; }
-.manage-action:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.manage-action ion-icon { font-size: 13px; }
 .empty-state { display: grid; min-height: 180px; place-items: center; color: var(--muted); font-size: 12px; }
 .priority-skeleton { display: grid; gap: 1px; }
 .priority-skeleton i { display: block; height: 57px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 7%, var(--surface-soft)), transparent), var(--surface-soft); background-size: 220% 100%; animation: loading-sweep 1.2s linear infinite; }
@@ -56,18 +53,20 @@ button, input, select, textarea { font: inherit; }
 .blacklist-card { display: flex; flex-direction: column; }
 .side-card > header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
 .side-count { display: grid; min-width: 28px; height: 26px; place-items: center; padding: 0 7px; border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 10px; font-weight: 800; }
-.followup-section + .followup-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.followup-section + .followup-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .followup-section { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding-left: 10px; border-left: 3px solid var(--line); }
 .followup-section.overdue-section { border-left-color: #dc4b3e; }
 .followup-section.scheduled-section { border-left-color: #3b82d0; }
-.section-toggle { display: flex; width: 100%; align-items: center; gap: 7px; margin: 0 0 8px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); text-align: left; cursor: pointer; }
-.section-toggle strong { font-size: 11px; }
-.section-toggle i { margin-left: auto; color: var(--muted); font-size: 10px; font-style: normal; }
-.section-toggle ion-icon { color: var(--muted); font-size: 13px; }
+// Fila única y compacta: título a la izquierda (recortado con ellipsis si no cabe),
+// contador + chevron agrupados y fijos a la derecha -- antes el punto de color quedaba
+// suelto arriba del título y el bloque contador/chevron ocupaba su propia línea debajo,
+// dejando muy poca altura para la lista real.
+.section-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 4px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); text-align: left; cursor: pointer; }
+.section-toggle strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.section-toggle .section-meta { display: flex; flex: none; align-items: center; gap: 4px; color: var(--muted); }
+.section-toggle i { font-size: 10px; font-style: normal; }
+.section-toggle ion-icon { font-size: 13px; }
 .followup-list { min-height: 0; overflow: auto; }
-.signal { width: 7px; height: 7px; border-radius: 50%; }
-.signal.overdue { background: #dc4b3e; }
-.signal.scheduled { background: #3b82d0; }
 .followup-section button, .blacklist-card button { display: block; width: 100%; padding: 10px 11px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .followup-section button:hover, .blacklist-card button:hover { background: var(--surface-hover); }
 .followup-section button strong, .followup-section button span, .followup-section button small { display: block; }
@@ -98,7 +97,7 @@ button, input, select, textarea { font: inherit; }
 .dialog-card > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 14px 20px 19px; border-top: 1px solid var(--line); }
 .dialog-card > footer button { padding: 10px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
 .dialog-card > footer .confirm { border-color: var(--accent); background: var(--accent); color: #07373a; }
-.detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; }
+.detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes slide-in { from { transform: translateX(30px); opacity: .4; } }
 .drawer-header { display: flex; justify-content: space-between; gap: 14px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }
 .drawer-header h2 { margin: 3px 0; color: var(--ink); font-size: 21px; }
@@ -144,7 +143,7 @@ button, input, select, textarea { font: inherit; }
 .loading-detail > div { display: grid; justify-items: center; gap: 10px; padding: 20px 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--ink-soft); font-size: 11px; }
 .loading-detail ion-spinner { color: var(--accent); }
 .loading-detail button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink-soft); font-size: 10px; cursor: pointer; }
-.monthly-drawer { position: fixed; inset: 0 auto 0 0; z-index: 100; display: flex; width: min(560px, 96vw); flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); box-shadow: 18px 0 55px rgba(0, 0, 0, .28); animation: monthly-slide-in .2s ease-out; }
+.monthly-drawer { position: fixed; inset: 0 auto 0 0; z-index: 100; display: flex; width: min(560px, 96vw); flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); box-shadow: 18px 0 55px rgba(0, 0, 0, .28); animation: monthly-slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes monthly-slide-in { from { transform: translateX(-35px); opacity: .5; } }
 .monthly-drawer > header { display: flex; justify-content: space-between; gap: 14px; padding: 21px 20px 16px; border-bottom: 1px solid var(--line); }
 .monthly-drawer h2 { margin: 0; color: var(--ink); font-size: 19px; }
@@ -156,6 +155,7 @@ button, input, select, textarea { font: inherit; }
 .monthly-summary strong, .monthly-summary b, .monthly-summary span, .monthly-summary small { display: block; }
 .monthly-summary strong { overflow: hidden; color: var(--ink-soft); font-size: 10px; text-overflow: ellipsis; }
 .monthly-summary b { margin: 4px 0; color: #ffbd45; font-size: 25px; }
+.monthly-summary b.complete { color: #24d477; }
 .monthly-summary span, .monthly-summary small { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .monthly-summary small { margin-top: 7px; color: var(--ink-soft); }
 .monthly-section { margin: 34px 0 0; }
@@ -211,10 +211,6 @@ button, input, select, textarea { font: inherit; }
   .priority-row { grid-template-columns: 8px minmax(0, 1fr) auto; gap: 9px; padding: 12px 15px; }
   .priority-row .badges { grid-column: 2; }
   .balance { grid-column: 3; grid-row: 1; }
-  // La fila completa ya abre la ficha (ver (click) en priority-row); el botón se conserva
-  // visible pero sin texto para no competir por espacio con saldo/badges en una pantalla angosta.
-  .manage-action { min-width: 40px; padding: 6px; }
-  .manage-action-label { display: none; }
   .priority-header, .drawer-header { padding-left: 17px; padding-right: 17px; }
   .segments, .search-box { margin-left: 15px; margin-right: 15px; }
   .drawer-scroll { padding-left: 17px; padding-right: 17px; }
