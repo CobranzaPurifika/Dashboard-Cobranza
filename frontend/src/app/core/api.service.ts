@@ -12,6 +12,13 @@ export class ApiService {
     this.request(`/dashboard/${franchise}`, { signal });
   statusGestion = () => this.request('/status-gestion');
 
+  // Buscador del Lector (sin sesión): mismo /request (sin token, ya que no hay sesión), pero
+  // apunta a las rutas públicas montadas antes de requireAuthenticated en el backend.
+  publicClientesSearch = (q: string, franchise: string, signal?: AbortSignal) =>
+    this.request(`/public-clientes?q=${encodeURIComponent(q)}&franchise=${encodeURIComponent(franchise)}`, { signal });
+  publicClienteDetail = (id: string, signal?: AbortSignal) =>
+    this.request(`/public-clientes/${id}`, { signal });
+
   actualizarStatus(value: string, body: { label: string; bg: string; efectiva: boolean; sortOrder: number }) {
     return this.request(`/status-gestion/${encodeURIComponent(value)}`, {
       method: 'PUT', body: JSON.stringify(body),

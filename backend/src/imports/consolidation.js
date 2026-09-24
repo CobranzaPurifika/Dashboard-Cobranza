@@ -1,4 +1,5 @@
 const BDD = Object.freeze({
+  clientName: 0,
   group: 1,
   rfc: 2,
   folio: 5,
@@ -44,6 +45,11 @@ export function buildBddSnapshot(franchiseId, rawRows) {
       invoiceDate: parseDate(row[BDD.invoiceDate]),
       salesExecutive: cleanText(row[BDD.salesExecutive]) || null,
       collectionExecutive: cleanText(row[BDD.collectionExecutive]) || null,
+      // Columna "Cliente" del BDD -- suele repetir el nombre de Grupo de facturación, pero a
+      // veces trae el nombre completo o una variante distinta (verificado contra datos reales).
+      // Se guarda por factura, sin agregarla al cliente, para no tocar la lógica de
+      // deduplicación/consolidación existente -- solo alimenta la búsqueda del Lector.
+      clienteNombre: cleanText(row[BDD.clientName]) || null,
     };
     const current = grouped.get(groupKey);
     if (current) {
