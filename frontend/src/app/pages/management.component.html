@@ -41,9 +41,6 @@
               @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
             </span>
             <strong class="balance">{{ money(client.saldo) }}</strong>
-            <button class="manage-action" type="button" (click)="openDetail(client.id); $event.stopPropagation()">
-              <span class="manage-action-label">Gestionar</span><ion-icon name="chevron-forward-outline"></ion-icon>
-            </button>
           </div>
         } @empty {
           <div class="empty-state">No hay contactos para estos filtros.</div>
@@ -227,7 +224,7 @@
       @else if (monthlyData) {
         <section class="monthly-summary">
           @for (franchise of monthlyData.franchises; track franchise.id) {
-            <article><strong>{{ franchise.label | uppercase }}</strong><b>{{ franchise.summary.pct }}%</b><span>{{ franchise.summary.fullDays }} de {{ franchise.summary.eligibleDays }} días al 100% · {{ franchise.summary.justifiedDays }} justificado</span><small>Meta: {{ franchise.goal }} clientes únicos/día</small></article>
+            <article><strong>{{ franchise.label | uppercase }}</strong><b [class.complete]="franchise.summary.pct >= 100">{{ franchise.summary.pct }}%</b><span>{{ franchise.summary.fullDays }} de {{ franchise.summary.eligibleDays }} días al 100% · {{ franchise.summary.justifiedDays }} justificado</span><small>Meta: {{ franchise.goal }} clientes únicos/día</small></article>
           }
         </section>
 

@@ -23,7 +23,7 @@ button, input, select, textarea { font: inherit; }
 .search-box input { width: 100%; padding: 11px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .priority-list { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
 .priority-list.is-loading { opacity: .6; pointer-events: none; transition: opacity .15s ease; }
-.priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) 90px 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
+.priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
 .priority-list.density-compact .priority-row { padding: 7px 22px; gap: 10px; contain-intrinsic-size: auto 37px; }
 .priority-list.density-compact .client-main small { display: none; }
 .priority-row:hover { background: var(--surface-hover); }
@@ -42,9 +42,6 @@ button, input, select, textarea { font: inherit; }
 .badge.critical { color: #cd4036; background: color-mix(in srgb, #dc4b3e 14%, transparent); }
 .blacklist-badge { color: #d84036; background: color-mix(in srgb, #d84036 12%, transparent); }
 .balance { font-size: 12px; text-align: right; }
-.manage-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 3px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--accent-strong); font-size: 11px; font-weight: 750; cursor: pointer; }
-.manage-action:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.manage-action ion-icon { font-size: 13px; }
 .empty-state { display: grid; min-height: 180px; place-items: center; color: var(--muted); font-size: 12px; }
 .priority-skeleton { display: grid; gap: 1px; }
 .priority-skeleton i { display: block; height: 57px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 7%, var(--surface-soft)), transparent), var(--surface-soft); background-size: 220% 100%; animation: loading-sweep 1.2s linear infinite; }
@@ -158,6 +155,7 @@ button, input, select, textarea { font: inherit; }
 .monthly-summary strong, .monthly-summary b, .monthly-summary span, .monthly-summary small { display: block; }
 .monthly-summary strong { overflow: hidden; color: var(--ink-soft); font-size: 10px; text-overflow: ellipsis; }
 .monthly-summary b { margin: 4px 0; color: #ffbd45; font-size: 25px; }
+.monthly-summary b.complete { color: #24d477; }
 .monthly-summary span, .monthly-summary small { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .monthly-summary small { margin-top: 7px; color: var(--ink-soft); }
 .monthly-section { margin: 34px 0 0; }
@@ -213,10 +211,6 @@ button, input, select, textarea { font: inherit; }
   .priority-row { grid-template-columns: 8px minmax(0, 1fr) auto; gap: 9px; padding: 12px 15px; }
   .priority-row .badges { grid-column: 2; }
   .balance { grid-column: 3; grid-row: 1; }
-  // La fila completa ya abre la ficha (ver (click) en priority-row); el botón se conserva
-  // visible pero sin texto para no competir por espacio con saldo/badges en una pantalla angosta.
-  .manage-action { min-width: 40px; padding: 6px; }
-  .manage-action-label { display: none; }
   .priority-header, .drawer-header { padding-left: 17px; padding-right: 17px; }
   .segments, .search-box { margin-left: 15px; margin-right: 15px; }
   .drawer-scroll { padding-left: 17px; padding-right: 17px; }
