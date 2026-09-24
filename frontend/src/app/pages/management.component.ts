@@ -265,6 +265,62 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detail = null;
   }
 
+  // Deslizar para cerrar en móvil: el panel de detalle vive a la derecha, así que solo se
+  // arrastra hacia la derecha para cerrarlo; "Gestiones del mes" vive a la izquierda, en la
+  // dirección contraria -- misma dirección en la que cada uno "sale" de la pantalla.
+  // Se activa solo si el gesto es claramente horizontal, para no interferir con el scroll
+  // vertical normal del contenido.
+  private dragStartX: number | null = null;
+  private dragStartY: number | null = null;
+  private dragEl: HTMLElement | null = null;
+  private dragSide: 'left' | 'right' | null = null;
+  private dragActive = false;
+  private dragDeltaX = 0;
+
+  onDrawerTouchStart(event: TouchEvent, side: 'left' | 'right'): void {
+    const touch = event.touches[0];
+    this.dragStartX = touch.clientX;
+    this.dragStartY = touch.clientY;
+    this.dragEl = event.currentTarget as HTMLElement;
+    this.dragSide = side;
+    this.dragActive = false;
+    this.dragDeltaX = 0;
+  }
+
+  onDrawerTouchMove(event: TouchEvent): void {
+    if (this.dragStartX === null || this.dragStartY === null || !this.dragEl) return;
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - this.dragStartX;
+    const deltaY = touch.clientY - this.dragStartY;
+    if (!this.dragActive) {
+      if (Math.abs(deltaX) < 12 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+      this.dragActive = true;
+      this.dragEl.style.transition = 'none';
+    }
+    this.dragDeltaX = this.dragSide === 'right' ? Math.max(0, deltaX) : Math.min(0, deltaX);
+    this.dragEl.style.transform = `translateX(${this.dragDeltaX}px)`;
+  }
+
+  onDrawerTouchEnd(): void {
+    const el = this.dragEl;
+    const side = this.dragSide;
+    const wasActive = this.dragActive;
+    const dragDeltaX = this.dragDeltaX;
+    if (el) {
+      el.style.transition = '';
+      el.style.transform = '';
+    }
+    this.dragStartX = null;
+    this.dragStartY = null;
+    this.dragEl = null;
+    this.dragSide = null;
+    this.dragActive = false;
+    this.dragDeltaX = 0;
+    if (!wasActive || Math.abs(dragDeltaX) <= 90) return;
+    if (side === 'right') this.closeDetail();
+    else this.closeMonthlyStats();
+  }
+
   async openMonthlyStats(): Promise<void> {
     this.monthlyAbort?.abort();
     const controller = new AbortController();

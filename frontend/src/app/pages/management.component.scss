@@ -56,18 +56,20 @@ button, input, select, textarea { font: inherit; }
 .blacklist-card { display: flex; flex-direction: column; }
 .side-card > header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
 .side-count { display: grid; min-width: 28px; height: 26px; place-items: center; padding: 0 7px; border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 10px; font-weight: 800; }
-.followup-section + .followup-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.followup-section + .followup-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .followup-section { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding-left: 10px; border-left: 3px solid var(--line); }
 .followup-section.overdue-section { border-left-color: #dc4b3e; }
 .followup-section.scheduled-section { border-left-color: #3b82d0; }
-.section-toggle { display: flex; width: 100%; align-items: center; gap: 7px; margin: 0 0 8px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); text-align: left; cursor: pointer; }
-.section-toggle strong { font-size: 11px; }
-.section-toggle i { margin-left: auto; color: var(--muted); font-size: 10px; font-style: normal; }
-.section-toggle ion-icon { color: var(--muted); font-size: 13px; }
+// Fila única y compacta: título a la izquierda (recortado con ellipsis si no cabe),
+// contador + chevron agrupados y fijos a la derecha -- antes el punto de color quedaba
+// suelto arriba del título y el bloque contador/chevron ocupaba su propia línea debajo,
+// dejando muy poca altura para la lista real.
+.section-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 4px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); text-align: left; cursor: pointer; }
+.section-toggle strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.section-toggle .section-meta { display: flex; flex: none; align-items: center; gap: 4px; color: var(--muted); }
+.section-toggle i { font-size: 10px; font-style: normal; }
+.section-toggle ion-icon { font-size: 13px; }
 .followup-list { min-height: 0; overflow: auto; }
-.signal { width: 7px; height: 7px; border-radius: 50%; }
-.signal.overdue { background: #dc4b3e; }
-.signal.scheduled { background: #3b82d0; }
 .followup-section button, .blacklist-card button { display: block; width: 100%; padding: 10px 11px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .followup-section button:hover, .blacklist-card button:hover { background: var(--surface-hover); }
 .followup-section button strong, .followup-section button span, .followup-section button small { display: block; }
@@ -98,7 +100,7 @@ button, input, select, textarea { font: inherit; }
 .dialog-card > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 14px 20px 19px; border-top: 1px solid var(--line); }
 .dialog-card > footer button { padding: 10px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
 .dialog-card > footer .confirm { border-color: var(--accent); background: var(--accent); color: #07373a; }
-.detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; }
+.detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes slide-in { from { transform: translateX(30px); opacity: .4; } }
 .drawer-header { display: flex; justify-content: space-between; gap: 14px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }
 .drawer-header h2 { margin: 3px 0; color: var(--ink); font-size: 21px; }
@@ -144,7 +146,7 @@ button, input, select, textarea { font: inherit; }
 .loading-detail > div { display: grid; justify-items: center; gap: 10px; padding: 20px 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--ink-soft); font-size: 11px; }
 .loading-detail ion-spinner { color: var(--accent); }
 .loading-detail button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink-soft); font-size: 10px; cursor: pointer; }
-.monthly-drawer { position: fixed; inset: 0 auto 0 0; z-index: 100; display: flex; width: min(560px, 96vw); flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); box-shadow: 18px 0 55px rgba(0, 0, 0, .28); animation: monthly-slide-in .2s ease-out; }
+.monthly-drawer { position: fixed; inset: 0 auto 0 0; z-index: 100; display: flex; width: min(560px, 96vw); flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); box-shadow: 18px 0 55px rgba(0, 0, 0, .28); animation: monthly-slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes monthly-slide-in { from { transform: translateX(-35px); opacity: .5; } }
 .monthly-drawer > header { display: flex; justify-content: space-between; gap: 14px; padding: 21px 20px 16px; border-bottom: 1px solid var(--line); }
 .monthly-drawer h2 { margin: 0; color: var(--ink); font-size: 19px; }
