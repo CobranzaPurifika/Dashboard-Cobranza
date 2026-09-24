@@ -56,6 +56,8 @@ export class AppComponent implements OnInit {
   goalsLoading = false;
   goalsError = '';
   goalSaving = '';
+  moreMenuVisible = false;
+  lastLoadedAt: Date | null = null;
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
 
@@ -67,6 +69,9 @@ export class AppComponent implements OnInit {
     this.preferences = loadPreferences(localStorage);
     window.addEventListener('auth-required', () => this.showLogin('Tu sesión terminó. Ingresa nuevamente.'));
     void this.openApp();
+    // Sin esto, "Actualizado hace X min" solo cambiaría en el próximo fetch/click -- este
+    // temporizador únicamente refresca el reloj relativo, la fuente de datos no se toca.
+    setInterval(() => {}, 30000);
   }
 
   presentationFranchises: FranchiseOption[] = [];
@@ -87,10 +92,9 @@ export class AppComponent implements OnInit {
       if (!this.franchises.length) throw new Error('Tu cuenta todavía no tiene franquicias asignadas');
       const preferred = this.preferences.defaultFranchise;
       this.franchise = this.franchises.some((option) => option.id === preferred) ? preferred : this.franchises[0].id;
-      // Al recargar se conserva el Dashboard como pantalla de entrada. Antes se cambiaba
-      // a Gestión mientras aún llegaban las respuestas; junto con el render diferido eso
-      // hacía que un clic en tema revelara una vista distinta a la esperada.
-      if (this.isAnonymous) this.view = 'dashboard';
+      // La pantalla de entrada es configurable (Preferencias); un visor anónimo siempre
+      // entra al Dashboard porque no tiene acceso a Gestión.
+      this.view = this.isAnonymous ? 'dashboard' : this.preferences.startView;
       this.statusCatalog = this.isAnonymous ? [] : await this.api.statusGestion();
       this.loginVisible = false;
       await this.loadDashboard();
@@ -112,7 +116,6 @@ export class AppComponent implements OnInit {
     this.loginError = '';
     try {
       await this.auth.signIn(this.loginEmail, this.loginPassword);
-      this.view = 'management';
       await this.openApp();
       this.loginPassword = '';
       this.showLoginPassword = false;
@@ -166,7 +169,10 @@ export class AppComponent implements OnInit {
     this.appError = '';
     try {
       const data = await this.api.dashboard(this.franchise, controller.signal);
-      if (requestId === this.dashboardRequest) this.dashboardData = data;
+      if (requestId === this.dashboardRequest) {
+        this.dashboardData = data;
+        this.lastLoadedAt = new Date();
+      }
     } catch (error: any) {
       if (error?.name !== 'AbortError' && requestId === this.dashboardRequest) {
         this.appError = error.message;
@@ -290,11 +296,18 @@ export class AppComponent implements OnInit {
   toggleTheme(): void {
     this.darkTheme = !this.darkTheme;
     localStorage.setItem('cobranza-purifika.theme', this.darkTheme ? 'dark' : 'light');
+    this.moreMenuVisible = false;
   }
 
   togglePresentation(): void {
     this.presentationMode = !this.presentationMode;
     if (this.presentationMode) this.view = 'dashboard';
+    this.moreMenuVisible = false;
+  }
+
+  openSettingsFromMenu(): void {
+    this.settingsVisible = true;
+    this.moreMenuVisible = false;
   }
 
   isSectionExpanded(section: string): boolean {
@@ -319,6 +332,11 @@ export class AppComponent implements OnInit {
 
   setPriorityDensity(density: 'comfortable' | 'compact'): void {
     this.preferences = { ...this.preferences, priorityDensity: density };
+    savePreferences(localStorage, this.preferences);
+  }
+
+  setStartView(startView: 'dashboard' | 'management'): void {
+    this.preferences = { ...this.preferences, startView };
     savePreferences(localStorage, this.preferences);
   }
 
@@ -391,6 +409,27 @@ export class AppComponent implements OnInit {
     const count = Number(this.dashboardData.portfolio.clientes ?? 0).toLocaleString('es-MX');
     const balance = Number(this.dashboardData.portfolio.saldo ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
     return `${count} clientes · $${balance}`;
+  }
+
+  activeFranchiseLabel(): string {
+    return this.franchises.find((option) => option.id === this.franchise)?.label ?? '';
+  }
+
+  freshnessLabel(): string {
+    if (!this.lastLoadedAt) return '';
+    const minutes = Math.max(0, Math.round((Date.now() - this.lastLoadedAt.getTime()) / 60000));
+    if (minutes < 1) return 'actualizado hace instantes';
+    if (minutes < 60) return `actualizado hace ${minutes} min`;
+    const hours = Math.round(minutes / 60);
+    return `actualizado hace ${hours} h`;
+  }
+
+  toggleMoreMenu(): void {
+    this.moreMenuVisible = !this.moreMenuVisible;
+  }
+
+  closeMoreMenu(): void {
+    this.moreMenuVisible = false;
   }
 
   accountLabel(): string {

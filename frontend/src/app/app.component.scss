@@ -7,7 +7,7 @@
 .drop ion-icon { font-size: 19px; transform: rotate(-45deg); }
 .brand > span:last-child, .login-brand > span:last-child { display: grid; line-height: 1; text-align: left; }
 .brand strong, .login-brand strong { font-size: 13px; letter-spacing: .12em; }
-.brand small, .login-brand small { margin-top: 4px; color: var(--accent-strong); font-size: 8px; font-weight: 800; letter-spacing: .23em; }
+.brand small, .login-brand small { margin-top: 4px; color: var(--accent-strong); font-size: 10px; font-weight: 800; letter-spacing: .23em; }
 .primary-nav { align-self: stretch; display: flex; align-items: stretch; margin-right: 20px; }
 .primary-nav button { position: relative; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .primary-nav button::after { content: ''; position: absolute; right: 12px; bottom: 0; left: 12px; height: 3px; border-radius: 3px 3px 0 0; background: transparent; }
@@ -18,12 +18,21 @@
 .franchise-tabs button.active { background: var(--accent); color: #07373a; font-weight: 800; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 24%, transparent); }
 .topbar-spacer { flex: 1; }
 .portfolio-summary { display: grid; margin: 0 14px; padding-right: 15px; border-right: 1px solid var(--line); text-align: right; }
-.portfolio-summary small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.portfolio-summary small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
 .portfolio-summary strong { margin-top: 2px; color: var(--ink-soft); font-size: 10px; white-space: nowrap; }
 .header-actions { display: flex; align-items: center; gap: 5px; }
-.header-actions > button { display: inline-flex; height: 34px; min-width: 34px; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; }
+.header-actions > button { display: inline-flex; height: 40px; min-width: 40px; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; }
 .header-actions ion-icon { font-size: 16px; }
-.header-actions .account-button span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.header-actions .account-button span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.header-actions .more-button { display: none; }
+.context-bar { display: flex; align-items: center; gap: 6px; padding: 7px max(20px, calc((100vw - 1440px) / 2)); color: var(--muted); font-size: 10px; border-bottom: 1px solid var(--line); background: var(--surface-soft); }
+.context-franchise { color: var(--ink-soft); font-weight: 700; }
+.context-dot { opacity: .6; }
+.more-backdrop { position: fixed; inset: 0; z-index: 60; border: 0; background: transparent; }
+.more-menu { position: fixed; top: 60px; right: 14px; z-index: 65; display: grid; min-width: 200px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.more-menu button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.more-menu button:hover { background: var(--surface-hover); }
+.more-menu ion-icon { font-size: 16px; color: var(--muted); }
 .workspace { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 22px 0 36px; }
 .app-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; padding: 11px 14px; border-radius: 10px; background: color-mix(in srgb, #d84f43 12%, var(--surface)); color: #d84f43; font-size: 12px; }
 .app-error button { flex: none; padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: #07373a; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
@@ -31,7 +40,7 @@
 .settings-popover { position: fixed; top: 58px; right: max(20px, calc((100vw - 1440px) / 2)); z-index: 70; width: min(350px, calc(100vw - 30px)); max-height: calc(100dvh - 76px); overflow: auto; padding: 17px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow-lg); }
 .settings-popover header { display: flex; justify-content: space-between; }
 .settings-popover header div { display: grid; }
-.settings-popover header span { color: var(--accent-strong); font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.settings-popover header span { color: var(--accent-strong); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .settings-popover header strong { margin-top: 3px; font-size: 14px; }
 .settings-popover header button { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
 .settings-popover p { color: var(--muted); font-size: 10px; line-height: 1.45; }
@@ -54,10 +63,10 @@
 .pref-row input[type="number"] { width: 64px; text-align: right; }
 .pref-theme-toggle { display: flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 10px; font-weight: 700; cursor: pointer; }
 .pref-segmented { display: flex; padding: 3px; border-radius: 999px; background: var(--surface-soft); }
-.pref-segmented button { padding: 5px 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 9px; font-weight: 700; cursor: pointer; }
+.pref-segmented button { padding: 5px 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
 .pref-segmented button.active { background: var(--accent); color: #07373a; }
 .pref-chip-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-.pref-chip { display: flex; align-items: center; gap: 4px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 9px; font-weight: 700; cursor: pointer; }
+.pref-chip { display: flex; align-items: center; gap: 4px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 10px; font-weight: 700; cursor: pointer; }
 .pref-chip input { accent-color: var(--accent); }
 .pref-chip.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface-soft)); color: var(--accent-strong); }
 .pref-switch { position: relative; display: inline-block; width: 34px; height: 20px; flex: none; }
@@ -67,19 +76,22 @@
 .pref-switch input:checked + i { background: color-mix(in srgb, var(--accent) 30%, var(--surface-soft)); border-color: var(--accent); }
 .pref-switch input:checked + i::before { transform: translateX(14px); background: var(--accent); }
 
-.status-editor { display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
-.status-editor input { min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--input); color: var(--ink); font-size: 9px; }
+.status-editor { display: grid; grid-template-columns: 32px 32px minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
+.status-editor input { min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--input); color: var(--ink); font-size: 10px; }
 .status-editor input:focus { border-color: var(--accent); }
-.status-editor label { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
+.status-editor label { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: 10px; white-space: nowrap; }
 .status-editor label input { width: auto; padding: 0; }
-.status-editor button { padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--accent-strong); font-size: 9px; font-weight: 700; cursor: pointer; }
+.status-editor button { padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 700; cursor: pointer; }
 .status-editor button:disabled { opacity: .4; cursor: default; }
+// El par sube/baja cabe en 32px de columna sin ocupar toda la fila; el objetivo táctil real
+// se amplía con un pseudo-elemento invisible en vez de agrandar la flecha visible.
 .status-reorder { display: grid; gap: 2px; }
-.status-reorder button { display: grid; place-items: center; width: 22px; height: 15px; padding: 0; }
+.status-reorder button { position: relative; display: grid; place-items: center; width: 32px; height: 15px; padding: 0; }
+.status-reorder button::before { content: ''; position: absolute; inset: -6px; }
 .status-reorder ion-icon { font-size: 10px; }
-.status-delete { color: #d84f43; }
-.status-delete ion-icon { font-size: 12px; }
-.color-swatch { position: relative; display: block; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; }
+.status-delete { display: grid; place-items: center; min-width: 40px; min-height: 40px; color: #d84f43; }
+.status-delete ion-icon { font-size: 14px; }
+.color-swatch { position: relative; display: block; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; }
 .color-swatch input { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .status-add { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .status-add input { flex: 1; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--input); color: var(--ink); font-size: 10px; }
@@ -88,7 +100,7 @@
 .status-add ion-icon { font-size: 13px; }
 .goal-editor { display: grid; grid-template-columns: minmax(0, 1fr) 64px auto; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 10px; color: var(--ink-soft); }
 .goal-editor input { width: 100%; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--input); color: var(--ink); font-size: 10px; text-align: right; }
-.goal-editor button { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--accent-strong); font-size: 9px; font-weight: 700; cursor: pointer; }
+.goal-editor button { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 700; cursor: pointer; }
 .settings-error { display: block; margin-top: 8px; color: #d84f43; font-size: 10px; }
 
 .login-screen { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent) 12%, var(--app-bg)), var(--app-bg) 55%); }
@@ -101,7 +113,7 @@
 .login-card input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
 .password-field { position: relative; display: block; margin-top: 6px; }
 .login-card .password-field input { margin-top: 0; padding-right: 45px; }
-.password-toggle { position: absolute; top: 50%; right: 6px; display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 0; border-radius: 7px; transform: translateY(-50%); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.password-toggle { position: absolute; top: 50%; right: 4px; display: grid; width: 40px; height: 40px; place-items: center; padding: 0; border: 0; border-radius: 7px; transform: translateY(-50%); background: transparent; color: var(--ink-soft); cursor: pointer; }
 .password-toggle:hover { background: var(--surface-soft); color: var(--ink); }
 .password-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .password-toggle ion-icon { font-size: 18px; }
@@ -112,18 +124,22 @@
 .login-cancel { margin-top: 9px; border: 1px solid var(--line); background: transparent; color: var(--ink-soft); }
 .login-submit:disabled, .login-cancel:disabled, .password-toggle:disabled { cursor: wait; opacity: .68; }
 
-@media (max-width: 1050px) {
+@media (max-width: 1024px) {
   .portfolio-summary { display: none; }
   .topbar { flex-wrap: wrap; gap: 7px; padding-top: 8px; padding-bottom: 8px; }
   .franchise-tabs { order: 5; width: 100%; overflow: auto; }
 }
-@media (max-width: 680px) {
+@media (max-width: 700px) {
   .topbar { padding-left: 14px; padding-right: 14px; }
   .brand { margin-right: 5px; }
   .primary-nav { margin-right: 0; }
   .primary-nav button { padding: 0 9px; }
-  .header-actions > button:not(.account-button) { display: none; }
+  // Tema, presentación y configuración se concentran en el botón "Más" -- ocultarlos sueltos
+  // deja espacio en la barra y evita perder el acceso a Configuración por completo en móvil.
+  .header-actions > button:not(.account-button):not(.more-button) { display: none; }
+  .header-actions .more-button { display: inline-flex; }
   .header-actions .account-button span { display: none; }
+  .context-bar { padding-left: 14px; padding-right: 14px; }
   .workspace { width: min(100% - 24px, 1440px); padding-top: 13px; }
   .login-card { padding: 28px 23px 24px; }
 }

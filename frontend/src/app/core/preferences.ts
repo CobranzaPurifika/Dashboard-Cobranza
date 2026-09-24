@@ -7,9 +7,12 @@ export interface PresentationPreferences {
   hideControls: boolean;
 }
 
+export type StartView = 'dashboard' | 'management';
+
 export interface AppPreferences {
   defaultFranchise: string;
   priorityDensity: PriorityDensity;
+  startView: StartView;
   presentation: PresentationPreferences;
 }
 
@@ -18,6 +21,7 @@ export const PREFERENCES_KEY = 'cobranza-purifika.preferences';
 export const DEFAULT_PREFERENCES: AppPreferences = {
   defaultFranchise: 'todas',
   priorityDensity: 'comfortable',
+  startView: 'dashboard',
   presentation: {
     durationSeconds: 18,
     franchiseIds: null,
@@ -40,6 +44,7 @@ export function loadPreferences(storage: Pick<Storage, 'getItem'>): AppPreferenc
       ? saved.defaultFranchise
       : DEFAULT_PREFERENCES.defaultFranchise,
     priorityDensity: saved.priorityDensity === 'compact' ? 'compact' : 'comfortable',
+    startView: saved.startView === 'management' ? 'management' : DEFAULT_PREFERENCES.startView,
     presentation: {
       durationSeconds: Number.isFinite(presentation.durationSeconds) && presentation.durationSeconds! >= 5
         ? presentation.durationSeconds!
