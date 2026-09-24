@@ -40,6 +40,7 @@
               <i class="badge" [class]="'badge ' + client.tramo">{{ client.tramo_label || tramoLabel(client.tramo) }}</i>
               @if (client.is_blacklisted) { <i class="blacklist-badge">Lista negra</i> }
             </span>
+            <span class="executive-col">{{ client.ejecutivo_ventas || '—' }}</span>
             <strong class="balance">{{ money(client.saldo) }}</strong>
           </div>
         } @empty {
@@ -128,6 +129,7 @@
         <h2>{{ detail.name }}</h2>
         @if (detail.is_blacklisted) { <span class="blacklist-header-badge"><ion-icon name="alert-circle-outline"></ion-icon>En lista negra</span> }
         <p>{{ detail.franchise_id }} · {{ detail.segment_label }} · RFC {{ detail.rfc || 'N/A' }}</p>
+        @if (salesExecutives()) { <p class="header-executive">Ejecutivo de ventas: <strong>{{ salesExecutives() }}</strong></p> }
       </div>
       <button type="button" aria-label="Cerrar" (click)="closeDetail()"><ion-icon name="close-outline"></ion-icon></button>
     </header>

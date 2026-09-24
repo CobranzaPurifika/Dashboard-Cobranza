@@ -55,7 +55,10 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
                 c.portfolio_status,
                 s.label as estatus_label, s.bg as estatus_bg,
                 (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date)
-                  as managed_today
+                  as managed_today,
+                (select string_agg(distinct f.ejecutivo_ventas, ', ' order by f.ejecutivo_ventas)
+                 from facturas f where f.cliente_id = c.id and f.ejecutivo_ventas is not null)
+                  as ejecutivo_ventas
          from clientes c
          left join status_gestion s on s.value = c.estatus_value
          ${where}
