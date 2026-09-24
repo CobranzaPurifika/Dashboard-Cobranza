@@ -58,6 +58,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   private bulkDragMoved = false;
 
   gestionStatus = '';
+  statusMenuOpen = false;
   gestionComment = '';
   agendaDate = '';
   agendaHour = '12:00';
@@ -247,6 +248,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       // Sin valor por defecto: registrar gestión es una acción nueva cada vez, no debe
       // heredar en silencio el último estatus guardado.
       this.gestionStatus = '';
+      this.statusMenuOpen = false;
       this.gestionComment = '';
       this.blacklistReason = '';
       this.agendaDate = this.dateOnly(this.detail.agenda_fecha_iso) || this.todayMexico();
@@ -683,6 +685,29 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   statusOptionBg(status: any): string {
     const hex = String(status?.bg ?? '').trim();
     return hex ? `color-mix(in srgb, ${hex} 18%, var(--input))` : '';
+  }
+
+  // Select de Estatus construido a mano (no <select> nativo): en móvil, sobre todo iOS, el
+  // navegador reemplaza el <select> por su propio picker del sistema e ignora por completo
+  // cualquier estilo puesto en <option> -- el color nunca llegaba a verse ahí. Con un botón +
+  // lista propia el color se controla igual en cualquier plataforma.
+  selectedStatusOption(): any {
+    return this.statusCatalog.find((status) => status.value === this.gestionStatus) ?? null;
+  }
+
+  toggleStatusMenu(): void {
+    this.statusMenuOpen = !this.statusMenuOpen;
+  }
+
+  selectStatus(value: string): void {
+    this.gestionStatus = value;
+    this.statusMenuOpen = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClickForStatusMenu(event: MouseEvent): void {
+    if (!this.statusMenuOpen) return;
+    if (!(event.target as HTMLElement).closest('.status-select')) this.statusMenuOpen = false;
   }
 
   async addBlacklist(): Promise<void> {
