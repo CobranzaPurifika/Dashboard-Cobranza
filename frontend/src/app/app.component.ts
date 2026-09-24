@@ -57,7 +57,6 @@ export class AppComponent implements OnInit {
   goalsError = '';
   goalSaving = '';
   moreMenuVisible = false;
-  lastLoadedAt: Date | null = null;
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
 
@@ -73,9 +72,6 @@ export class AppComponent implements OnInit {
     this.preferences = loadPreferences(localStorage);
     window.addEventListener('auth-required', () => this.showLogin('Tu sesión terminó. Ingresa nuevamente.'));
     void this.openApp();
-    // Sin esto, "Actualizado hace X min" solo cambiaría en el próximo fetch/click -- este
-    // temporizador únicamente refresca el reloj relativo, la fuente de datos no se toca.
-    setInterval(() => {}, 30000);
   }
 
   presentationFranchises: FranchiseOption[] = [];
@@ -176,7 +172,6 @@ export class AppComponent implements OnInit {
       const data = await this.api.dashboard(this.franchise, controller.signal);
       if (requestId === this.dashboardRequest) {
         this.dashboardData = data;
-        this.lastLoadedAt = new Date();
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError' && requestId === this.dashboardRequest) {
@@ -421,19 +416,6 @@ export class AppComponent implements OnInit {
     const count = Number(this.dashboardData.portfolio.clientes ?? 0).toLocaleString('es-MX');
     const balance = Number(this.dashboardData.portfolio.saldo ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
     return `${count} clientes · $${balance}`;
-  }
-
-  activeFranchiseLabel(): string {
-    return this.franchises.find((option) => option.id === this.franchise)?.label ?? '';
-  }
-
-  freshnessLabel(): string {
-    if (!this.lastLoadedAt) return '';
-    const minutes = Math.max(0, Math.round((Date.now() - this.lastLoadedAt.getTime()) / 60000));
-    if (minutes < 1) return 'actualizado hace instantes';
-    if (minutes < 60) return `actualizado hace ${minutes} min`;
-    const hours = Math.round(minutes / 60);
-    return `actualizado hace ${hours} h`;
   }
 
   toggleMoreMenu(): void {

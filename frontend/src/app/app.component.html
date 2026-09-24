@@ -40,11 +40,6 @@
       </div>
     </header>
 
-    <div class="context-bar">
-      <span class="context-franchise">{{ activeFranchiseLabel() }}</span>
-      @if (freshnessLabel()) { <span class="context-dot">·</span><span class="context-fresh">{{ freshnessLabel() }}</span> }
-    </div>
-
     @if (moreMenuVisible) {
       <button class="more-backdrop" type="button" aria-label="Cerrar menú" (click)="closeMoreMenu()"></button>
       <nav class="more-menu" aria-label="Más opciones">
