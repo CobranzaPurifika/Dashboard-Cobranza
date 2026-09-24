@@ -712,10 +712,6 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return [...new Set((this.detail?.invoices ?? []).map((invoice: any) => invoice.ejecutivo_ventas).filter(Boolean))].join(', ');
   }
 
-  collectionExecutives(): string {
-    return [...new Set((this.detail?.invoices ?? []).map((invoice: any) => invoice.ejecutivo_cobranza).filter(Boolean))].join(', ');
-  }
-
   private async refreshContext(id: string): Promise<void> {
     await Promise.all([this.openDetail(id), this.loadAll()]);
     this.refreshRequested.emit();
