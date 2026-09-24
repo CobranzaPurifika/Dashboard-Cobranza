@@ -4,6 +4,7 @@ import cors from "cors";
 import { fileURLToPath } from "node:url";
 
 import { clientesRouter } from "./routes/clientes.js";
+import { publicClientesRouter } from "./routes/publicClientes.js";
 import { gestionRouter } from "./routes/gestion.js";
 import { pagosRouter } from "./routes/pagos.js";
 import { blacklistRouter } from "./routes/blacklist.js";
@@ -37,9 +38,12 @@ app.get("/api/me", (req, res) =>
   res.json({ ...req.user, allFranchises: req.user.role !== "gestor" })
 );
 app.use("/api/dashboard", dashboardRouter);
+// Buscador de clientes para el Lector (sin sesión) -- lo usan compañeros de trabajo para
+// consultar el detalle de un cliente sin poder modificar nada (ver publicClientes.js).
+app.use("/api/public-clientes", publicClientesRouter);
 
-// El enlace público solo expone /api/me y métricas agregadas del dashboard.
-// A partir de aquí, clientes, facturas, pagos y operación requieren sesión.
+// El enlace público solo expone /api/me, métricas agregadas del dashboard y la búsqueda de
+// clientes de solo lectura. A partir de aquí, gestión y operación requieren sesión.
 app.use("/api", requireAuthenticated);
 
 app.use("/api/clientes", clientesRouter);

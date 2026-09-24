@@ -26,7 +26,38 @@
         }
       </nav>
 
-      <div class="topbar-spacer"></div>
+      @if (isAnonymous) {
+        <div class="lector-search" [class.expanded]="lectorSearchExpanded">
+          <button type="button" class="lector-search-toggle" aria-label="Buscar cliente" (click)="toggleLectorSearchExpanded()"><ion-icon name="search-outline"></ion-icon></button>
+          <span class="lector-search-box">
+            <ion-icon name="search-outline"></ion-icon>
+            <input #lectorSearchInput type="text" placeholder="Buscar cliente…" [(ngModel)]="lectorSearchQuery" (ngModelChange)="onLectorSearchInput()"
+              (focus)="lectorSearchResults.length && (lectorSearchOpen = true)" />
+            @if (lectorSearchLoading) { <ion-spinner name="crescent"></ion-spinner> }
+            @if (lectorSearchQuery && !lectorSearchLoading) {
+              <button type="button" aria-label="Limpiar búsqueda" (click)="lectorSearchQuery = ''; onLectorSearchInput()"><ion-icon name="close-outline"></ion-icon></button>
+            }
+            @if (lectorSearchExpanded) {
+              <button type="button" class="lector-search-collapse" aria-label="Cerrar buscador" (click)="toggleLectorSearchExpanded()"><ion-icon name="chevron-up-outline"></ion-icon></button>
+            }
+          </span>
+          @if (lectorSearchOpen) {
+            <button class="lector-search-backdrop" type="button" aria-label="Cerrar resultados" (click)="closeLectorSearch()"></button>
+            <ul class="lector-search-results" role="listbox">
+              @for (row of lectorSearchResults; track row.id) {
+                <li role="option" (click)="openLectorDetail(row.id)">
+                  <span class="lector-result-main"><strong>{{ row.name }}</strong><small>{{ row.franchise_id }}</small></span>
+                  <span class="lector-result-end"><b>{{ money(row.saldo) }}</b><i class="badge" [class]="'badge ' + row.tramo">{{ tramoLabel(row.tramo) }}</i></span>
+                </li>
+              } @empty {
+                <li class="lector-search-empty">Sin resultados para "{{ lectorSearchQuery }}"</li>
+              }
+            </ul>
+          }
+        </div>
+      } @else {
+        <div class="topbar-spacer"></div>
+      }
       <div class="portfolio-summary"><small>Cartera activa</small><strong>{{ portfolioSummary() }}</strong></div>
       <div class="header-actions">
         <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button>
@@ -200,6 +231,81 @@
         <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [priorityDensity]="preferences.priorityDensity" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>
+
+    @if (lectorDetailLoading || lectorDetail || lectorDetailError) {
+      <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeLectorDetail()"></button>
+      <section class="dialog-card lector-dialog" role="dialog" aria-modal="true" aria-label="Ficha de cliente (solo lectura)">
+        <header>
+          <div>
+            <span class="eyebrow">FICHA DE CLIENTE · SOLO LECTURA</span>
+            @if (lectorDetail) {
+              <h2>{{ lectorDetail.name }}</h2>
+              @if (lectorDetail.is_blacklisted) { <span class="blacklist-header-badge"><ion-icon name="alert-circle-outline"></ion-icon>En lista negra</span> }
+              <p>{{ lectorDetail.franchise_id }} · {{ lectorDetail.segment_label }} · RFC {{ lectorDetail.rfc || 'N/A' }}</p>
+              @if (lectorSalesExecutive()) { <p class="header-executive">Ejecutivo de ventas: <strong>{{ lectorSalesExecutive() }}</strong></p> }
+            }
+          </div>
+          <button type="button" aria-label="Cerrar" (click)="closeLectorDetail()"><ion-icon name="close-outline"></ion-icon></button>
+        </header>
+        <div class="dialog-content">
+          @if (lectorDetailLoading) {
+            <div class="lector-dialog-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando ficha…</span></div>
+          } @else if (lectorDetailError) {
+            <div class="error-banner">{{ lectorDetailError }}</div>
+          } @else if (lectorDetail) {
+            <section class="balance-summary">
+              <div class="balance-summary-top">
+                <div><span>Saldo pendiente</span><strong>{{ money(lectorDetail.saldo) }}</strong></div>
+                <i class="badge" [class]="'badge ' + lectorDetail.tramo">{{ tramoLabel(lectorDetail.tramo) }}</i>
+              </div>
+              <p class="balance-meta">{{ lectorMaxDiasVencida() }} días de atraso</p>
+              <p class="last-status">Último estatus registrado: <strong>{{ lectorDetail.estatus_label || 'Sin estatus registrado' }}</strong></p>
+            </section>
+
+            @if (lectorDetail.is_blacklisted && lectorDetail.blacklist_motivo) {
+              <section class="drawer-section">
+                <h3>Motivo de lista negra</h3>
+                <p class="notes-text">{{ lectorDetail.blacklist_motivo }}</p>
+              </section>
+            }
+
+            <section class="drawer-section">
+              <div class="section-heading"><h3>Historial de gestiones</h3><span>últimas 5</span></div>
+              <div class="timeline">
+                @for (event of lectorDetail.timeline.slice(0, 5); track event.id) {
+                  <div><i [style.background]="event.dot_color || '#999'"></i><span><strong>{{ shortDate(event.fecha_iso) }}</strong><p>{{ event.descripcion }}</p></span></div>
+                } @empty { <p class="empty-line">Sin gestiones previas.</p> }
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <div class="section-heading"><h3>Pagos aplicados</h3><span>últimos 3</span></div>
+              <div class="compact-list">
+                @for (payment of lectorDetail.pagos.slice(0, 3); track payment.id) {
+                  <div><span><strong>{{ shortDate(payment.fecha_iso) }}</strong><small>{{ payment.forma || payment.factura }}</small></span><b>{{ money(payment.monto) }}</b></div>
+                } @empty { <p class="empty-line">Sin pagos registrados.</p> }
+              </div>
+            </section>
+
+            @if (lectorDetail.notas) {
+              <section class="drawer-section notes-section">
+                <h3>Notas internas</h3>
+                <p class="notes-text">{{ lectorDetail.notas }}</p>
+              </section>
+            }
+
+            <section class="drawer-section">
+              <div class="section-heading"><h3>Facturas activas</h3><span>{{ lectorDetail.invoices.length }}</span></div>
+              <div class="compact-list">
+                @for (invoice of lectorDetail.invoices; track invoice.id) {
+                  <div><span><strong>{{ invoice.folio }}</strong><small>{{ shortDate(invoice.fecha_facturacion) }}</small></span><b>{{ money(invoice.monto) }}</b></div>
+                } @empty { <p class="empty-line">Sin facturas activas.</p> }
+              </div>
+            </section>
+          }
+        </div>
+      </section>
+    }
     }
   </div>
   </ion-content>

@@ -122,10 +122,75 @@
 .login-cancel { margin-top: 9px; border: 1px solid var(--line); background: transparent; color: var(--ink-soft); }
 .login-submit:disabled, .login-cancel:disabled, .password-toggle:disabled { cursor: wait; opacity: .68; }
 
+// Buscador del Lector (sin sesión) y su ficha de solo lectura -- misma presentación visual
+// que la ficha de Gestión (balance-summary, drawer-section, timeline, compact-list, etc.),
+// pero duplicada aquí porque app-root y app-management son componentes distintos y Angular
+// no comparte estilos con encapsulación de vista entre ellos.
+.lector-search { position: relative; flex: 1; margin-left: 20px; max-width: 380px; }
+// Oculto salvo en móvil (ver media query) -- ahí el buscador es un ícono y esta barra se
+// expande a su propia fila al tocarlo, en vez de ocupar todo el ancho permanentemente.
+.lector-search-toggle { display: none; height: 40px; min-width: 40px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); font-size: 16px; cursor: pointer; }
+.lector-search-box { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--input); color: var(--muted); }
+.lector-search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.lector-search-box input { flex: 1; min-width: 0; padding: 11px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 12px; }
+.lector-search-box ion-spinner { width: 15px; height: 15px; flex: none; }
+.lector-search-box > button { display: grid; flex: none; width: 22px; height: 22px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.lector-search-backdrop { position: fixed; inset: 0; z-index: 60; border: 0; background: transparent; }
+.lector-search-results { position: absolute; z-index: 65; top: calc(100% + 6px); left: 0; right: 0; max-height: min(60vh, 420px); margin: 0; padding: 6px; overflow: auto; list-style: none; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.lector-search-results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.lector-search-results li:hover { background: var(--surface-hover); }
+.lector-result-main { min-width: 0; display: grid; }
+.lector-result-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
+.lector-result-main small { margin-top: 2px; color: var(--muted); font-size: 10px; text-transform: capitalize; }
+.lector-result-end { display: flex; flex: none; align-items: center; gap: 8px; }
+.lector-result-end b { color: var(--ink-soft); font-size: 11px; }
+.lector-search-empty { padding: 14px 10px; color: var(--muted); font-size: 11px; text-align: center; cursor: default; }
+.lector-search-empty:hover { background: transparent; }
+
+.lector-dialog .eyebrow { display: block; color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .13em; }
+.lector-dialog h2 { margin: 3px 0; }
+.lector-dialog .header-executive { margin-top: 4px; }
+.lector-dialog .header-executive strong { color: var(--ink-soft); font-weight: 700; }
+.lector-dialog .blacklist-header-badge { display: inline-flex; align-items: center; gap: 5px; margin: 5px 0; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, #d84036 16%, transparent); color: #d84036; font-size: 10px; font-weight: 750; }
+.lector-dialog .blacklist-header-badge ion-icon { font-size: 12px; }
+.lector-dialog-loading { display: grid; place-items: center; gap: 10px; padding: 40px 0; color: var(--muted); font-size: 11px; }
+.lector-dialog .error-banner { padding: 11px 14px; border: 1px solid #d84f43; border-radius: 10px; background: color-mix(in srgb, #d84f43 10%, var(--surface)); color: #d84f43; font-size: 12px; }
+.lector-dialog .badge, .lector-search-results .badge { display: inline-flex; width: max-content; padding: 3px 7px; border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 750; white-space: nowrap; }
+.lector-dialog .badge.good, .lector-search-results .badge.good { color: #218e50; background: color-mix(in srgb, #2cae60 14%, transparent); }
+.lector-dialog .badge.warning, .lector-search-results .badge.warning { color: #b87904; background: color-mix(in srgb, #ef9f16 15%, transparent); }
+.lector-dialog .badge.serious, .lector-search-results .badge.serious { color: #d05c25; background: color-mix(in srgb, #e56d31 15%, transparent); }
+.lector-dialog .badge.critical, .lector-search-results .badge.critical { color: #cd4036; background: color-mix(in srgb, #dc4b3e 14%, transparent); }
+.lector-dialog .balance-summary { padding: 16px; border-radius: 12px; background: var(--surface-soft); }
+.lector-dialog .balance-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lector-dialog .balance-summary span, .lector-dialog .balance-summary strong { display: block; }
+.lector-dialog .balance-summary span { color: var(--muted); font-size: 10px; }
+.lector-dialog .balance-summary strong { margin-top: 2px; color: var(--ink); font-size: 24px; }
+.lector-dialog .balance-meta { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.lector-dialog .last-status { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.lector-dialog .last-status strong { color: var(--ink-soft); font-weight: 700; }
+.lector-dialog .drawer-section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.lector-dialog .drawer-section:last-child { border-bottom: 0; padding-bottom: 4px; }
+.lector-dialog .drawer-section h3 { margin: 0 0 10px; color: var(--ink); font-size: 13px; }
+.lector-dialog .section-heading { display: flex; justify-content: space-between; align-items: center; }
+.lector-dialog .section-heading span { color: var(--muted); font-size: 10px; }
+.lector-dialog .notes-text { margin: 8px 0 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink-soft); font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
+.lector-dialog .empty-line { margin: 8px 2px; color: var(--muted); font-size: 10px; }
+.lector-dialog .compact-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.lector-dialog .compact-list span strong, .lector-dialog .compact-list span small { display: block; }
+.lector-dialog .compact-list strong, .lector-dialog .compact-list b { color: var(--ink-soft); font-size: 10px; }
+.lector-dialog .compact-list small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.lector-dialog .timeline > div { display: grid; grid-template-columns: 9px 1fr; gap: 10px; padding: 8px 0; }
+.lector-dialog .timeline i { width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; }
+.lector-dialog .timeline strong { color: var(--muted); font-size: 10px; }
+.lector-dialog .timeline p { margin: 2px 0 0; color: var(--ink-soft); font-size: 10px; }
+
 @media (max-width: 1024px) {
   .portfolio-summary { display: none; }
   .topbar { flex-wrap: wrap; gap: 7px; padding-top: 8px; padding-bottom: 8px; }
-  .franchise-tabs { order: 5; width: 100%; overflow: auto; }
+  // Límite de ancho + centrado: sin esto la fila ocupa todo el ancho del dispositivo y se ve
+  // pegada a lo que sigue debajo (franquicias contra buscador, una encima de la otra).
+  .franchise-tabs { order: 5; width: 100%; max-width: 420px; margin: 0 auto; justify-content: center; overflow: auto; }
+  .lector-search { order: 5; width: 100%; max-width: 420px; margin: 0 auto; }
 }
 @media (max-width: 700px) {
   .topbar { padding-left: 14px; padding-right: 14px; }
@@ -139,4 +204,14 @@
   .header-actions .account-button span { display: none; }
   .workspace { width: min(100% - 24px, 1440px); padding-top: 13px; }
   .login-card { padding: 28px 23px 24px; }
+
+  // En pantallas de teléfono el buscador del Lector es solo un ícono junto al resto de
+  // botones de la barra (no una fila completa) -- al tocarlo se expande a su propia fila,
+  // igual que hacen las franquicias arriba.
+  .lector-search { order: 3; width: auto; max-width: none; margin: 0 0 0 auto; }
+  .lector-search-toggle { display: inline-flex; }
+  .lector-search-box { display: none; }
+  .lector-search.expanded { order: 5; width: 100%; max-width: none; margin: 0; }
+  .lector-search.expanded .lector-search-toggle { display: none; }
+  .lector-search.expanded .lector-search-box { display: flex; }
 }

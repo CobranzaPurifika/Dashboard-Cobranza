@@ -516,14 +516,15 @@ async function persistBddSnapshot(db, { snapshot, settled, fueraDeCartera }) {
     cliente_id: client.id, folio: invoice.folio, monto: invoice.balance,
     dias_vencida: invoice.overdueDays, fecha_facturacion: invoice.invoiceDate,
     ejecutivo_ventas: invoice.salesExecutive, ejecutivo_cobranza: invoice.collectionExecutive,
+    cliente_nombre: invoice.clienteNombre,
   })));
   await db.query(
     `insert into facturas
-       (cliente_id, folio, monto, dias_vencida, fecha_facturacion, ejecutivo_ventas, ejecutivo_cobranza)
-     select cliente_id, folio, monto, dias_vencida, fecha_facturacion, ejecutivo_ventas, ejecutivo_cobranza
+       (cliente_id, folio, monto, dias_vencida, fecha_facturacion, ejecutivo_ventas, ejecutivo_cobranza, cliente_nombre)
+     select cliente_id, folio, monto, dias_vencida, fecha_facturacion, ejecutivo_ventas, ejecutivo_cobranza, cliente_nombre
      from jsonb_to_recordset($1::jsonb) as r(
        cliente_id text, folio text, monto numeric, dias_vencida integer,
-       fecha_facturacion date, ejecutivo_ventas text, ejecutivo_cobranza text
+       fecha_facturacion date, ejecutivo_ventas text, ejecutivo_cobranza text, cliente_nombre text
      )`,
     [JSON.stringify(invoiceRows)]
   );

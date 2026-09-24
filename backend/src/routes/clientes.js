@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
+import { fetchClienteDetail } from "../domain/clienteDetail.js";
 
 export const clientesRouter = Router();
 
@@ -131,34 +132,9 @@ clientesRouter.get("/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
     const allowed = resolveFranchiseScope(req.user, "todas");
-    const [cliente, facturas, pagos, timeline] = await Promise.all([
-      pool.query(
-        `select c.*, s.label as estatus_label, s.bg as estatus_bg, s.fg as estatus_fg
-         from clientes c left join status_gestion s on s.value = c.estatus_value
-         where c.id = $1 and c.franchise_id = any($2::text[])`,
-        [id, allowed]
-      ),
-      pool.query(
-        `select * from facturas where cliente_id = $1 order by fecha_facturacion desc nulls last`,
-        [id]
-      ),
-      pool.query(`select * from pagos where cliente_id = $1 order by fecha_iso desc nulls last`, [id]),
-      pool.query(
-        `select * from gestion_timeline where cliente_id = $1 order by fecha_iso desc nulls last, id desc`,
-        [id]
-      ),
-    ]);
-
-    if (cliente.rows.length === 0) {
-      return res.status(404).json({ error: "Cliente no encontrado" });
-    }
-
-    res.json({
-      ...cliente.rows[0],
-      invoices: facturas.rows,
-      pagos: pagos.rows,
-      timeline: timeline.rows,
-    });
+    const detail = await fetchClienteDetail(id, allowed);
+    if (!detail) return res.status(404).json({ error: "Cliente no encontrado" });
+    res.json(detail);
   } catch (err) {
     next(err);
   }

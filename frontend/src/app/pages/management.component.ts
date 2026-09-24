@@ -3,13 +3,7 @@ import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChan
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
-
-const TRAMO_LABEL: Record<string, string> = {
-  good: 'Al corriente',
-  warning: '1-30 días',
-  serious: '31-60 días',
-  critical: '+60 días',
-};
+import { money as formatMoney, moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
 
 @Component({
   selector: 'app-management',
@@ -744,26 +738,21 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   }
 
   money(value: unknown): string {
-    return `$${Number(value ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`;
+    return formatMoney(value);
   }
 
   // Solo para "Ver facturas": ahí sí importa el monto real, no el redondeado a entero que
   // se usa en el resto de la ficha.
   moneyExact(value: unknown): string {
-    return `$${Number(value ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatMoneyExact(value);
   }
 
   tramoLabel(tramo: string): string {
-    return TRAMO_LABEL[tramo] ?? tramo;
+    return formatTramoLabel(tramo);
   }
 
   shortDate(value: string): string {
-    if (!value) return '';
-    const [year, month, day] = this.dateOnly(value).split('-').map(Number);
-    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', timeZone: 'UTC' })
-      .format(new Date(Date.UTC(year, month - 1, day)))
-      .replace('.', '')
-      .replace(/[-/]/g, ' ');
+    return formatShortDate(value);
   }
 
   compactDaily(day: any): string {

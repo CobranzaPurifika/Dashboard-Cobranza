@@ -86,18 +86,6 @@ button, input, select, textarea { font: inherit; }
 .blacklist-scroll { min-height: 0; flex: 1; overflow: auto; }
 .monthly-fab { position: fixed; left: 24px; bottom: 23px; z-index: 20; display: flex; align-items: center; gap: 7px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--accent-strong); font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; }
 
-.drawer-backdrop, .modal-backdrop { position: fixed; inset: 0; z-index: 80; border: 0; background: rgba(3, 14, 18, .56); backdrop-filter: blur(2px); }
-.dialog-layer { z-index: 105; }
-.dialog-card { position: fixed; left: 50%; top: 50%; z-index: 110; display: flex; width: min(480px, calc(100vw - 28px)); max-height: min(780px, calc(100dvh - 34px)); flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); transform: translate(-50%, -50%); animation: dialog-in .17s ease-out; }
-@keyframes dialog-in { from { opacity: .5; transform: translate(-50%, calc(-50% + 14px)) scale(.98); } }
-.dialog-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 19px 20px 14px; border-bottom: 1px solid var(--line); }
-.dialog-card h2 { margin: 0; color: var(--ink); font-size: 17px; }
-.dialog-card header p { margin: 5px 0 0; color: var(--muted); font-size: 10px; text-transform: capitalize; }
-.dialog-card header button { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft)); color: var(--accent-strong); cursor: pointer; }
-.dialog-content { padding: 6px 20px 18px; overflow: auto; }
-.dialog-card > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 14px 20px 19px; border-top: 1px solid var(--line); }
-.dialog-card > footer button { padding: 10px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
-.dialog-card > footer .confirm { border-color: var(--accent); background: var(--accent); color: #07373a; }
 .detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes slide-in { from { transform: translateX(30px); opacity: .4; } }
 .drawer-header { display: flex; justify-content: space-between; gap: 14px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }

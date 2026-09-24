@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { ApplicationRef, Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { ApplicationRef, Component, ElementRef, HostBinding, HostListener, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
 import { AppPreferences, DEFAULT_PREFERENCES, loadPreferences, savePreferences } from './core/preferences';
+import { money as formatMoney, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from './core/format';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
 import { PresentationComponent } from './pages/presentation.component';
@@ -57,6 +58,23 @@ export class AppComponent implements OnInit {
   goalsError = '';
   goalSaving = '';
   moreMenuVisible = false;
+
+  // Buscador del Lector (sin sesión): resultados por nombre y ficha de solo lectura --
+  // ver publicClientes.js en el backend sobre qué datos expone y por qué.
+  lectorSearchQuery = '';
+  lectorSearchResults: any[] = [];
+  lectorSearchLoading = false;
+  lectorSearchOpen = false;
+  // En móvil el buscador es solo un ícono; este flag expande la barra a su propia fila.
+  lectorSearchExpanded = false;
+  lectorDetail: any = null;
+  lectorDetailLoading = false;
+  lectorDetailError = '';
+  @ViewChild('lectorSearchInput') private lectorSearchInputRef?: ElementRef<HTMLInputElement>;
+  private lectorSearchTimer?: ReturnType<typeof setTimeout>;
+  private lectorSearchAbort?: AbortController;
+  private lectorDetailAbort?: AbortController;
+
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
 
@@ -192,6 +210,101 @@ export class AppComponent implements OnInit {
   retry(): void {
     if (this.user) void this.loadDashboard();
     else void this.openApp();
+  }
+
+  onLectorSearchInput(): void {
+    clearTimeout(this.lectorSearchTimer);
+    const q = this.lectorSearchQuery.trim();
+    if (q.length < 2) {
+      this.lectorSearchAbort?.abort();
+      this.lectorSearchResults = [];
+      this.lectorSearchOpen = false;
+      return;
+    }
+    this.lectorSearchTimer = setTimeout(() => void this.runLectorSearch(q), 300);
+  }
+
+  async runLectorSearch(q: string): Promise<void> {
+    this.lectorSearchAbort?.abort();
+    const controller = new AbortController();
+    this.lectorSearchAbort = controller;
+    this.lectorSearchLoading = true;
+    try {
+      const result = await this.api.publicClientesSearch(q, this.franchise, controller.signal);
+      if (!controller.signal.aborted) {
+        this.lectorSearchResults = result.rows;
+        this.lectorSearchOpen = true;
+      }
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') this.lectorSearchResults = [];
+    } finally {
+      if (!controller.signal.aborted) {
+        this.lectorSearchLoading = false;
+        this.appRef.tick();
+      }
+    }
+  }
+
+  async openLectorDetail(id: string): Promise<void> {
+    this.lectorSearchOpen = false;
+    this.lectorSearchExpanded = false;
+    this.lectorDetailAbort?.abort();
+    const controller = new AbortController();
+    this.lectorDetailAbort = controller;
+    this.lectorDetailLoading = true;
+    this.lectorDetailError = '';
+    this.lectorDetail = null;
+    try {
+      this.lectorDetail = await this.api.publicClienteDetail(id, controller.signal);
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') this.lectorDetailError = error.message;
+    } finally {
+      if (!controller.signal.aborted) {
+        this.lectorDetailLoading = false;
+        this.appRef.tick();
+      }
+    }
+  }
+
+  closeLectorDetail(): void {
+    this.lectorDetailAbort?.abort();
+    this.lectorDetail = null;
+    this.lectorDetailError = '';
+  }
+
+  closeLectorSearch(): void {
+    this.lectorSearchOpen = false;
+  }
+
+  toggleLectorSearchExpanded(): void {
+    this.lectorSearchExpanded = !this.lectorSearchExpanded;
+    if (this.lectorSearchExpanded) {
+      setTimeout(() => this.lectorSearchInputRef?.nativeElement.focus());
+    } else {
+      this.lectorSearchOpen = false;
+    }
+  }
+
+  lectorMaxDiasVencida(): number {
+    const invoices = this.lectorDetail?.invoices ?? [];
+    return invoices.reduce((max: number, invoice: any) => Math.max(max, Number(invoice.dias_vencida ?? 0)), 0);
+  }
+
+  lectorSalesExecutive(): string {
+    const invoices = this.lectorDetail?.invoices ?? [];
+    return [...new Set(invoices.map((invoice: any) => invoice.ejecutivo_ventas).filter(Boolean))].join(', ');
+  }
+
+  money(value: unknown): string {
+    return formatMoney(value);
+  }
+
+  shortDate(value: string): string {
+    return formatShortDate(value);
+  }
+
+  tramoLabel(tramo: string): string {
+    return formatTramoLabel(tramo);
   }
 
   async syncData(): Promise<void> {
