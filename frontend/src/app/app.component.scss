@@ -126,7 +126,7 @@
 // que la ficha de Gestión (balance-summary, drawer-section, timeline, compact-list, etc.),
 // pero duplicada aquí porque app-root y app-management son componentes distintos y Angular
 // no comparte estilos con encapsulación de vista entre ellos.
-.lector-search { position: relative; flex: 1; max-width: 380px; }
+.lector-search { position: relative; flex: 1; margin-left: 20px; max-width: 380px; }
 // Oculto salvo en móvil (ver media query) -- ahí el buscador es un ícono y esta barra se
 // expande a su propia fila al tocarlo, en vez de ocupar todo el ancho permanentemente.
 .lector-search-toggle { display: none; height: 40px; min-width: 40px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); color: var(--ink-soft); font-size: 16px; cursor: pointer; }
