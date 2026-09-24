@@ -3,7 +3,7 @@ import { AppComponent } from './app.component';
 
 describe('AppComponent: acceso', () => {
   it('alterna la visibilidad de la contraseña y la oculta al abrir el acceso', () => {
-    const component = new AppComponent({} as any, {} as any);
+    const component = new AppComponent({} as any, {} as any, {} as any);
 
     component.toggleLoginPassword();
     expect(component.showLoginPassword).toBe(true);

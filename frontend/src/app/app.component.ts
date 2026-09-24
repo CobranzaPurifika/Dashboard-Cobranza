@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { ApplicationRef, Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
@@ -61,7 +61,11 @@ export class AppComponent implements OnInit {
   private dashboardAbort?: AbortController;
   private dashboardRequest = 0;
 
-  constructor(private readonly api: ApiService, private readonly auth: AuthService) {}
+  constructor(
+    private readonly api: ApiService,
+    private readonly auth: AuthService,
+    private readonly appRef: ApplicationRef
+  ) {}
 
   ngOnInit(): void {
     const savedTheme = localStorage.getItem('cobranza-purifika.theme');
@@ -107,6 +111,7 @@ export class AppComponent implements OnInit {
       }
     } finally {
       this.loading = false;
+      this.appRef.tick();
     }
   }
 
@@ -178,7 +183,14 @@ export class AppComponent implements OnInit {
         this.appError = error.message;
       }
     } finally {
-      if (requestId === this.dashboardRequest) this.loading = false;
+      if (requestId === this.dashboardRequest) {
+        this.loading = false;
+        // El repintado automático (ver el "tick" manual en main.ts, suscrito a
+        // onMicrotaskEmpty) no siempre llega tras esta cadena de awaits -- se ha visto
+        // la pantalla de carga quedarse congelada con los datos ya listos en memoria.
+        // Forzamos el tick aquí para no depender solo del mecanismo global.
+        this.appRef.tick();
+      }
     }
   }
 
