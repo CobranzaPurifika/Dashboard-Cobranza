@@ -10,7 +10,7 @@
 .brand small, .login-brand small { margin-top: 4px; color: var(--accent-strong); font-size: 10px; font-weight: 800; letter-spacing: .23em; }
 .primary-nav { align-self: stretch; display: flex; align-items: stretch; margin-right: 20px; }
 .primary-nav button { position: relative; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.primary-nav button::after { content: ''; position: absolute; right: 12px; bottom: 2px; left: 12px; height: 3px; border-radius: 999px; background: transparent; }
+.primary-nav button::after { content: ''; position: absolute; right: 14px; bottom: 4px; left: 14px; height: 5px; border-radius: 999px; background: transparent; }
 .primary-nav button.active { color: var(--ink); }
 .primary-nav button.active::after { background: var(--accent); }
 .franchise-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--surface-soft); }

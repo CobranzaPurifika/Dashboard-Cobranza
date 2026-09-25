@@ -65,15 +65,19 @@ export function renderFunnel(f, expectativaCobro) {
   const rawPct = stages.map((s) => (s.value / max) * 100);
   stages.forEach((s, i) => { s.pct = Math.max(rawPct[i], FLOOR_PCT); });
   const MIN_TAPER = 55;
-  const viewH = 60;
 
+  // clip-path en vez de un <svg> con viewBox: los porcentajes de un clip-path se miden sobre
+  // la caja REAL del propio div, así que el ángulo se ve igual sin importar qué tan angosta
+  // quede la barra (antes, con preserveAspectRatio="none", el mismo triángulo se distorsionaba
+  // distinto según el ancho real de cada fila -- "cortado"/"no fluido" en ciertas dimensiones).
   const bars = stages
     .map((s, i) => {
       const isLast = i === stages.length - 1;
       const bottomPct = isLast
         ? 40
         : Math.min(Math.max((rawPct[i + 1] / (rawPct[i] || 1)) * 100, MIN_TAPER), 100);
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 300 ${viewH}" preserveAspectRatio="none"><polygon points="0,0 300,0 ${(bottomPct / 100) * 300},${viewH} 0,${viewH}" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
+      const clip = `polygon(0 0, 100% 0, ${bottomPct.toFixed(1)}% 100%, 0 100%)`;
+      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%; background:${s.color}; clip-path:${clip};" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
     })
     .join("");
 

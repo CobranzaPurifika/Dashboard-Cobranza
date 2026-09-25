@@ -97,8 +97,15 @@ button, input, select, textarea { font: inherit; }
 @keyframes drop-fall {
   0% { top: 14px; opacity: 0; transform: scale(.6); }
   15% { opacity: 1; transform: scale(1); }
-  80% { top: calc(100% - 34px); opacity: 1; transform: scale(1); }
+  72% { top: calc(100% - 34px); opacity: 1; transform: scale(1); }
   100% { top: calc(100% - 34px); opacity: 0; transform: scale(.7); }
+}
+// Onda expansiva sutil justo cuando la gota "toca el fondo" (ver el 72% de arriba) -- termina
+// antes de que la ficha empiece a deslizarse (delay del drawer-close, 900ms).
+.drop-ripple { position: absolute; top: calc(100% - 34px); left: 50%; z-index: 4; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: drop-ripple .3s ease-out .62s forwards; }
+@keyframes drop-ripple {
+  0% { opacity: .6; transform: scale(.3); }
+  100% { opacity: 0; transform: scale(2.4); }
 }
 .drawer-header { display: flex; justify-content: space-between; gap: 14px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }
 .drawer-header h2 { margin: 3px 0; color: var(--ink); font-size: 21px; }

@@ -213,6 +213,11 @@ export class AppComponent implements OnInit {
     await this.auth.signOut();
     this.user = null;
     this.franchise = 'todas';
+    // Limpia el dashboard de la sesión que se acaba de cerrar antes de recargar como Lector --
+    // si no, mientras openApp() todavía está trayendo la respuesta sanitizada, la plantilla ya
+    // marca isAnonymous=true pero sigue mostrando los datos completos de la sesión anterior
+    // (ej. el top 3 de Monto recuperado con filas reales) hasta que llega la nueva respuesta.
+    this.dashboardData = null;
     await this.openApp();
   }
 

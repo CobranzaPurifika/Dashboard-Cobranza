@@ -14,8 +14,8 @@
 .kpi-card.critical { --tone: #dc4b3e; }
 .kpi-heading { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; font-weight: 650; }
 .kpi-heading ion-icon { font-size: 18px; color: var(--tone); }
-.kpi-card strong { display: block; margin: 9px 0 1px; color: var(--ink); font-size: clamp(29px, 3vw, 42px); line-height: 1; letter-spacing: -.04em; }
-.kpi-value { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.kpi-card strong { display: block; margin: 9px 0 1px; color: var(--ink); font-size: clamp(34px, 3.6vw, 48px); line-height: 1; letter-spacing: -.04em; }
+.kpi-value { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 // A la derecha del porcentaje, como antes de tener dos comparativos -- ahora apilados (semana
 // y mes anterior) en vez de uno solo.
 .kpi-deltas { display: flex; flex-direction: column; gap: 4px; }
