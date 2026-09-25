@@ -29,7 +29,7 @@ test("el lector público no puede consultar datos identificables", () => {
   assert.equal(isAuthenticatedUser({ id: "user-1", role: "admin", isAnonymous: false }), true);
 });
 
-test("el dashboard público elimina nombres y pagos individuales", () => {
+test("el dashboard público elimina nombres de Distribución y recorta Monto recuperado al top 3", () => {
   const source = {
     distribucion: [{ key: "contactado", count: 1, names: ["Cliente privado"] }],
     recuperadoSemanal: {
@@ -46,8 +46,10 @@ test("el dashboard público elimina nombres y pagos individuales", () => {
 
   const publicResult = sanitizeDashboardForViewer(source, { isAnonymous: true });
   assert.deepEqual(publicResult.distribucion[0].names, []);
-  assert.deepEqual(publicResult.recuperadoSemanal.rows, []);
-  assert.deepEqual(publicResult.recuperadoMensual.rows, []);
+  // Con solo un cliente, sigue dentro del top 3 -- no se elimina, solo se limitaría a partir
+  // del cuarto en adelante (ver publicDashboard.test.js para el caso con más clientes).
+  assert.deepEqual(publicResult.recuperadoSemanal.rows, source.recuperadoSemanal.rows);
+  assert.deepEqual(publicResult.recuperadoMensual.rows, source.recuperadoMensual.rows);
   assert.equal(publicResult.recuperadoSemanal.total, 100);
   assert.equal(sanitizeDashboardForViewer(source, { isAnonymous: false }), source);
 });

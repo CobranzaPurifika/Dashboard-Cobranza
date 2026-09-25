@@ -8,10 +8,14 @@
 .brand > span:last-child, .login-brand > span:last-child { display: grid; line-height: 1; text-align: left; }
 .brand strong, .login-brand strong { font-size: 13px; letter-spacing: .12em; }
 .brand small, .login-brand small { margin-top: 4px; color: var(--accent-strong); font-size: 10px; font-weight: 800; letter-spacing: .23em; }
-.primary-nav { align-self: stretch; display: flex; align-items: stretch; margin-right: 20px; }
-.primary-nav button { position: relative; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.primary-nav button::after { content: ''; position: absolute; right: 14px; bottom: 4px; left: 14px; height: 5px; border-radius: 999px; background: transparent; }
-.primary-nav button.active { color: var(--ink); }
+// "Borde redondeado" es del botón completo (todo el chip que contiene "Dashboard"/"Gestión"),
+// no de la rayita -- por eso ya no se estira a toda la altura de la barra (align-items:
+// stretch lo volvía un rectángulo alto sin proporción de botón) y el propio botón lleva el
+// border-radius. La rayita de abajo se deja, pero sutil (delgada), como un detalle extra.
+.primary-nav { align-self: center; display: flex; align-items: center; gap: 2px; margin-right: 20px; }
+.primary-nav button { position: relative; padding: 9px 16px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.primary-nav button::after { content: ''; position: absolute; right: 14px; bottom: 3px; left: 14px; height: 2px; border-radius: 999px; background: transparent; }
+.primary-nav button.active { color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .primary-nav button.active::after { background: var(--accent); }
 .franchise-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--surface-soft); }
 .franchise-tabs button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 10px; cursor: pointer; }
