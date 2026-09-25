@@ -60,9 +60,9 @@ export class DashboardComponent implements OnChanges {
 
   // El artefacto original mostraba, por cliente, qué facturas se pagaron y por cuánto --
   // aquí se agrupan los pagos individuales (planos por fecha) en una fila por cliente con
-  // el detalle expandible, en vez de una lista plana de pagos. Solo se muestran los 3 con
-  // mayor monto recuperado (mensual y semanal); el total/contador de arriba sigue siendo el
-  // real, sin recortar.
+  // el detalle expandible, en vez de una lista plana de pagos. Para el Lector se recortan
+  // los 3 con mayor monto recuperado (mensual y semanal); con sesión se ve la lista completa,
+  // igual que antes. El total/contador de arriba siempre es el real, sin recortar.
   recoveredClients(): { key: string; name: string; franchiseId: string; total: number; payments: any[] }[] {
     const groups = new Map<string, { key: string; name: string; franchiseId: string; total: number; payments: any[] }>();
     for (const payment of this.recoveryData().rows ?? []) {
@@ -74,7 +74,8 @@ export class DashboardComponent implements OnChanges {
       group.payments.push(payment);
       groups.set(key, group);
     }
-    return [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 3);
+    const sorted = [...groups.values()].sort((a, b) => b.total - a.total);
+    return this.isAnonymous ? sorted.slice(0, 3) : sorted;
   }
 
   isRecoveryClientExpanded(key: string): boolean {
