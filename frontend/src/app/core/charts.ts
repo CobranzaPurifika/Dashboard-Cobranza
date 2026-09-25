@@ -55,30 +55,17 @@ export function renderFunnel(f, expectativaCobro) {
 
   const max = stages[0].value || 1;
   const FLOOR_PCT = 22;
-  // El ancho mostrado respeta un mínimo (FLOOR_PCT) para que ninguna barra sea invisible,
-  // pero el ángulo hacia la siguiente barra se calcula con la proporción REAL entre valores
-  // (rawPct), no con el ancho ya recortado. Antes, cuando dos valores consecutivos caían
-  // ambos en el mínimo (ej. Acordadas y Cumplidas, 29 y 10 sobre un total de 150), el recorte
-  // los igualaba a 22% y el tramo entre ellos se veía completamente plano. MIN_TAPER además
-  // evita ángulos demasiado picudos cuando la caída real es muy pronunciada, para que las 4
-  // barras se vean conectadas con una pendiente parecida en vez de saltos bruscos.
-  const rawPct = stages.map((s) => (s.value / max) * 100);
-  stages.forEach((s, i) => { s.pct = Math.max(rawPct[i], FLOOR_PCT); });
-  const MIN_TAPER = 55;
+  stages.forEach((s) => { s.pct = Math.max((s.value / max) * 100, FLOOR_PCT); });
 
-  // clip-path en vez de un <svg> con viewBox: los porcentajes de un clip-path se miden sobre
-  // la caja REAL del propio div, así que el ángulo se ve igual sin importar qué tan angosta
-  // quede la barra (antes, con preserveAspectRatio="none", el mismo triángulo se distorsionaba
-  // distinto según el ancho real de cada fila -- "cortado"/"no fluido" en ciertas dimensiones).
+  // El corte de cada barra es un número FIJO de píxeles, definido en el clip-path de
+  // .funnel-track (global.scss) -- no un porcentaje de su propio ancho: con un porcentaje,
+  // el mismo valor se ve como una pendiente suave en una barra ancha (Gestiones) y como una
+  // punta filosa en una angosta (Acordadas/Cumplidas, o cualquiera en móvil), sin que exista
+  // un solo número que se vea bien en ambos casos. Un corte en píxeles mantiene el mismo
+  // ángulo real en las 4 barras sea cual sea su ancho -- eso es lo que las hace verse
+  // conectadas.
   const bars = stages
-    .map((s, i) => {
-      const isLast = i === stages.length - 1;
-      const bottomPct = isLast
-        ? 40
-        : Math.min(Math.max((rawPct[i + 1] / (rawPct[i] || 1)) * 100, MIN_TAPER), 100);
-      const clip = `polygon(0 0, 100% 0, ${bottomPct.toFixed(1)}% 100%, 0 100%)`;
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%; background:${s.color}; clip-path:${clip};" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
-    })
+    .map((s) => `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%; background:${s.color};" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`)
     .join("");
 
   const contactabilidad = f.total > 0 ? (f.efectiva / f.total) * 100 : 0;

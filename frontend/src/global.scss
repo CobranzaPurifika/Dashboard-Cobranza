@@ -83,7 +83,9 @@ app-root.dark-theme {
 .seg-part { min-width: 2px; height: 100%; }
 .funnel-row { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 10px; margin: 7px 0; color: var(--ink-soft); font-size: 10px; }
 .funnel-track-outer { min-width: 0; }
-.funnel-track { position: relative; min-width: 36px; height: 31px; }
+// Corte de tamaño fijo en píxeles (no en %) -- así el ángulo real es el mismo sin importar
+// qué tan ancha quede la barra (ver el comentario en renderFunnel, charts.ts).
+.funnel-track { position: relative; min-width: 36px; height: 31px; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); }
 .funnel-value-inside { position: relative; z-index: 1; display: flex; height: 100%; align-items: center; padding-left: 12px; font-size: 12px; font-weight: 800; }
 .rates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .rate-box { padding: 9px; border-left: 2px solid var(--accent); border-radius: 7px; background: color-mix(in srgb, var(--accent) 7%, var(--surface-soft)); }
