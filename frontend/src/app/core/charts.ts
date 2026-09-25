@@ -57,15 +57,12 @@ export function renderFunnel(f, expectativaCobro) {
   const FLOOR_PCT = 22;
   stages.forEach((s) => { s.pct = Math.max((s.value / max) * 100, FLOOR_PCT); });
 
-  // El corte de cada barra es un número FIJO de píxeles, definido en el clip-path de
-  // .funnel-track (global.scss) -- no un porcentaje de su propio ancho: con un porcentaje,
-  // el mismo valor se ve como una pendiente suave en una barra ancha (Gestiones) y como una
-  // punta filosa en una angosta (Acordadas/Cumplidas, o cualquiera en móvil), sin que exista
-  // un solo número que se vea bien en ambos casos. Un corte en píxeles mantiene el mismo
-  // ángulo real en las 4 barras sea cual sea su ancho -- eso es lo que las hace verse
-  // conectadas.
   const bars = stages
-    .map((s) => `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%; background:${s.color};" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`)
+    .map((s, i) => {
+      const isLast = i === stages.length - 1;
+      const bottomPct = isLast ? 72 : Math.min((stages[i + 1].pct / s.pct) * 100, 100);
+      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
+    })
     .join("");
 
   const contactabilidad = f.total > 0 ? (f.efectiva / f.total) * 100 : 0;
