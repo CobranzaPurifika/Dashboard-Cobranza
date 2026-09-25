@@ -73,9 +73,9 @@ gestionRouter.post(
       }
 
       await client.query(
-        `insert into gestion_timeline (cliente_id, fecha_iso, descripcion, dot_color, created_by)
-         values ($1, $2, $3, $4, $5)`,
-        [id, nowISO, descripcion, bg, req.user.id]
+        `insert into gestion_timeline (cliente_id, fecha_iso, descripcion, dot_color, estatus_value, created_by)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [id, nowISO, descripcion, bg, estatusValue, req.user.id]
       );
 
       const updated = await client.query(

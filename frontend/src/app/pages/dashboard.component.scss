@@ -15,9 +15,12 @@
 .kpi-heading { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; font-weight: 650; }
 .kpi-heading ion-icon { font-size: 18px; color: var(--tone); }
 .kpi-card strong { display: block; margin: 9px 0 1px; color: var(--ink); font-size: clamp(29px, 3vw, 42px); line-height: 1; letter-spacing: -.04em; }
-.kpi-value { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.kpi-delta { display: grid; margin-bottom: 2px; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; line-height: 1.1; text-align: right; }
-.kpi-delta small { margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.kpi-value { display: flex; align-items: flex-end; }
+// Dos comparativos por tarjeta (semana y mes anterior) en vez de uno solo -- se reparten en
+// una fila propia debajo del porcentaje, no ya pegados a un lado de "strong".
+.kpi-deltas { display: flex; gap: 6px; margin-top: 6px; }
+.kpi-delta { display: grid; flex: 1 1 0; min-width: 0; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; line-height: 1.1; text-align: left; }
+.kpi-delta small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 650; white-space: nowrap; }
 .kpi-delta.is-good { color: #239653; background: color-mix(in srgb, #2cae60 11%, transparent); }
 .kpi-delta.is-bad { color: #d84f43; background: color-mix(in srgb, #d84f43 10%, transparent); }
 .kpi-card p { margin: 7px 0 16px; color: var(--ink-soft); font-size: 14px; }

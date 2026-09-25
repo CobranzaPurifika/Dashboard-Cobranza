@@ -10,8 +10,13 @@
           <span>Cartera al corriente</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.alCorriente.pct }}%</strong>
-          @if (hasDelta(data.kpi.alCorriente)) { <span class="kpi-delta" [class.is-good]="data.kpi.alCorriente.deltaGood" [class.is-bad]="!data.kpi.alCorriente.deltaGood">{{ deltaLabel(data.kpi.alCorriente) }}<small>vs corte anterior</small></span> }
+        <div class="kpi-value"><strong>{{ data.kpi.alCorriente.pct }}%</strong></div>
+        <div class="kpi-deltas">
+          @for (period of periods; track period) {
+            @if (hasDelta(data.kpi.alCorriente, period)) {
+              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.alCorriente, period)" [class.is-bad]="!deltaGood(data.kpi.alCorriente, period)">{{ deltaLabel(data.kpi.alCorriente, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+            }
+          }
         </div>
         <p>{{ money(data.kpi.alCorriente.monto) }}</p>
         <div class="goal-row"><span>Meta 75%</span><span>{{ countLabel(data.portfolio.clientes) }}</span></div>
@@ -23,8 +28,13 @@
           <span>Cartera vencida total</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.vencidaTotal.pct }}%</strong>
-          @if (hasDelta(data.kpi.vencidaTotal)) { <span class="kpi-delta" [class.is-good]="data.kpi.vencidaTotal.deltaGood" [class.is-bad]="!data.kpi.vencidaTotal.deltaGood">{{ deltaLabel(data.kpi.vencidaTotal) }}<small>vs corte anterior</small></span> }
+        <div class="kpi-value"><strong>{{ data.kpi.vencidaTotal.pct }}%</strong></div>
+        <div class="kpi-deltas">
+          @for (period of periods; track period) {
+            @if (hasDelta(data.kpi.vencidaTotal, period)) {
+              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.vencidaTotal, period)" [class.is-bad]="!deltaGood(data.kpi.vencidaTotal, period)">{{ deltaLabel(data.kpi.vencidaTotal, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+            }
+          }
         </div>
         <p>{{ money(data.kpi.vencidaTotal.monto) }}</p>
         <div class="goal-row"><span>Objetivo &lt;25%</span><span>de {{ money(data.portfolio.saldo) }}</span></div>
@@ -36,8 +46,13 @@
           <span>Cartera +60 días</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.mas60.pct }}%</strong>
-          @if (hasDelta(data.kpi.mas60)) { <span class="kpi-delta" [class.is-good]="data.kpi.mas60.deltaGood" [class.is-bad]="!data.kpi.mas60.deltaGood">{{ deltaLabel(data.kpi.mas60) }}<small>vs corte anterior</small></span> }
+        <div class="kpi-value"><strong>{{ data.kpi.mas60.pct }}%</strong></div>
+        <div class="kpi-deltas">
+          @for (period of periods; track period) {
+            @if (hasDelta(data.kpi.mas60, period)) {
+              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.mas60, period)" [class.is-bad]="!deltaGood(data.kpi.mas60, period)">{{ deltaLabel(data.kpi.mas60, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+            }
+          }
         </div>
         <p>{{ money(data.kpi.mas60.monto) }}</p>
         <div class="goal-row"><span>Tramo crítico</span><span>Objetivo &lt;15%</span></div>
@@ -114,19 +129,21 @@
         <div class="line-chart" [innerHTML]="overdueChart"></div>
       </article>
 
-      <article class="panel-card segmentation-card">
-        <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
-        <div class="segmentation-layout"><div class="segment-donut" [innerHTML]="segmentation.svg"></div><div class="legend" [innerHTML]="segmentation.legend"></div></div>
-        <div class="coverage">
-          <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
-          <div class="coverage-track"><i [style.width.%]="data.gestion.total ? data.gestion.gestionados / data.gestion.total * 100 : 0"></i></div>
-        </div>
-      </article>
+      @if (!isAnonymous) {
+        <article class="panel-card segmentation-card">
+          <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
+          <div class="segmentation-layout"><div class="segment-donut" [innerHTML]="segmentation.svg"></div><div class="legend" [innerHTML]="segmentation.legend"></div></div>
+          <div class="coverage">
+            <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
+            <div class="coverage-track"><i [style.width.%]="data.gestion.total ? data.gestion.gestionados / data.gestion.total * 100 : 0"></i></div>
+          </div>
+        </article>
 
-      <article class="panel-card history-card recovery-history-card">
-        <div class="panel-title"><div><span class="eyebrow">HISTÓRICO</span><h2>Recuperación mensual</h2></div></div>
-        <div class="line-chart" [innerHTML]="recoveryChart"></div>
-      </article>
+        <article class="panel-card history-card recovery-history-card">
+          <div class="panel-title"><div><span class="eyebrow">HISTÓRICO</span><h2>Recuperación mensual</h2></div></div>
+          <div class="line-chart" [innerHTML]="recoveryChart"></div>
+        </article>
+      }
 
     </section>
   }

@@ -22,7 +22,7 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
     const drawLen = Math.max(len - gap, 0);
     const offset = -cumulative;
     const pct = total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
-    parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${safeColor(TRAMO_COLOR[s.tramo])}" stroke-width="30" stroke-dasharray="${drawLen} ${circumference - drawLen}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHtml(s.label)}: ${fmtMoney(value)} (${pct}%)</title></circle>`;
+    parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${safeColor(TRAMO_COLOR[s.tramo])}" stroke-width="30" stroke-dasharray="${drawLen} ${circumference - drawLen}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})" data-tooltip="${escapeAttr(`${s.label}: ${fmtMoney(value)} (${pct}%)`)}" tabindex="0"><title>${escapeHtml(s.label)}: ${fmtMoney(value)} (${pct}%)</title></circle>`;
     cumulative += len;
   }
   parts += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" class="donut-center-label">${fmtMoney(total)}</text>`;
@@ -57,12 +57,12 @@ export function renderFunnel(f, expectativaCobro) {
   const FLOOR_PCT = 22;
   stages.forEach((s) => { s.pct = Math.max((s.value / max) * 100, FLOOR_PCT); });
 
+  // Antes cada barra era un polígono SVG con viewBox 100x100 y preserveAspectRatio="none",
+  // así que el mismo triángulo se estiraba muchísimo en barras anchas (el pico quedaba
+  // "prolongado") y se veía distinto en cada fila según su ancho real. clip-path con un
+  // recorte de tamaño fijo en píxeles da la misma idea de "embudo" sin depender del ancho.
   const bars = stages
-    .map((s, i) => {
-      const isLast = i === stages.length - 1;
-      const bottomPct = isLast ? 72 : Math.min((stages[i + 1].pct / s.pct) * 100, 100);
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
-    })
+    .map((s) => `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%; background:${s.color};" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`)
     .join("");
 
   const contactabilidad = f.total > 0 ? (f.efectiva / f.total) * 100 : 0;

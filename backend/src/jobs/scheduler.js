@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { runMonthlySnapshots } from "./monthlySnapshots.js";
+import { captureWeeklyPortfolioBaseline } from "./weeklySnapshots.js";
 
 const TIMEZONE = "America/Mexico_City";
 
@@ -19,5 +20,8 @@ export function startSnapshotSchedule() {
 function execute() {
   runMonthlySnapshots().catch((error) => {
     console.error("[monthly-snapshots]", error);
+  });
+  captureWeeklyPortfolioBaseline().catch((error) => {
+    console.error("[weekly-snapshots]", error);
   });
 }

@@ -121,8 +121,9 @@
 
 @if (detail) {
   <button class="drawer-backdrop" type="button" aria-label="Cerrar detalle" (click)="closeDetail()"></button>
-  <aside class="detail-drawer" aria-label="Detalle del cliente"
+  <aside class="detail-drawer" [class.closing]="closingDrawer" aria-label="Detalle del cliente"
     (touchstart)="onDrawerTouchStart($event, 'right')" (touchmove)="onDrawerTouchMove($event)" (touchend)="onDrawerTouchEnd()">
+    @if (closingDrawer) { <ion-icon name="water" class="drop-fall" aria-hidden="true"></ion-icon> }
     <header class="drawer-header">
       <div>
         <span class="eyebrow">DETALLE DE CLIENTE</span>

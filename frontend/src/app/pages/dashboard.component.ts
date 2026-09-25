@@ -21,9 +21,11 @@ import {
 export class DashboardComponent implements OnChanges {
   @Input() data: any;
   @Input() loading = false;
+  @Input() isAnonymous = false;
 
   includeCurrent = true;
   recoveryPeriod: 'semana' | 'mes' = 'semana';
+  readonly periods: ('Semana' | 'Mes')[] = ['Semana', 'Mes'];
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
   funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
   distribution: { rows?: SafeHtml; sub?: string } = {};
@@ -58,7 +60,9 @@ export class DashboardComponent implements OnChanges {
 
   // El artefacto original mostraba, por cliente, qué facturas se pagaron y por cuánto --
   // aquí se agrupan los pagos individuales (planos por fecha) en una fila por cliente con
-  // el detalle expandible, en vez de una lista plana de pagos.
+  // el detalle expandible, en vez de una lista plana de pagos. Solo se muestran los 3 con
+  // mayor monto recuperado (mensual y semanal); el total/contador de arriba sigue siendo el
+  // real, sin recortar.
   recoveredClients(): { key: string; name: string; franchiseId: string; total: number; payments: any[] }[] {
     const groups = new Map<string, { key: string; name: string; franchiseId: string; total: number; payments: any[] }>();
     for (const payment of this.recoveryData().rows ?? []) {
@@ -70,7 +74,7 @@ export class DashboardComponent implements OnChanges {
       group.payments.push(payment);
       groups.set(key, group);
     }
-    return [...groups.values()].sort((a, b) => b.total - a.total);
+    return [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 3);
   }
 
   isRecoveryClientExpanded(key: string): boolean {
@@ -83,13 +87,18 @@ export class DashboardComponent implements OnChanges {
     this.expandedRecoveryClients = next;
   }
 
-  deltaLabel(metric: any): string {
-    const value = Number(metric?.delta);
+  deltaLabel(metric: any, period: 'Semana' | 'Mes'): string {
+    const value = Number(metric?.[`delta${period}`]);
     return `${value > 0 ? '+' : ''}${value.toFixed(1)} pp`;
   }
 
-  hasDelta(metric: any): boolean {
-    return metric?.delta !== null && metric?.delta !== undefined && Number.isFinite(Number(metric.delta));
+  hasDelta(metric: any, period: 'Semana' | 'Mes'): boolean {
+    const value = metric?.[`delta${period}`];
+    return value !== null && value !== undefined && Number.isFinite(Number(value));
+  }
+
+  deltaGood(metric: any, period: 'Semana' | 'Mes'): boolean {
+    return !!metric?.[`delta${period}Good`];
   }
 
   private renderCharts(): void {
