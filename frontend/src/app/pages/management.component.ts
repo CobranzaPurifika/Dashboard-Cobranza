@@ -275,14 +275,15 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.closingDrawer = false;
   }
 
-  // Deja la ficha visible el tiempo justo para que se vea la gota caer por el encabezado
-  // (ver .drop-fall en management.component.scss) antes de cerrarla de verdad.
+  // Deja la ficha visible mientras cae la gota (900ms) y luego se desliza/desvanece (400ms
+  // más, con animation-delay) -- ver .drop-fall/.detail-drawer.closing en
+  // management.component.scss. 1300 = la suma de ambas duraciones.
   private closeDetailWithDropAnimation(): void {
     this.closingDrawer = true;
     setTimeout(() => {
       this.closeDetail();
       this.refresh();
-    }, 550);
+    }, 1300);
   }
 
   // Deslizar para cerrar en móvil: el panel de detalle vive a la derecha, así que solo se

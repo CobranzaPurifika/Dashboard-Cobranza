@@ -15,7 +15,6 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
   const circumference = 2 * Math.PI * r;
   let cumulative = 0;
   let parts = "";
-  let hotspots = "";
   for (const s of visibles) {
     const value = Number(s.value);
     const len = total > 0 ? (value / total) * circumference : 0;
@@ -24,18 +23,6 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
     const offset = -cumulative;
     const pct = total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
     parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${safeColor(TRAMO_COLOR[s.tramo])}" stroke-width="30" stroke-dasharray="${drawLen} ${circumference - drawLen}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"><title>${escapeHtml(s.label)}: ${fmtMoney(value)} (${pct}%)</title></circle>`;
-    // [data-tooltip] al tacto necesita un elemento HTML normal (position:relative + ::after
-    // funcionan sobre su propia caja) -- un <circle> de SVG no tiene una caja CSS real para
-    // anclar el tooltip, así que al tocarlo el navegador terminaba mostrando el tooltip
-    // desparramado sobre toda la gráfica. Se agrega un punto HTML invisible en el punto medio
-    // de cada arco, encima del SVG, solo para el tooltip -- el diseño visual no cambia.
-    if (len > 0) {
-      const thetaDeg = ((cumulative + len / 2) / circumference) * 360 - 90;
-      const thetaRad = (thetaDeg * Math.PI) / 180;
-      const hx = ((cx + r * Math.cos(thetaRad)) / 200) * 100;
-      const hy = ((cy + r * Math.sin(thetaRad)) / 200) * 100;
-      hotspots += `<span class="donut-hotspot" style="left:${hx.toFixed(2)}%; top:${hy.toFixed(2)}%;" data-tooltip="${escapeAttr(`${s.label}: ${fmtMoney(value)} (${pct}%)`)}" tabindex="0"></span>`;
-    }
     cumulative += len;
   }
   parts += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" class="donut-center-label">${fmtMoney(total)}</text>`;
@@ -49,7 +36,7 @@ export function renderDonut(saldos, { incluirCorriente = true } = {}) {
     })
     .join("");
 
-  return { svg: `<svg viewBox="0 0 200 200" role="img">${parts}</svg>${hotspots}`, legend };
+  return { svg: `<svg viewBox="0 0 200 200" role="img">${parts}</svg>`, legend };
 }
 
 export function renderFunnel(f, expectativaCobro) {
@@ -68,13 +55,25 @@ export function renderFunnel(f, expectativaCobro) {
 
   const max = stages[0].value || 1;
   const FLOOR_PCT = 22;
-  stages.forEach((s) => { s.pct = Math.max((s.value / max) * 100, FLOOR_PCT); });
+  // El ancho mostrado respeta un mínimo (FLOOR_PCT) para que ninguna barra sea invisible,
+  // pero el ángulo hacia la siguiente barra se calcula con la proporción REAL entre valores
+  // (rawPct), no con el ancho ya recortado. Antes, cuando dos valores consecutivos caían
+  // ambos en el mínimo (ej. Acordadas y Cumplidas, 29 y 10 sobre un total de 150), el recorte
+  // los igualaba a 22% y el tramo entre ellos se veía completamente plano. MIN_TAPER además
+  // evita ángulos demasiado picudos cuando la caída real es muy pronunciada, para que las 4
+  // barras se vean conectadas con una pendiente parecida en vez de saltos bruscos.
+  const rawPct = stages.map((s) => (s.value / max) * 100);
+  stages.forEach((s, i) => { s.pct = Math.max(rawPct[i], FLOOR_PCT); });
+  const MIN_TAPER = 55;
+  const viewH = 60;
 
   const bars = stages
     .map((s, i) => {
       const isLast = i === stages.length - 1;
-      const bottomPct = isLast ? 72 : Math.min((stages[i + 1].pct / s.pct) * 100, 100);
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
+      const bottomPct = isLast
+        ? 40
+        : Math.min(Math.max((rawPct[i + 1] / (rawPct[i] || 1)) * 100, MIN_TAPER), 100);
+      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 300 ${viewH}" preserveAspectRatio="none"><polygon points="0,0 300,0 ${(bottomPct / 100) * 300},${viewH} 0,${viewH}" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
     })
     .join("");
 

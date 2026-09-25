@@ -10,13 +10,15 @@
           <span>Cartera al corriente</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.alCorriente.pct }}%</strong></div>
-        <div class="kpi-deltas">
-          @for (period of periods; track period) {
-            @if (hasDelta(data.kpi.alCorriente, period)) {
-              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.alCorriente, period)" [class.is-bad]="!deltaGood(data.kpi.alCorriente, period)">{{ deltaLabel(data.kpi.alCorriente, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+        <div class="kpi-value">
+          <strong>{{ data.kpi.alCorriente.pct }}%</strong>
+          <div class="kpi-deltas">
+            @for (period of periods; track period) {
+              @if (hasDelta(data.kpi.alCorriente, period)) {
+                <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.alCorriente, period)" [class.is-bad]="!deltaGood(data.kpi.alCorriente, period)">{{ deltaLabel(data.kpi.alCorriente, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+              }
             }
-          }
+          </div>
         </div>
         <p>{{ money(data.kpi.alCorriente.monto) }}</p>
         <div class="goal-row"><span>Meta 75%</span><span>{{ countLabel(data.portfolio.clientes) }}</span></div>
@@ -28,13 +30,15 @@
           <span>Cartera vencida total</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.vencidaTotal.pct }}%</strong></div>
-        <div class="kpi-deltas">
-          @for (period of periods; track period) {
-            @if (hasDelta(data.kpi.vencidaTotal, period)) {
-              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.vencidaTotal, period)" [class.is-bad]="!deltaGood(data.kpi.vencidaTotal, period)">{{ deltaLabel(data.kpi.vencidaTotal, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+        <div class="kpi-value">
+          <strong>{{ data.kpi.vencidaTotal.pct }}%</strong>
+          <div class="kpi-deltas">
+            @for (period of periods; track period) {
+              @if (hasDelta(data.kpi.vencidaTotal, period)) {
+                <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.vencidaTotal, period)" [class.is-bad]="!deltaGood(data.kpi.vencidaTotal, period)">{{ deltaLabel(data.kpi.vencidaTotal, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+              }
             }
-          }
+          </div>
         </div>
         <p>{{ money(data.kpi.vencidaTotal.monto) }}</p>
         <div class="goal-row"><span>Objetivo &lt;25%</span><span>de {{ money(data.portfolio.saldo) }}</span></div>
@@ -46,13 +50,15 @@
           <span>Cartera +60 días</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
-        <div class="kpi-value"><strong>{{ data.kpi.mas60.pct }}%</strong></div>
-        <div class="kpi-deltas">
-          @for (period of periods; track period) {
-            @if (hasDelta(data.kpi.mas60, period)) {
-              <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.mas60, period)" [class.is-bad]="!deltaGood(data.kpi.mas60, period)">{{ deltaLabel(data.kpi.mas60, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+        <div class="kpi-value">
+          <strong>{{ data.kpi.mas60.pct }}%</strong>
+          <div class="kpi-deltas">
+            @for (period of periods; track period) {
+              @if (hasDelta(data.kpi.mas60, period)) {
+                <span class="kpi-delta" [class.is-good]="deltaGood(data.kpi.mas60, period)" [class.is-bad]="!deltaGood(data.kpi.mas60, period)">{{ deltaLabel(data.kpi.mas60, period) }}<small>vs {{ period === 'Semana' ? 'semana' : 'mes' }} anterior</small></span>
+              }
             }
-          }
+          </div>
         </div>
         <p>{{ money(data.kpi.mas60.monto) }}</p>
         <div class="goal-row"><span>Tramo crítico</span><span>Objetivo &lt;15%</span></div>
