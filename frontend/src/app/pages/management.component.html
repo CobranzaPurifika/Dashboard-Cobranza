@@ -121,8 +121,12 @@
 
 @if (detail) {
   <button class="drawer-backdrop" type="button" aria-label="Cerrar detalle" (click)="closeDetail()"></button>
-  <aside class="detail-drawer" aria-label="Detalle del cliente"
+  <aside class="detail-drawer" [class.closing]="closingDrawer" aria-label="Detalle del cliente"
     (touchstart)="onDrawerTouchStart($event, 'right')" (touchmove)="onDrawerTouchMove($event)" (touchend)="onDrawerTouchEnd()">
+    @if (closingDrawer) {
+      <ion-icon name="water" class="drop-fall" aria-hidden="true"></ion-icon>
+      <span class="drop-ripple" aria-hidden="true"></span>
+    }
     <header class="drawer-header">
       <div>
         <span class="eyebrow">DETALLE DE CLIENTE</span>
@@ -202,28 +206,31 @@
       @if (canManage) {
         <section class="drawer-section management-form">
           <h3>Registrar gestión</h3>
-          <label>Estatus
-            <div class="status-select">
-              <button type="button" class="status-select-trigger" (click)="toggleStatusMenu()" [attr.aria-expanded]="statusMenuOpen">
-                @if (selectedStatusOption()) {
-                  <span class="status-dot" [style.background]="selectedStatusOption().bg"></span>
-                  <span>{{ selectedStatusOption().label }}</span>
-                } @else {
-                  <span class="status-placeholder">Seleccionar estatus</span>
-                }
-                <ion-icon name="chevron-down-outline"></ion-icon>
-              </button>
-              @if (statusMenuOpen) {
-                <ul class="status-select-list" role="listbox">
-                  @for (status of statusCatalog; track status.value) {
-                    <li role="option" [class.active]="status.value === gestionStatus" [style.background]="statusOptionBg(status)" (click)="selectStatus(status.value)">
-                      <span class="status-dot" [style.background]="status.bg"></span>{{ status.label }}
-                    </li>
-                  }
-                </ul>
+          <label>Estatus</label>
+          <!-- Fuera del <label> a propósito: si el botón y la lista quedan dentro de un
+               <label>, el navegador reenvía cualquier click dentro de él (incluyendo cada
+               <li>) como un click sintético extra al primer control asociado (el botón), lo
+               que reabría el menú justo después de que selectStatus() lo cerraba. -->
+          <div class="status-select">
+            <button type="button" class="status-select-trigger" (click)="toggleStatusMenu()" [attr.aria-expanded]="statusMenuOpen">
+              @if (selectedStatusOption()) {
+                <span class="status-dot" [style.background]="selectedStatusOption().bg"></span>
+                <span>{{ selectedStatusOption().label }}</span>
+              } @else {
+                <span class="status-placeholder">Seleccionar estatus</span>
               }
-            </div>
-          </label>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+            @if (statusMenuOpen) {
+              <ul class="status-select-list" role="listbox">
+                @for (status of statusCatalog; track status.value) {
+                  <li role="option" [class.active]="status.value === gestionStatus" [style.background]="statusOptionBg(status)" (click)="selectStatus(status.value)">
+                    <span class="status-dot" [style.background]="status.bg"></span>{{ status.label }}
+                  </li>
+                }
+              </ul>
+            }
+          </div>
           @if (!callLaterSelected) {
             <label>Comentario
               <textarea [(ngModel)]="gestionComment" rows="3" placeholder="Agrega contexto para el siguiente contacto"></textarea>

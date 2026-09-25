@@ -75,6 +75,39 @@ export class AuthService {
     localStorage.removeItem(this.storageKey);
   }
 
+  // Supabase no valida una "contraseña actual" al cambiarla (solo pide una sesión vigente) --
+  // se verifica aquí re-autenticando con ella antes de aplicar el cambio, y se descarta la
+  // sesión que regresa esa verificación (se sigue usando la que ya había abierta).
+  async changePassword(email: string, currentPassword: string, newPassword: string): Promise<void> {
+    this.assertConfigured();
+    try {
+      await this.authRequest('/token?grant_type=password', {
+        email: email.trim().toLowerCase(),
+        password: currentPassword,
+      });
+    } catch {
+      throw new Error('La contraseña actual no es correcta');
+    }
+
+    const accessToken = await this.getValidAccessToken();
+    if (!accessToken) throw new Error('Tu sesión expiró, vuelve a iniciar sesión');
+
+    const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
+    const response = await fetch(`${this.normalizeUrl(supabaseUrl!)}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        apikey: supabaseAnonKey!,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error_description ?? payload.msg ?? 'No fue posible actualizar la contraseña');
+    }
+  }
+
   private assertConfigured(): void {
     const { supabaseUrl, supabaseAnonKey } = window.__APP_CONFIG__ ?? {};
     if (!supabaseUrl || !supabaseAnonKey) {

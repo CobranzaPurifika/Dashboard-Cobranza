@@ -64,12 +64,44 @@
         <button type="button" title="Cambiar tema" aria-label="Cambiar tema" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon></button>
         @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
         <button type="button" class="more-button" title="Más opciones" aria-label="Más opciones" [attr.aria-expanded]="moreMenuVisible" (click)="toggleMoreMenu()"><ion-icon name="ellipsis-vertical-outline"></ion-icon></button>
-        <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Cerrar sesión'" (click)="accountAction()">
-          <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'log-out-outline'"></ion-icon>
-          <span>{{ accountLabel() }}</span>
+        <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Mi cuenta'" [attr.aria-label]="isAnonymous ? 'Acceso administrador' : 'Mi cuenta'" [attr.aria-expanded]="!isAnonymous && accountPopoverVisible" (click)="accountAction()">
+          <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'person-circle-outline'"></ion-icon>
         </button>
       </div>
     </header>
+
+    @if (accountPopoverVisible && !isAnonymous) {
+      <button class="settings-backdrop" type="button" aria-label="Cerrar" (click)="closeAccountPopover()"></button>
+      <aside class="settings-popover account-popover">
+        <header>
+          <div><span>MI CUENTA</span><strong>{{ accountLabel() }}</strong></div>
+          <button type="button" (click)="closeAccountPopover()"><ion-icon name="close-outline"></ion-icon></button>
+        </header>
+        <div class="settings-section-body account-body">
+          <div class="account-field"><span>Nombre</span><strong>{{ user?.display_name || '—' }}</strong></div>
+          <div class="account-field"><span>Correo</span><strong>{{ user?.email || '—' }}</strong></div>
+        </div>
+
+        <section class="settings-section">
+          <button class="settings-section-toggle" type="button" (click)="togglePasswordForm()" [attr.aria-expanded]="passwordFormOpen">
+            <ion-icon name="key-outline"></ion-icon><span>Cambiar contraseña</span>
+            <ion-icon class="chevron" [name]="passwordFormOpen ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          @if (passwordFormOpen) {
+            <div class="settings-section-body pref-body password-change-form">
+              <label>Contraseña actual<input type="password" [(ngModel)]="currentPassword" autocomplete="current-password" [disabled]="passwordSaving" /></label>
+              <label>Nueva contraseña<input type="password" [(ngModel)]="newPassword" autocomplete="new-password" [disabled]="passwordSaving" /></label>
+              <label>Confirmar nueva contraseña<input type="password" [(ngModel)]="confirmPassword" autocomplete="new-password" [disabled]="passwordSaving" (keydown.enter)="changePassword()" /></label>
+              @if (passwordError) { <small class="settings-error">{{ passwordError }}</small> }
+              @if (passwordSuccess) { <small class="password-success">{{ passwordSuccess }}</small> }
+              <button class="password-save" type="button" [disabled]="passwordSaving" (click)="changePassword()">{{ passwordSaving ? 'Guardando…' : 'Guardar' }}</button>
+            </div>
+          }
+        </section>
+
+        <button class="account-signout" type="button" (click)="signOutFromAccountPopover()"><ion-icon name="log-out-outline"></ion-icon>Cerrar sesión</button>
+      </aside>
+    }
 
     @if (moreMenuVisible) {
       <button class="more-backdrop" type="button" aria-label="Cerrar menú" (click)="closeMoreMenu()"></button>
@@ -226,7 +258,7 @@
       @if (loading && !dashboardData) {
         <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
       } @else if (view === 'dashboard') {
-        <app-dashboard [data]="dashboardData" [loading]="loading"></app-dashboard>
+        <app-dashboard [data]="dashboardData" [loading]="loading" [isAnonymous]="isAnonymous"></app-dashboard>
       } @else {
         <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [priorityDensity]="preferences.priorityDensity" (refreshRequested)="loadDashboard()"></app-management>
       }

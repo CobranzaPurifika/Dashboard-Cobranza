@@ -30,7 +30,8 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       historico,
       historicoVencida,
       pagosMes,
-      baseline,
+      baselineMensual,
+      baselineSemanal,
       distribucion,
       cumplidas,
       activePromises,
@@ -115,44 +116,33 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
          order by p.fecha_iso desc`,
         params
       ),
+      // Corte mensual: el cierre real más reciente ANTES del mes en curso (captureMonthlyPortfolioBaseline).
       pool.query(
-        `with ranked as (
-           select ps.*,
-             row_number() over (
-               partition by franchise_id
-               order by case when tipo_corte = 'Mensual' then 0 else 1 end,
-                        fecha_corte desc
-             ) as rn
-           from portfolio_snapshots ps
-           where franchise_id = any($1::text[])
-             and fecha_corte < date_trunc('month', now() at time zone 'America/Mexico_City')::date
-             and tipo_corte in ('Mensual', 'Semanal')
-         ), latest as (
-           select * from ranked where rn = 1
-         )
-         select max(fecha_corte) as fecha_corte,
-                string_agg(distinct tipo_corte, ', ') as tipo_corte,
-                case when coalesce(sum(saldo_total), 0) > 0
-                  then sum(al_corriente_pct * saldo_total) / sum(saldo_total)
-                  else avg(al_corriente_pct) end::float as al_corriente_pct,
-                case when coalesce(sum(saldo_total), 0) > 0
-                  then sum(cartera_vencida_pct * saldo_total) / sum(saldo_total)
-                  else avg(cartera_vencida_pct) end::float as cartera_vencida_pct,
-                sum(tramo_60_mas_monto)::float as tramo_60_mas_monto,
-                sum(saldo_total)::float as saldo_total
-         from latest`,
+        baselineQuery("Mensual", "and fecha_corte < date_trunc('month', now() at time zone 'America/Mexico_City')::date"),
         [franchise === "todas" && allowed.length === 3 ? ["todas"] : allowed]
       ),
-      // Distribución de estatus: las 10 filas de status_gestion siempre presentes (incluso en 0),
-      // con los nombres de los clientes en cada una para el tooltip -- igual que el original.
+      // Corte semanal: el más reciente antes de hoy (captureWeeklyPortfolioBaseline, cron nocturno
+      // de cada lunes) -- a diferencia del mensual, sí puede caer dentro del mes en curso.
+      pool.query(
+        baselineQuery("Semanal", "and fecha_corte < (now() at time zone 'America/Mexico_City')::date"),
+        [franchise === "todas" && allowed.length === 3 ? ["todas"] : allowed]
+      ),
+      // Distribución de estatus: las gestiones (eventos, no el estatus vigente del cliente)
+      // registradas en la bitácora dentro del mes en curso, agrupadas por el estatus con el que
+      // se guardó cada una -- "gestiones del periodo", no una foto de dónde está cada cliente hoy.
       pool.query(
         `select s.value as key, s.label, s.bg, s.efectiva,
-           count(c.id)::int as count,
-           coalesce(array_agg(c.name order by c.name) filter (where c.id is not null), '{}') as names
+           count(t.id)::int as count,
+           coalesce(array_agg(distinct t.name order by t.name) filter (where t.id is not null), '{}') as names
          from status_gestion s
-         left join clientes c on c.estatus_value = s.value
-           and c.franchise_id = any($1::text[])
-           and c.portfolio_status = 'active'
+         left join (
+           select gt.id, gt.estatus_value, c.name
+           from gestion_timeline gt
+           join clientes c on c.id = gt.cliente_id
+           where c.franchise_id = any($1::text[])
+             and c.portfolio_status = 'active'
+             and date_trunc('month', gt.fecha_iso) = date_trunc('month', current_date)
+         ) t on t.estatus_value = s.value
          group by s.value, s.label, s.bg, s.efectiva, s.sort_order
          order by s.sort_order`,
         params
@@ -203,14 +193,13 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
 
     const kpiRow = kpi.rows[0];
     const total = kpiRow.total || 1;
-    const baselineRow = baseline.rows[0]?.fecha_corte ? baseline.rows[0] : null;
+    const baselineMensualRow = baselineMensual.rows[0]?.fecha_corte ? baselineMensual.rows[0] : null;
+    const baselineSemanalRow = baselineSemanal.rows[0]?.fecha_corte ? baselineSemanal.rows[0] : null;
     const alCorrientePct = round1((kpiRow.al_corriente_monto / total) * 100);
     const vencidaPct = round1((kpiRow.vencida_monto / total) * 100);
     const mas60Pct = round1((kpiRow.mas60_monto / total) * 100);
-    const baselineMas60Pct = baselineRow && baselineRow.tramo_60_mas_monto != null
-      && Number(baselineRow.saldo_total) > 0
-      ? Number(baselineRow.tramo_60_mas_monto) / Number(baselineRow.saldo_total) * 100
-      : null;
+    const baselineMensualMas60Pct = mas60PctFromBaseline(baselineMensualRow);
+    const baselineSemanalMas60Pct = mas60PctFromBaseline(baselineSemanalRow);
 
     const distRows = distribucion.rows.map((r) => ({
       key: r.key,
@@ -228,21 +217,21 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       kpi: {
         alCorriente: metricWithDelta(
           alCorrientePct, kpiRow.al_corriente_monto,
-          baselineRow?.al_corriente_pct, (delta) => delta >= 0
+          baselineSemanalRow?.al_corriente_pct, baselineMensualRow?.al_corriente_pct, (delta) => delta >= 0
         ),
         vencidaTotal: metricWithDelta(
           vencidaPct, kpiRow.vencida_monto,
-          baselineRow?.cartera_vencida_pct, (delta) => delta <= 0
+          baselineSemanalRow?.cartera_vencida_pct, baselineMensualRow?.cartera_vencida_pct, (delta) => delta <= 0
         ),
         mas60: metricWithDelta(
           mas60Pct, kpiRow.mas60_monto,
-          baselineMas60Pct, (delta) => delta <= 0
+          baselineSemanalMas60Pct, baselineMensualMas60Pct, (delta) => delta <= 0
         ),
       },
-      baseline: baselineRow ? {
-        fechaCorte: baselineRow.fecha_corte,
-        tipoCorte: baselineRow.tipo_corte,
-      } : null,
+      baseline: {
+        semana: baselineSemanalRow ? { fechaCorte: baselineSemanalRow.fecha_corte } : null,
+        mes: baselineMensualRow ? { fechaCorte: baselineMensualRow.fecha_corte } : null,
+      },
       saldos: saldos.rows,
       segmentacion: segmentacion.rows,
       gestion: {
@@ -277,15 +266,54 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
-function metricWithDelta(pct, monto, baselinePct, isGood) {
-  const hasBaseline = baselinePct !== null && baselinePct !== undefined && Number.isFinite(Number(baselinePct));
-  const delta = hasBaseline ? round1(pct - Number(baselinePct)) : null;
+function metricWithDelta(pct, monto, baselineSemanaPct, baselineMesPct, isGood) {
+  const deltaSemana = computeDelta(pct, baselineSemanaPct);
+  const deltaMes = computeDelta(pct, baselineMesPct);
   return {
     pct,
     monto,
-    delta,
-    deltaGood: delta === null ? null : isGood(delta),
+    deltaSemana,
+    deltaSemanaGood: deltaSemana === null ? null : isGood(deltaSemana),
+    deltaMes,
+    deltaMesGood: deltaMes === null ? null : isGood(deltaMes),
   };
+}
+
+function computeDelta(pct, baselinePct) {
+  const hasBaseline = baselinePct !== null && baselinePct !== undefined && Number.isFinite(Number(baselinePct));
+  return hasBaseline ? round1(pct - Number(baselinePct)) : null;
+}
+
+function mas60PctFromBaseline(row) {
+  return row && row.tramo_60_mas_monto != null && Number(row.saldo_total) > 0
+    ? Number(row.tramo_60_mas_monto) / Number(row.saldo_total) * 100
+    : null;
+}
+
+// Corte más reciente (por franquicia, ponderado por saldo; "todas" ya viene pre-agregado en su
+// propia fila) antes del punto de corte que decida cada llamado -- comparte forma entre el corte
+// mensual y el semanal, solo cambia el tipo_corte y qué tan reciente puede ser.
+function baselineQuery(tipoCorte, cutoffCondition) {
+  return `with ranked as (
+       select ps.*,
+         row_number() over (partition by franchise_id order by fecha_corte desc) as rn
+       from portfolio_snapshots ps
+       where franchise_id = any($1::text[])
+         and tipo_corte = '${tipoCorte}'
+         ${cutoffCondition}
+     ), latest as (
+       select * from ranked where rn = 1
+     )
+     select max(fecha_corte) as fecha_corte,
+            case when coalesce(sum(saldo_total), 0) > 0
+              then sum(al_corriente_pct * saldo_total) / sum(saldo_total)
+              else avg(al_corriente_pct) end::float as al_corriente_pct,
+            case when coalesce(sum(saldo_total), 0) > 0
+              then sum(cartera_vencida_pct * saldo_total) / sum(saldo_total)
+              else avg(cartera_vencida_pct) end::float as cartera_vencida_pct,
+            sum(tramo_60_mas_monto)::float as tramo_60_mas_monto,
+            sum(saldo_total)::float as saldo_total
+     from latest`;
 }
 
 function summarizePayments(rows) {

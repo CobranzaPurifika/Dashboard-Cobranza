@@ -88,6 +88,25 @@ button, input, select, textarea { font: inherit; }
 
 .detail-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; display: flex; flex-direction: column; width: min(520px, 96vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(0, 0, 0, .28); animation: slide-in .2s ease-out; transition: transform .2s ease-out; touch-action: pan-y; }
 @keyframes slide-in { from { transform: translateX(30px); opacity: .4; } }
+// Al guardar una gestión la ficha se cierra sola (ver closeDetailWithDropAnimation) -- primero
+// cae la gota por el encabezado (900ms) y solo hasta que termina empieza el deslizado/
+// desvanecido de la ficha (otros 400ms, con animation-delay) -- antes corrían al mismo tiempo.
+.detail-drawer.closing { animation: drawer-close .4s ease-in .9s forwards; pointer-events: none; }
+@keyframes drawer-close { from { transform: translateX(0); opacity: 1; } to { transform: translateX(26px); opacity: 0; } }
+.drop-fall { position: absolute; top: 14px; left: 50%; z-index: 5; margin-left: -11px; font-size: 22px; color: var(--accent); animation: drop-fall .9s cubic-bezier(.55, 0, .85, .35) forwards; }
+@keyframes drop-fall {
+  0% { top: 14px; opacity: 0; transform: scale(.6); }
+  15% { opacity: 1; transform: scale(1); }
+  72% { top: calc(100% - 34px); opacity: 1; transform: scale(1); }
+  100% { top: calc(100% - 34px); opacity: 0; transform: scale(.7); }
+}
+// Onda expansiva sutil justo cuando la gota "toca el fondo" (ver el 72% de arriba) -- termina
+// antes de que la ficha empiece a deslizarse (delay del drawer-close, 900ms).
+.drop-ripple { position: absolute; top: calc(100% - 34px); left: 50%; z-index: 4; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: drop-ripple .3s ease-out .62s forwards; }
+@keyframes drop-ripple {
+  0% { opacity: .6; transform: scale(.3); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
 .drawer-header { display: flex; justify-content: space-between; gap: 14px; padding: 23px 24px 17px; border-bottom: 1px solid var(--line); }
 .drawer-header h2 { margin: 3px 0; color: var(--ink); font-size: 21px; }
 .drawer-header p { margin: 0; color: var(--muted); font-size: 10px; text-transform: capitalize; }

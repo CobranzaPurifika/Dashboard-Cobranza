@@ -59,6 +59,17 @@ export class AppComponent implements OnInit {
   goalSaving = '';
   moreMenuVisible = false;
 
+  // Ventana de cuenta (datos + cambio de contraseña), solo con sesión -- el botón muestra el
+  // ícono de "iniciar sesión" para el Lector y el de "persona" una vez con sesión.
+  accountPopoverVisible = false;
+  passwordFormOpen = false;
+  currentPassword = '';
+  newPassword = '';
+  confirmPassword = '';
+  passwordSaving = false;
+  passwordError = '';
+  passwordSuccess = '';
+
   // Buscador del Lector (sin sesión): resultados por nombre y ficha de solo lectura --
   // ver publicClientes.js en el backend sobre qué datos expone y por qué.
   lectorSearchQuery = '';
@@ -146,15 +157,76 @@ export class AppComponent implements OnInit {
     }
   }
 
-  async accountAction(): Promise<void> {
+  accountAction(): void {
     if (this.isAnonymous) {
       this.showLogin();
       return;
     }
+    this.accountPopoverVisible = !this.accountPopoverVisible;
+    if (!this.accountPopoverVisible) this.closeAccountPopover();
+  }
+
+  closeAccountPopover(): void {
+    this.accountPopoverVisible = false;
+    this.passwordFormOpen = false;
+    this.resetPasswordForm();
+  }
+
+  togglePasswordForm(): void {
+    this.passwordFormOpen = !this.passwordFormOpen;
+    this.resetPasswordForm();
+  }
+
+  async changePassword(): Promise<void> {
+    if (this.passwordSaving) return;
+    this.passwordError = '';
+    this.passwordSuccess = '';
+    if (!this.currentPassword || !this.newPassword || !this.confirmPassword) {
+      this.passwordError = 'Completa los tres campos.';
+      return;
+    }
+    if (this.newPassword.length < 6) {
+      this.passwordError = 'La nueva contraseña debe tener al menos 6 caracteres.';
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.passwordError = 'Las contraseñas nuevas no coinciden.';
+      return;
+    }
+    this.passwordSaving = true;
+    try {
+      await this.auth.changePassword(this.user?.email ?? '', this.currentPassword, this.newPassword);
+      this.passwordSuccess = 'Contraseña actualizada.';
+      this.currentPassword = '';
+      this.newPassword = '';
+      this.confirmPassword = '';
+    } catch (error: any) {
+      this.passwordError = error.message;
+    } finally {
+      this.passwordSaving = false;
+    }
+  }
+
+  async signOutFromAccountPopover(): Promise<void> {
+    this.accountPopoverVisible = false;
+    this.resetPasswordForm();
     await this.auth.signOut();
     this.user = null;
     this.franchise = 'todas';
+    // Limpia el dashboard de la sesión que se acaba de cerrar antes de recargar como Lector --
+    // si no, mientras openApp() todavía está trayendo la respuesta sanitizada, la plantilla ya
+    // marca isAnonymous=true pero sigue mostrando los datos completos de la sesión anterior
+    // (ej. el top 3 de Monto recuperado con filas reales) hasta que llega la nueva respuesta.
+    this.dashboardData = null;
     await this.openApp();
+  }
+
+  private resetPasswordForm(): void {
+    this.currentPassword = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.passwordError = '';
+    this.passwordSuccess = '';
   }
 
   showLogin(message = ''): void {

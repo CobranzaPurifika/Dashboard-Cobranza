@@ -53,6 +53,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
 
   gestionStatus = '';
   statusMenuOpen = false;
+  // Animación de cierre (gota) al guardar una gestión -- ver closeDetailWithDropAnimation().
+  closingDrawer = false;
   gestionComment = '';
   agendaDate = '';
   agendaHour = '12:00';
@@ -270,6 +272,18 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detailLoading = false;
     this.detail = null;
     this.confirmDialog = null;
+    this.closingDrawer = false;
+  }
+
+  // Deja la ficha visible mientras cae la gota (900ms) y luego se desliza/desvanece (400ms
+  // más, con animation-delay) -- ver .drop-fall/.detail-drawer.closing en
+  // management.component.scss. 1300 = la suma de ambas duraciones.
+  private closeDetailWithDropAnimation(): void {
+    this.closingDrawer = true;
+    setTimeout(() => {
+      this.closeDetail();
+      this.refresh();
+    }, 1300);
   }
 
   // Deslizar para cerrar en móvil: el panel de detalle vive a la derecha, así que solo se
@@ -600,7 +614,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
         body.agenda = { fechaISO: this.agendaDate, hora: this.agendaHour, nota: this.agendaNote };
       }
       await this.api.guardarGestion(this.detail.id, body);
-      await this.refreshContext(this.detail.id);
+      // A diferencia de agregar/quitar de Lista negra (que sí se quedan viendo la ficha ya
+      // actualizada), guardar una gestión cierra la ficha -- loadAll() + el aviso al padre
+      // refrescan Prioridad/Dashboard igual que refreshContext, solo que sin reabrir el detalle.
+      await this.loadAll();
+      this.refreshRequested.emit();
+      this.closeDetailWithDropAnimation();
     } catch (error: any) {
       this.error = error.message;
     } finally {
