@@ -7,7 +7,7 @@ import { mexicoTodayISO } from "../domain/dates.js";
 
 export const monthlyManagementRouter = Router();
 
-monthlyManagementRouter.get("/goals", requireRole("admin"), async (req, res, next) => {
+monthlyManagementRouter.get("/goals", requireRole("admin", "supervisor"), async (req, res, next) => {
   try {
     const allowed = resolveFranchiseScope(req.user, "todas");
     const { rows } = await pool.query(
@@ -24,7 +24,7 @@ monthlyManagementRouter.get("/goals", requireRole("admin"), async (req, res, nex
   }
 });
 
-monthlyManagementRouter.put("/goals/:franchise", requireRole("admin"), async (req, res, next) => {
+monthlyManagementRouter.put("/goals/:franchise", requireRole("admin", "supervisor"), async (req, res, next) => {
   try {
     const { franchise } = req.params;
     resolveFranchiseScope(req.user, franchise);

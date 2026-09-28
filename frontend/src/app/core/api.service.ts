@@ -19,6 +19,11 @@ export class ApiService {
   publicClienteDetail = (id: string, signal?: AbortSignal) =>
     this.request(`/public-clientes/${id}`, { signal });
 
+  listUsers = () => this.request('/users');
+  crearUsuario(body: { displayName: string; email: string; password: string; role: string; franchiseIds?: string[] }) {
+    return this.request('/users', { method: 'POST', body: JSON.stringify(body) });
+  }
+
   actualizarStatus(value: string, body: { label: string; bg: string; efectiva: boolean; sortOrder: number }) {
     return this.request(`/status-gestion/${encodeURIComponent(value)}`, {
       method: 'PUT', body: JSON.stringify(body),

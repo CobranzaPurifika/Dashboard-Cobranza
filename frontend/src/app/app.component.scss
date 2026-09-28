@@ -118,6 +118,23 @@
 .account-signout:hover { background: color-mix(in srgb, #d84f43 8%, transparent); }
 .account-signout ion-icon { font-size: 15px; }
 
+.user-list { display: grid; gap: 1px; margin-bottom: 12px; }
+.user-list .empty-line { margin: 4px 0; color: var(--muted); font-size: 10px; }
+.user-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.user-row:first-child { border-top: 0; }
+.user-row strong { display: block; color: var(--ink-soft); font-size: 11px; }
+.user-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+.user-role-badge { flex: none; padding: 3px 8px; border-radius: 999px; background: var(--surface-soft); color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.user-role-badge.role-admin { background: color-mix(in srgb, #d84036 14%, transparent); color: #d84036; }
+.user-role-badge.role-supervisor { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-strong); }
+.user-role-badge.role-gestor { background: color-mix(in srgb, #2cae60 14%, transparent); color: #218e50; }
+.user-create-form { padding-top: 12px; border-top: 1px solid var(--line); }
+.user-create-form h4 { margin: 0 0 10px; color: var(--ink); font-size: 11px; }
+.user-create-form label { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; font-weight: 650; }
+.user-create-form label:first-of-type { margin-top: 0; }
+.user-create-form input, .user-create-form select { display: block; width: 100%; margin-top: 5px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--input); color: var(--ink); font: inherit; font-size: 11px; }
+.user-create-form input:focus, .user-create-form select:focus { border-color: var(--accent); }
+
 .login-screen { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent) 12%, var(--app-bg)), var(--app-bg) 55%); }
 .login-card { width: min(390px, 100%); padding: 34px 32px 30px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-lg); }
 .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 29px; color: var(--brand-ink); }

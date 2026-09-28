@@ -60,9 +60,9 @@
       }
       <div class="portfolio-summary"><small>Cartera activa</small><strong>{{ portfolioSummary() }}</strong></div>
       <div class="header-actions">
-        <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button>
+        @if (canConfigure) { <button type="button" title="Modo presentación" aria-label="Modo presentación" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon></button> }
         <button type="button" title="Cambiar tema" aria-label="Cambiar tema" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon></button>
-        @if (isAdmin) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
+        @if (canConfigure) { <button type="button" title="Configuración" aria-label="Configuración" (click)="settingsVisible = !settingsVisible"><ion-icon name="settings-outline"></ion-icon></button> }
         <button type="button" class="more-button" title="Más opciones" aria-label="Más opciones" [attr.aria-expanded]="moreMenuVisible" (click)="toggleMoreMenu()"><ion-icon name="ellipsis-vertical-outline"></ion-icon></button>
         <button type="button" class="account-button" [title]="isAnonymous ? 'Acceso administrador' : 'Mi cuenta'" [attr.aria-label]="isAnonymous ? 'Acceso administrador' : 'Mi cuenta'" [attr.aria-expanded]="!isAnonymous && accountPopoverVisible" (click)="accountAction()">
           <ion-icon [name]="isAnonymous ? 'log-in-outline' : 'person-circle-outline'"></ion-icon>
@@ -106,24 +106,26 @@
     @if (moreMenuVisible) {
       <button class="more-backdrop" type="button" aria-label="Cerrar menú" (click)="closeMoreMenu()"></button>
       <nav class="more-menu" aria-label="Más opciones">
-        <button type="button" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon>Modo presentación</button>
+        @if (canConfigure) { <button type="button" (click)="togglePresentation()"><ion-icon name="expand-outline"></ion-icon>Modo presentación</button> }
         <button type="button" (click)="toggleTheme()"><ion-icon [name]="darkTheme ? 'sunny-outline' : 'moon-outline'"></ion-icon>{{ darkTheme ? 'Tema claro' : 'Tema oscuro' }}</button>
-        @if (isAdmin) { <button type="button" (click)="openSettingsFromMenu()"><ion-icon name="settings-outline"></ion-icon>Configuración</button> }
+        @if (canConfigure) { <button type="button" (click)="openSettingsFromMenu()"><ion-icon name="settings-outline"></ion-icon>Configuración</button> }
       </nav>
     }
 
-    @if (settingsVisible && isAdmin) {
+    @if (settingsVisible && canConfigure) {
       <button class="settings-backdrop" type="button" aria-label="Cerrar configuración" (click)="settingsVisible = false"></button>
       <aside class="settings-popover">
-        <header><div><span>ADMINISTRACIÓN</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
+        <header><div><span>{{ isAdmin ? 'ADMINISTRACIÓN' : 'SUPERVISIÓN' }}</span><strong>Configuración</strong></div><button type="button" (click)="settingsVisible = false"><ion-icon name="close-outline"></ion-icon></button></header>
 
-        <section class="settings-section settings-section-static">
-          <div class="settings-section-body">
-            <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
-            <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
-            @if (syncStatus) { <small>{{ syncStatus }}</small> }
-          </div>
-        </section>
+        @if (isAdmin) {
+          <section class="settings-section settings-section-static">
+            <div class="settings-section-body">
+              <p>Relee los cuatro archivos actuales de Drive. Las tres BDD deben ser válidas para aplicar cambios.</p>
+              <button class="sync-button" type="button" [disabled]="syncLoading" (click)="syncData()"><ion-icon name="refresh-outline"></ion-icon>{{ syncLoading ? 'Actualizando…' : 'Actualizar datos ahora' }}</button>
+              @if (syncStatus) { <small>{{ syncStatus }}</small> }
+            </div>
+          </section>
+        }
 
         <section class="settings-section">
           <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('preferences')" [attr.aria-expanded]="isSectionExpanded('preferences')">
@@ -250,6 +252,64 @@
             </div>
           }
         </section>
+
+        @if (isAdmin) {
+          <section class="settings-section">
+            <button class="settings-section-toggle" type="button" (click)="toggleSettingsSection('users')" [attr.aria-expanded]="isSectionExpanded('users')">
+              <ion-icon name="people-outline"></ion-icon><span>Usuarios</span>
+              <ion-icon class="chevron" [name]="isSectionExpanded('users') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </button>
+            @if (isSectionExpanded('users')) {
+              <div class="settings-section-body">
+                @if (usersLoading) {
+                  <div class="settings-loading"><ion-spinner name="crescent"></ion-spinner></div>
+                } @else {
+                  <div class="user-list">
+                    @for (u of usersList; track u.id) {
+                      <div class="user-row">
+                        <div><strong>{{ u.display_name }}</strong><small>{{ u.email }}</small></div>
+                        <span class="user-role-badge" [class]="'role-' + u.role">{{ u.role }}</span>
+                      </div>
+                    } @empty { <p class="empty-line">Sin cuentas todavía.</p> }
+                  </div>
+                }
+                @if (usersError) { <small class="settings-error">{{ usersError }}</small> }
+
+                <div class="user-create-form">
+                  <h4>Nueva cuenta</h4>
+                  <label>Nombre<input type="text" [(ngModel)]="newUserName" maxlength="120" [disabled]="userCreating" /></label>
+                  <label>Correo<input type="email" [(ngModel)]="newUserEmail" autocomplete="off" [disabled]="userCreating" /></label>
+                  <label>Contraseña inicial<input type="password" [(ngModel)]="newUserPassword" autocomplete="new-password" [disabled]="userCreating" /></label>
+                  <label>Rol
+                    <select [(ngModel)]="newUserRole" [disabled]="userCreating">
+                      <option value="gestor">Gestor</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  @if (newUserRole === 'gestor') {
+                    <div class="pref-row pref-row-wrap">
+                      <span>Franquicias</span>
+                      <div class="pref-chip-row">
+                        @for (option of franchises; track option.id) {
+                          @if (option.id !== 'todas') {
+                            <label class="pref-chip" [class.active]="newUserFranchises.has(option.id)">
+                              <input type="checkbox" [checked]="newUserFranchises.has(option.id)" (change)="toggleNewUserFranchise(option.id)" />
+                              {{ option.label }}
+                            </label>
+                          }
+                        }
+                      </div>
+                    </div>
+                  }
+                  @if (userCreateError) { <small class="settings-error">{{ userCreateError }}</small> }
+                  @if (userCreateSuccess) { <small class="password-success">{{ userCreateSuccess }}</small> }
+                  <button class="password-save" type="button" [disabled]="userCreating" (click)="createUser()">{{ userCreating ? 'Creando…' : 'Crear cuenta' }}</button>
+                </div>
+              </div>
+            }
+          </section>
+        }
       </aside>
     }
 
