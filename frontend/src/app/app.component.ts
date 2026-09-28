@@ -57,6 +57,20 @@ export class AppComponent implements OnInit {
   goalsLoading = false;
   goalsError = '';
   goalSaving = '';
+
+  // Usuarios (Configuración, solo admin): crear cuentas de Supervisor/Gestor sin salir de la app.
+  usersList: any[] = [];
+  usersLoaded = false;
+  usersLoading = false;
+  usersError = '';
+  newUserName = '';
+  newUserEmail = '';
+  newUserPassword = '';
+  newUserRole = 'gestor';
+  newUserFranchises = new Set<string>();
+  userCreating = false;
+  userCreateError = '';
+  userCreateSuccess = '';
   moreMenuVisible = false;
 
   // Ventana de cuenta (datos + cambio de contraseña), solo con sesión -- el botón muestra el
@@ -107,6 +121,11 @@ export class AppComponent implements OnInit {
 
   get isAnonymous(): boolean { return this.user?.isAnonymous === true; }
   get isAdmin(): boolean { return this.user?.role === 'admin'; }
+  get isSupervisor(): boolean { return this.user?.role === 'supervisor'; }
+  // Configuración (Estatus de gestión, Metas, Preferencias, Modo Presentación) y el botón de
+  // Modo presentación en sí: admin y supervisor -- actualizar la BDD sigue siendo solo admin
+  // (ver la sección aparte dentro del panel de Configuración).
+  get canConfigure(): boolean { return this.isAdmin || this.isSupervisor; }
 
   async openApp(): Promise<void> {
     // getValidAccessToken() limpia una sesión que ya no se puede renovar. Conservamos
@@ -513,6 +532,7 @@ export class AppComponent implements OnInit {
     } else {
       next.add(section);
       if (section === 'goals' && !this.goalsLoaded) void this.loadGoals();
+      if (section === 'users' && !this.usersLoaded) void this.loadUsers();
     }
     this.expandedSettingsSections = next;
   }
@@ -588,6 +608,61 @@ export class AppComponent implements OnInit {
       this.goalsError = error.message;
     } finally {
       this.goalSaving = '';
+    }
+  }
+
+  async loadUsers(): Promise<void> {
+    this.usersLoading = true;
+    this.usersError = '';
+    try {
+      this.usersList = await this.api.listUsers();
+      this.usersLoaded = true;
+    } catch (error: any) {
+      this.usersError = error.message;
+    } finally {
+      this.usersLoading = false;
+    }
+  }
+
+  toggleNewUserFranchise(id: string): void {
+    const next = new Set(this.newUserFranchises);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.newUserFranchises = next;
+  }
+
+  async createUser(): Promise<void> {
+    if (this.userCreating) return;
+    this.userCreateError = '';
+    this.userCreateSuccess = '';
+    if (!this.newUserName.trim()) {
+      this.userCreateError = 'El nombre es obligatorio.';
+      return;
+    }
+    if (this.newUserRole === 'gestor' && this.newUserFranchises.size === 0) {
+      this.userCreateError = 'Un Gestor necesita al menos una franquicia asignada.';
+      return;
+    }
+    this.userCreating = true;
+    try {
+      const body: any = {
+        displayName: this.newUserName.trim(),
+        email: this.newUserEmail.trim(),
+        password: this.newUserPassword,
+        role: this.newUserRole,
+      };
+      if (this.newUserRole === 'gestor') body.franchiseIds = [...this.newUserFranchises];
+      const created = await this.api.crearUsuario(body);
+      this.usersList = [...this.usersList, created];
+      this.userCreateSuccess = `Cuenta creada para ${created.email}.`;
+      this.newUserName = '';
+      this.newUserEmail = '';
+      this.newUserPassword = '';
+      this.newUserRole = 'gestor';
+      this.newUserFranchises = new Set();
+    } catch (error: any) {
+      this.userCreateError = error.message;
+    } finally {
+      this.userCreating = false;
     }
   }
 

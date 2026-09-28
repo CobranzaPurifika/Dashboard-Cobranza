@@ -15,6 +15,7 @@ import { importacionesRouter } from "./routes/importaciones.js";
 import { seguimientoRouter } from "./routes/seguimiento.js";
 import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
 import { notasRouter } from "./routes/notas.js";
+import { usersRouter } from "./routes/users.js";
 import { startSnapshotSchedule } from "./jobs/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
@@ -56,6 +57,7 @@ app.use("/api/status-gestion", statusGestionRouter);
 app.use("/api/seguimiento", seguimientoRouter);
 app.use("/api/gestiones-mes", monthlyManagementRouter);
 app.use("/api/importaciones", importacionesRouter);
+app.use("/api/users", usersRouter);
 
 // En producción el mismo proceso sirve la SPA y la API; localmente puede conservarse
 // el servidor estático independiente descrito en el README.

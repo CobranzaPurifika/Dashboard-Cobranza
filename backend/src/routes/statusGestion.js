@@ -19,7 +19,7 @@ statusGestionRouter.get("/", async (_req, res, next) => {
 // POST /api/status-gestion
 // Crea un estatus nuevo. La llave (value) se genera a partir del nombre y no se puede editar
 // después -- los demás campos arrancan con valores neutros y se ajustan con el PUT normal.
-statusGestionRouter.post("/", requireRole("admin"), async (req, res, next) => {
+statusGestionRouter.post("/", requireRole("admin", "supervisor"), async (req, res, next) => {
   const label = String(req.body?.label ?? "").trim();
   if (!label || label.length > 80) {
     return res.status(400).json({ error: "El nombre del estatus debe tener entre 1 y 80 caracteres" });
@@ -45,7 +45,7 @@ statusGestionRouter.post("/", requireRole("admin"), async (req, res, next) => {
 // PUT /api/status-gestion/reorder
 // Recibe el nuevo orden completo (lista de value en el orden deseado) y reescribe sort_order
 // para todos en una sola transacción, en vez de mandar un PUT por fila desde el cliente.
-statusGestionRouter.put("/reorder", requireRole("admin"), async (req, res, next) => {
+statusGestionRouter.put("/reorder", requireRole("admin", "supervisor"), async (req, res, next) => {
   const order = Array.isArray(req.body?.order) ? req.body.order.map(String) : [];
   if (!order.length) {
     return res.status(400).json({ error: "Falta el nuevo orden" });
@@ -71,7 +71,7 @@ statusGestionRouter.put("/reorder", requireRole("admin"), async (req, res, next)
 // DELETE /api/status-gestion/:value
 // Falla con 409 si algún cliente todavía tiene este estatus asignado (restricción de llave
 // foránea) -- hay que reasignarlos antes de poder borrar la clave.
-statusGestionRouter.delete("/:value", requireRole("admin"), async (req, res, next) => {
+statusGestionRouter.delete("/:value", requireRole("admin", "supervisor"), async (req, res, next) => {
   try {
     const { rowCount } = await pool.query("delete from status_gestion where value = $1", [req.params.value]);
     if (rowCount === 0) return res.status(404).json({ error: "Estatus no encontrado" });
@@ -87,7 +87,7 @@ statusGestionRouter.delete("/:value", requireRole("admin"), async (req, res, nex
 // PUT /api/status-gestion/:value
 // El valor es una llave estable para no romper los clientes ya gestionados. La configuración
 // operativa puede ajustar etiqueta, color, efectividad y orden sin republicar la aplicación.
-statusGestionRouter.put("/:value", requireRole("admin"), async (req, res, next) => {
+statusGestionRouter.put("/:value", requireRole("admin", "supervisor"), async (req, res, next) => {
   const label = String(req.body?.label ?? "").trim();
   const bg = String(req.body?.bg ?? "").trim();
   const efectiva = req.body?.efectiva === true;
