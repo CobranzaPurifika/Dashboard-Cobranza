@@ -70,6 +70,31 @@ volverán a aparecer en Seguimiento, aunque el cliente seguirá fuera de la cola
 El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
 el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
+## Documentos formales de cobranza
+
+La ficha del cliente tiene tres acciones: **Ver facturas**, **Generar documento** y **Lista
+negra** (solo ícono). Generar documento produce, sin IA ni servicios externos, los tres PDF de la
+skill `documentos-purifika` con el mismo formato de marca: aviso de deuda (carta), aviso de
+retiro de equipos y acuerdo/propuesta de pagos (oficio, con campo de firma electrónica del
+cliente). El backend (`backend/src/documents/`) dibuja el PDF con `pdfkit` y compacta el
+espaciado hasta que cabe en una sola página; el nombre del archivo sigue el patrón
+`<Prefijo>_<Tipo>_<Cliente>_<AAAA-MM-DD>.pdf`.
+
+Montos, folios y fechas de factura salen siempre de la base, no del navegador. Solo para los
+documentos, el vencimiento es la fecha de facturación más los días de crédito (columna K de la BDD
+cruda) y los días de atraso se cuentan a la fecha del documento; no se usan los días de la BDD
+porque las facturas con pago parcial llegan con 0 aunque estén vencidas. Si el prefijo de los
+folios no coincide con la franquicia del cliente, se usan los datos bancarios de la franquicia
+de las facturas y se avisa en pantalla. El papel es fijo por tipo. El aviso de deuda puede incluir
+una nota de mantenimiento pendiente (casilla, texto editable). La fecha de retiro sin capturar se
+imprime como “Por definir” y el retiro no lleva horario. En el acuerdo se puede otorgar una
+bonificación (se descuenta del adeudo y se muestra en el PDF); el neto se reparte por número de
+facturas, de la más antigua a la más reciente (la última lleva menos si no alcanza parejo). Al
+editar un importe, la siguiente parcialidad absorbe la diferencia y una factura puede quedar
+dividida entre dos pagos. Generar un documento no registra gestión ni modifica al cliente. La fuente
+Carlito (equivalente métrico de Calibri) se distribuye bajo SIL OFL 1.1
+(`backend/src/documents/assets/fonts/OFL.txt`).
+
 ## Sincronización de Drive
 
 El backend relee siempre los tres archivos fijos de Antigüedad de Saldos (pestaña inicial `BDD`)

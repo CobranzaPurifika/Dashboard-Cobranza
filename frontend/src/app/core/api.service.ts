@@ -109,6 +109,37 @@ export class ApiService {
     return this.request(`/clientes/${id}/promise`, { method: 'DELETE' });
   }
 
+  documentoFacturas = (id: string) => this.request(`/clientes/${encodeURIComponent(id)}/documentos/facturas`);
+
+  // Genera un documento formal (aviso de deuda, aviso de retiro o acuerdo de pagos) y lo
+  // regresa como PDF junto con el nombre de archivo estandarizado y los avisos del backend
+  // (p. ej. franquicia corregida por prefijo de folio o parcialidades que no suman el adeudo).
+  async generarDocumento(id: string, tipo: string, body: unknown): Promise<{ blob: Blob; fileName: string; warnings: string[] }> {
+    const token = await this.auth.getValidAccessToken();
+    const response = await fetch(`${this.apiBase}/clientes/${encodeURIComponent(id)}/documentos/${tipo}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        this.auth.clearSession();
+        window.dispatchEvent(new CustomEvent('auth-required'));
+      }
+      throw new Error(payload.error ?? `Error ${response.status}`);
+    }
+    const decode = (name: string, fallback: string) => {
+      try { return decodeURIComponent(response.headers.get(name) ?? fallback); } catch { return fallback; }
+    };
+    let warnings: string[] = [];
+    try { warnings = JSON.parse(decode('X-Documento-Avisos', '[]')); } catch { warnings = []; }
+    return { blob: await response.blob(), fileName: decode('X-Documento-Nombre', 'documento.pdf'), warnings };
+  }
+
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.auth.getValidAccessToken();
     const response = await fetch(`${this.apiBase}${path}`, {
