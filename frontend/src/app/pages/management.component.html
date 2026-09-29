@@ -31,7 +31,19 @@
           <div class="priority-skeleton" aria-label="Cargando prioridad"><i></i><i></i><i></i><i></i><i></i></div>
         } @else { @for (client of priority; track client.id) {
           <div class="priority-row" [class.managed]="client.managed_today" [class.blacklisted]="client.is_blacklisted" (click)="openDetail(client.id)">
-            <span class="segment-dot" [class.commercial]="client.segment === 'comercial'"></span>
+            <span class="segment-icon" [class.commercial]="client.segment === 'comercial'" role="img"
+              [attr.aria-label]="client.segment === 'comercial' ? 'Comercial' : 'Residencial'"
+              [title]="client.segment === 'comercial' ? 'Comercial' : 'Residencial'">
+              @if (client.segment === 'comercial') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16"/><path d="M15 9h3a2 2 0 0 1 2 2v10"/><path d="M2.5 21h19"/><path d="M8 7h3M8 11h3M8 15h3"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/>
+                </svg>
+              }
+            </span>
             <span class="client-main">
               <strong>{{ client.name }}</strong>
               <small>{{ client.franchise_id }} · {{ client.segment_label }}</small>

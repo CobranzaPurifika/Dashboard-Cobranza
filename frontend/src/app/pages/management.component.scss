@@ -23,14 +23,16 @@ button, input, select, textarea { font: inherit; }
 .search-box input { width: 100%; padding: 11px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .priority-list { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
 .priority-list.is-loading { opacity: .6; pointer-events: none; transition: opacity .15s ease; }
-.priority-row { display: grid; grid-template-columns: 10px minmax(180px, 1.6fr) minmax(105px, .9fr) minmax(90px, .8fr) 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
+.priority-row { display: grid; grid-template-columns: 18px minmax(180px, 1.6fr) minmax(105px, .9fr) minmax(90px, .8fr) 90px; align-items: center; width: 100%; gap: 12px; padding: 13px 22px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; content-visibility: auto; contain-intrinsic-size: auto 57px; transition: background .15s ease; cursor: pointer; }
 .priority-list.density-compact .priority-row { padding: 7px 22px; gap: 10px; contain-intrinsic-size: auto 37px; }
 .priority-list.density-compact .client-main small { display: none; }
+.priority-list.density-compact .segment-icon svg { width: 14px; height: 14px; }
 .priority-row:hover { background: var(--surface-hover); }
 .priority-row.managed { opacity: .62; }
 .priority-row.blacklisted { background: color-mix(in srgb, #d84f43 5%, transparent); }
-.segment-dot { width: 7px; height: 7px; border-radius: 50%; background: #a84c7d; box-shadow: 0 0 0 3px color-mix(in srgb, #a84c7d 15%, transparent); }
-.segment-dot.commercial { background: #456ab2; box-shadow: 0 0 0 3px color-mix(in srgb, #456ab2 15%, transparent); }
+.segment-icon { display: grid; width: 18px; height: 18px; color: #a84c7d; filter: drop-shadow(0 0 3px color-mix(in srgb, #a84c7d 40%, transparent)); place-items: center; }
+.segment-icon.commercial { color: #456ab2; filter: drop-shadow(0 0 3px color-mix(in srgb, #456ab2 40%, transparent)); }
+.segment-icon svg { width: 16px; height: 16px; }
 .client-main { min-width: 0; }
 .client-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .client-main small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; text-transform: capitalize; }
@@ -292,7 +294,7 @@ button, input, select, textarea { font: inherit; }
 @media (max-width: 1024px) { .management { height: auto; overflow: visible; } .management-grid { grid-template-columns: 1fr; } .management-side { grid-template-columns: repeat(2, 1fr); grid-template-rows: minmax(420px, auto); overflow: visible; } .priority-list { max-height: 65vh; } }
 @media (max-width: 700px) {
   .management-side { grid-template-columns: 1fr; }
-  .priority-row { grid-template-columns: 8px minmax(0, 1fr) auto; gap: 9px; padding: 12px 15px; }
+  .priority-row { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 9px; padding: 12px 15px; }
   .priority-row .badges { grid-column: 2; }
   .executive-col { grid-column: 2; grid-row: 3; }
   .balance { grid-column: 3; grid-row: 1; }
