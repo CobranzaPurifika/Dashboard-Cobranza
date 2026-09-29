@@ -43,6 +43,13 @@ describe('gráficas de cartera', () => {
     expect(result.promise).toContain('$2,500');
   });
 
+  it('centra simétricamente el polígono de la primera etapa del funnel', () => {
+    const result = renderFunnel({ total: 10, efectiva: 5, acordadas: 2, cumplidas: 1 }, 2500);
+    const points = result.bars.match(/<polygon points="([^"]+)"/)?.[1];
+
+    expect(points).toBe('0,0 100,0 75,100 25,100');
+  });
+
   it('representa la segmentación como dona', () => {
     const result = renderSegmentacion([
       { segment: 'comercial', label: 'Comercial', clientes: 2, monto: 80 },

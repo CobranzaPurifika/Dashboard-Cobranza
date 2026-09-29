@@ -60,8 +60,10 @@ export function renderFunnel(f, expectativaCobro) {
   const bars = stages
     .map((s, i) => {
       const isLast = i === stages.length - 1;
-      const bottomPct = isLast ? 72 : Math.min((stages[i + 1].pct / s.pct) * 100, 100);
-      return `<div class="funnel-row"><span class="funnel-label">${s.label}</span><div class="funnel-track-outer"><div class="funnel-track" style="width:${s.pct}%;" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 100,0 ${bottomPct},100 0,100" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
+      const topPct = s.pct;
+      const bottomPct = isLast ? s.pct * 0.72 : stages[i + 1].pct;
+      const points = `${(100 - topPct) / 2},0 ${(100 + topPct) / 2},0 ${(100 + bottomPct) / 2},100 ${(100 - bottomPct) / 2},100`;
+      return `<div class="funnel-row"><span class="funnel-label">${escapeHtml(s.label)}</span><div class="funnel-track-outer"><div class="funnel-track" data-tooltip="${escapeAttr(`${s.label}: ${s.value}`)}" tabindex="0"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="${points}" fill="${s.color}"/></svg><span class="funnel-value-inside" style="color:${s.ink};">${s.value}</span></div></div></div>`;
     })
     .join("");
 
