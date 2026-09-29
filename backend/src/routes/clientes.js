@@ -36,7 +36,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
       )`);
     } else {
       conditions.push("c.is_blacklisted is not true");
-      conditions.push(`not (
+      conditions.push(`(
         c.estatus_value = 'promesa_pago'
         and c.promise_deadline_iso >= (now() at time zone 'America/Mexico_City')::date
         and not exists (
@@ -44,7 +44,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
           where p.cliente_id = c.id
             and p.fecha_iso between c.promise_gestion_iso and c.promise_deadline_iso
         )
-      )`);
+      ) is not true`);
     }
 
     const where = `where ${conditions.join(" and ")}`;
@@ -55,7 +55,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
                 c.last_gestion_iso, c.promise_deadline_iso, c.is_blacklisted,
                 c.portfolio_status,
                 s.label as estatus_label, s.bg as estatus_bg,
-                (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date)
+                coalesce(c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date, false)
                   as managed_today,
                 (select string_agg(distinct f.ejecutivo_ventas, ', ' order by f.ejecutivo_ventas)
                  from facturas f where f.cliente_id = c.id and f.ejecutivo_ventas is not null)
@@ -64,7 +64,7 @@ clientesRouter.get("/prioridad", async (req, res, next) => {
          left join status_gestion s on s.value = c.estatus_value
          ${where}
          order by
-           (c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date) asc,
+           coalesce(c.last_gestion_iso = (now() at time zone 'America/Mexico_City')::date, false) asc,
            case c.tramo
              when 'critical' then 4
              when 'serious' then 3
