@@ -70,6 +70,24 @@ volverán a aparecer en Seguimiento, aunque el cliente seguirá fuera de la cola
 El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
 el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
+## Documentos formales de cobranza
+
+La ficha del cliente tiene tres acciones: **Ver facturas**, **Generar documento** y **Lista
+negra** (solo ícono). Generar documento produce, sin IA ni servicios externos, los tres PDF de la
+skill `documentos-purifika` con el mismo formato de marca: aviso de deuda (carta), aviso de
+retiro de equipos y acuerdo/propuesta de pagos (oficio, con campo de firma electrónica del
+cliente). El backend (`backend/src/documents/`) dibuja el PDF con `pdfkit` y compacta el
+espaciado hasta que cabe en una sola página; el nombre del archivo sigue el patrón
+`<Prefijo>_<Tipo>_<Cliente>_<AAAA-MM-DD>.pdf`.
+
+Montos, folios y fechas de factura salen siempre de la base, no del navegador. La fecha de
+vencimiento se toma de la fila más reciente de la BDD cruda (columna J). Si el prefijo de los
+folios no coincide con la franquicia del cliente, se usan los datos bancarios de la franquicia
+de las facturas y se avisa en pantalla. Fecha y horario de retiro sin capturar se imprimen como
+“Por definir”. Generar un documento no registra gestión ni modifica al cliente. La fuente
+Carlito (equivalente métrico de Calibri) se distribuye bajo SIL OFL 1.1
+(`backend/src/documents/assets/fonts/OFL.txt`).
+
 ## Sincronización de Drive
 
 El backend relee siempre los tres archivos fijos de Antigüedad de Saldos (pestaña inicial `BDD`)

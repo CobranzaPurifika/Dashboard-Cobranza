@@ -16,12 +16,17 @@ import { seguimientoRouter } from "./routes/seguimiento.js";
 import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
 import { notasRouter } from "./routes/notas.js";
 import { usersRouter } from "./routes/users.js";
+import { documentosRouter } from "./routes/documentos.js";
 import { startSnapshotSchedule } from "./jobs/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
 const app = express();
 const frontendDirectory = fileURLToPath(new URL("../../frontend", import.meta.url));
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
+  // Nombre del archivo y avisos de los documentos PDF generados (ver routes/documentos.js).
+  exposedHeaders: ["X-Documento-Nombre", "X-Documento-Avisos"],
+}));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -53,6 +58,7 @@ app.use("/api/clientes", notasRouter);
 app.use("/api/clientes", pagosRouter);
 app.use("/api", blacklistRouter);
 app.use("/api/clientes", agendaRouter);
+app.use("/api/clientes", documentosRouter);
 app.use("/api/status-gestion", statusGestionRouter);
 app.use("/api/seguimiento", seguimientoRouter);
 app.use("/api/gestiones-mes", monthlyManagementRouter);

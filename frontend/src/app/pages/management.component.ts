@@ -5,6 +5,39 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
 import { money as formatMoney, moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
 
+type DocumentType = 'aviso_deuda' | 'aviso_retiro' | 'acuerdo_pagos';
+
+// Los tres documentos formales de cobranza (misma plantilla de marca que la skill
+// "documentos-purifika"); el PDF se arma en el backend con los montos de la BDD.
+const DOCUMENT_TYPES: { value: DocumentType; label: string; description: string; icon: string; paper: 'carta' | 'oficio' }[] = [
+  { value: 'aviso_deuda', label: 'Aviso de deuda', description: 'Recordatorio formal del saldo vencido', icon: 'receipt-outline', paper: 'carta' },
+  { value: 'aviso_retiro', label: 'Aviso de retiro de equipos', description: 'Notificación de retiro, con acuse firmable', icon: 'cube-outline', paper: 'oficio' },
+  { value: 'acuerdo_pagos', label: 'Acuerdo de pagos', description: 'Propuesta o convenio por parcialidades, firmable', icon: 'calendar-outline', paper: 'oficio' },
+];
+
+interface Parcialidad {
+  fechaISO: string;
+  importe: number | null;
+  facturaIds: Set<number>;
+}
+
+interface DocumentForm {
+  tipo: DocumentType;
+  label: string;
+  fechaISO: string;
+  nombre: string;
+  direccion: string;
+  tamanoPapel: 'carta' | 'oficio';
+  facturaIds: Set<number>;
+  notaAdicional: string;
+  retiroFechaISO: string;
+  retiroHora: string;
+  equipos: string;
+  esBorrador: boolean;
+  parcialidades: Parcialidad[];
+  condiciones: string;
+}
+
 @Component({
   selector: 'app-management',
   standalone: true,
@@ -68,6 +101,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   timelineTier: 'min' | 'mid' | 'all' = 'min';
   showInvoicesModal = false;
   selectedInvoiceIds = new Set<number>();
+  documentMenuOpen = false;
+  documentForm: DocumentForm | null = null;
+  documentGenerating = false;
+  documentError = '';
+  documentResult: { fileName: string; warnings: string[] } | null = null;
+  readonly documentTypes = DOCUMENT_TYPES;
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
@@ -256,6 +295,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       this.blacklistPanelOpen = false;
       this.showInvoicesModal = false;
       this.selectedInvoiceIds = new Set();
+      this.documentMenuOpen = false;
+      this.closeDocumentForm();
     } catch (error: any) {
       if (error?.name !== 'AbortError') this.error = error.message;
     } finally {
@@ -273,6 +314,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.detail = null;
     this.confirmDialog = null;
     this.closingDrawer = false;
+    this.documentMenuOpen = false;
+    this.closeDocumentForm();
   }
 
   // Deja la ficha visible mientras cae la gota (900ms) y luego se desliza/desvanece (400ms
@@ -808,6 +851,208 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return invoices
       .filter((invoice: any) => this.selectedInvoiceIds.has(invoice.id))
       .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
+  }
+
+  // --- Generar documento -----------------------------------------------------------------
+  // "Generar documento" y "Lista negra" abren su propio panel bajo los botones; solo uno a
+  // la vez para no apilar dos paneles en la ficha.
+  toggleDocumentMenu(): void {
+    this.documentMenuOpen = !this.documentMenuOpen;
+    if (this.documentMenuOpen) this.blacklistPanelOpen = false;
+  }
+
+  toggleBlacklistPanel(): void {
+    this.blacklistPanelOpen = !this.blacklistPanelOpen;
+    if (this.blacklistPanelOpen) this.documentMenuOpen = false;
+  }
+
+  openDocumentForm(tipo: DocumentType): void {
+    if (!this.detail) return;
+    const type = DOCUMENT_TYPES.find((option) => option.value === tipo)!;
+    const invoices: any[] = this.detail.invoices ?? [];
+    // El aviso de deuda parte de las facturas vencidas (todas si ninguna lo está); retiro y
+    // acuerdo parten del adeudo completo. En los tres casos se puede ajustar la selección.
+    const overdue = invoices.filter((invoice) => Number(invoice.dias_vencida) > 0);
+    const initial = tipo === 'aviso_deuda' && overdue.length ? overdue : invoices;
+    this.documentForm = {
+      tipo,
+      label: type.label,
+      fechaISO: this.todayMexico(),
+      nombre: this.detail.name ?? '',
+      direccion: '',
+      tamanoPapel: type.paper,
+      facturaIds: new Set(initial.map((invoice) => invoice.id)),
+      notaAdicional: '',
+      retiroFechaISO: '',
+      retiroHora: '',
+      equipos: '',
+      esBorrador: true,
+      parcialidades: [],
+      condiciones: '',
+    };
+    if (tipo === 'acuerdo_pagos') this.addParcialidad();
+    this.documentMenuOpen = false;
+    this.documentError = '';
+    this.documentResult = null;
+  }
+
+  closeDocumentForm(): void {
+    this.documentForm = null;
+    this.documentGenerating = false;
+    this.documentError = '';
+    this.documentResult = null;
+  }
+
+  documentInvoices(): any[] {
+    return this.detail?.invoices ?? [];
+  }
+
+  toggleDocumentInvoice(id: number): void {
+    const form = this.documentForm;
+    if (!form) return;
+    const next = new Set(form.facturaIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    form.facturaIds = next;
+    // Una parcialidad no puede cubrir una factura que ya no forma parte del documento.
+    form.parcialidades.forEach((parcialidad) => {
+      parcialidad.facturaIds = new Set([...parcialidad.facturaIds].filter((invoiceId) => next.has(invoiceId)));
+    });
+  }
+
+  allDocumentInvoicesSelected(): boolean {
+    const invoices = this.documentInvoices();
+    return invoices.length > 0 && invoices.every((invoice) => this.documentForm?.facturaIds.has(invoice.id));
+  }
+
+  toggleAllDocumentInvoices(): void {
+    const form = this.documentForm;
+    if (!form) return;
+    const all = this.allDocumentInvoicesSelected();
+    form.facturaIds = all ? new Set() : new Set(this.documentInvoices().map((invoice) => invoice.id));
+    if (all) form.parcialidades.forEach((parcialidad) => { parcialidad.facturaIds = new Set(); });
+  }
+
+  documentTotal(): number {
+    const form = this.documentForm;
+    if (!form) return 0;
+    return this.roundCents(this.documentInvoices()
+      .filter((invoice) => form.facturaIds.has(invoice.id))
+      .reduce((sum, invoice) => sum + Number(invoice.monto ?? 0), 0));
+  }
+
+  documentSelectedInvoices(): any[] {
+    return this.documentInvoices().filter((invoice) => this.documentForm?.facturaIds.has(invoice.id));
+  }
+
+  parcialidadesTotal(): number {
+    return this.roundCents((this.documentForm?.parcialidades ?? [])
+      .reduce((sum, parcialidad) => sum + (Number(parcialidad.importe) || 0), 0));
+  }
+
+  parcialidadesMatchTotal(): boolean {
+    return Math.abs(this.parcialidadesTotal() - this.documentTotal()) < 0.005;
+  }
+
+  // Cada parcialidad nueva propone lo pendiente: dos semanas después de la anterior, el
+  // importe que falta para cubrir el adeudo y las facturas aún no asignadas a otra fila.
+  addParcialidad(): void {
+    const form = this.documentForm;
+    if (!form) return;
+    const last = form.parcialidades[form.parcialidades.length - 1];
+    const assigned = new Set(form.parcialidades.flatMap((parcialidad) => [...parcialidad.facturaIds]));
+    const pending = this.roundCents(this.documentTotal() - this.parcialidadesTotal());
+    form.parcialidades = [...form.parcialidades, {
+      fechaISO: this.addDays(last?.fechaISO || this.todayMexico(), last ? 14 : 7),
+      importe: pending > 0 ? pending : null,
+      facturaIds: new Set([...form.facturaIds].filter((id) => !assigned.has(id))),
+    }];
+  }
+
+  removeParcialidad(index: number): void {
+    const form = this.documentForm;
+    if (!form) return;
+    form.parcialidades = form.parcialidades.filter((_, position) => position !== index);
+  }
+
+  toggleParcialidadInvoice(parcialidad: Parcialidad, id: number): void {
+    const next = new Set(parcialidad.facturaIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    parcialidad.facturaIds = next;
+  }
+
+  documentFormIssue(): string {
+    const form = this.documentForm;
+    if (!form) return '';
+    if (!form.facturaIds.size) return 'Selecciona al menos una factura.';
+    if (!form.nombre.trim()) return 'Escribe a quién va dirigido el documento.';
+    if (!form.fechaISO) return 'Indica la fecha del documento.';
+    if (form.tipo === 'acuerdo_pagos') {
+      if (!form.parcialidades.length) return 'Agrega al menos una parcialidad.';
+      const index = form.parcialidades.findIndex((parcialidad) =>
+        !parcialidad.fechaISO || !(Number(parcialidad.importe) > 0) || !parcialidad.facturaIds.size);
+      if (index >= 0) return `Completa la parcialidad ${index + 1}: fecha, importe y facturas que cubre.`;
+    }
+    return '';
+  }
+
+  async generateDocument(): Promise<void> {
+    const form = this.documentForm;
+    if (!this.detail || !form || this.documentGenerating || this.documentFormIssue()) return;
+    this.documentGenerating = true;
+    this.documentError = '';
+    this.documentResult = null;
+    this.refresh();
+    try {
+      const body: any = {
+        facturaIds: [...form.facturaIds],
+        fechaISO: form.fechaISO,
+        destinatario: { nombre: form.nombre, direccion: form.direccion },
+        tamanoPapel: form.tamanoPapel,
+      };
+      if (form.tipo === 'aviso_deuda') body.notaAdicional = form.notaAdicional;
+      if (form.tipo === 'aviso_retiro') {
+        body.retiro = { fechaISO: form.retiroFechaISO || null, hora: form.retiroHora || null, equipos: form.equipos };
+      }
+      if (form.tipo === 'acuerdo_pagos') {
+        body.acuerdo = {
+          esBorrador: form.esBorrador,
+          parcialidades: form.parcialidades.map((parcialidad) => ({
+            fechaISO: parcialidad.fechaISO,
+            importe: Number(parcialidad.importe),
+            facturaIds: [...parcialidad.facturaIds],
+          })),
+          condiciones: form.condiciones.split('\n').map((line) => line.trim()).filter(Boolean),
+        };
+      }
+      const result = await this.api.generarDocumento(this.detail.id, form.tipo, body);
+      this.downloadBlob(result.blob, result.fileName);
+      if (this.documentForm === form) this.documentResult = { fileName: result.fileName, warnings: result.warnings };
+    } catch (error: any) {
+      if (this.documentForm === form) this.documentError = error.message;
+    } finally {
+      this.documentGenerating = false;
+      this.refresh();
+    }
+  }
+
+  private downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  private roundCents(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
+
+  private addDays(iso: string, days: number): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
   }
 
   // Máximo dias_vencida entre las facturas del cliente -- no existe un campo de "días de

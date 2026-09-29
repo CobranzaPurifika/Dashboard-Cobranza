@@ -189,13 +189,64 @@ button, input, select, textarea { font: inherit; }
 .timeline p { margin: 2px 0 0; color: var(--ink-soft); font-size: 10px; }
 .blacklist-active { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 10px; }
 .blacklist-control { padding-top: 16px; }
-.drawer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 20px 0 4px; }
+// Ver facturas | Generar documento | Lista negra (solo ícono, con tooltip).
+.drawer-actions { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 10px; padding: 20px 0 4px; }
 .action-button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .action-button:hover { background: var(--surface-hover); }
 .action-button ion-icon { font-size: 15px; }
 .action-count { display: grid; min-width: 20px; height: 20px; place-items: center; padding: 0 5px; border-radius: 999px; background: var(--surface-soft); color: var(--muted); font-size: 10px; font-weight: 800; }
 .action-button.danger { border-color: color-mix(in srgb, #d84036 44%, var(--line)); color: #d84036; }
 .action-button.danger:hover, .action-button.danger.active { background: color-mix(in srgb, #d84036 10%, transparent); }
+.action-button.icon-only { padding: 0; cursor: pointer; }
+.action-button.icon-only ion-icon { font-size: 18px; }
+.action-button.document { --doc-blue: #2f6fb8; border-color: color-mix(in srgb, var(--doc-blue) 44%, var(--line)); background: color-mix(in srgb, var(--doc-blue) 9%, var(--surface)); color: var(--doc-blue); }
+.action-button.document:hover, .action-button.document.active { background: color-mix(in srgb, var(--doc-blue) 17%, var(--surface)); }
+:host-context(.dark-theme) .action-button.document { --doc-blue: #6aa7ea; }
+.document-menu { display: grid; gap: 6px; padding-top: 14px; }
+.document-menu > button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; }
+.document-menu > button:hover { border-color: color-mix(in srgb, #2f6fb8 45%, var(--line)); background: var(--surface-hover); }
+.document-menu > button > ion-icon { flex: none; font-size: 18px; color: #2f6fb8; }
+:host-context(.dark-theme) .document-menu > button > ion-icon { color: #6aa7ea; }
+.document-menu > button > ion-icon.chevron { margin-left: auto; font-size: 13px; color: var(--muted); }
+.document-menu span strong, .document-menu span small { display: block; }
+.document-menu span strong { font-size: 12px; }
+.document-menu span small { margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+.document-dialog { width: min(560px, calc(100vw - 28px)); }
+.document-dialog .document-dialog-client { text-transform: none; }
+.document-fields { display: grid; gap: 14px; padding-top: 16px; }
+.document-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.document-row > .grow { flex: 1 1 180px; }
+.document-field { display: grid; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 650; }
+.document-field small { color: var(--muted); font-weight: 500; }
+.document-field > input, .document-field > select, .document-field > textarea, .parcialidad-head input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--input); color: var(--ink); font-size: 12px; resize: vertical; }
+.document-field > input:focus, .document-field > select:focus, .document-field > textarea:focus, .parcialidad-head input:focus { border-color: var(--accent); }
+.document-field-title { display: flex; justify-content: space-between; align-items: center; }
+.document-field .invoice-select-all { margin-bottom: 2px; }
+.document-invoices { max-height: 220px; overflow: auto; }
+.document-invoices .invoice-row { grid-template-columns: 18px 1fr auto auto; padding: 8px 4px; font-size: 11px; }
+.document-field .invoice-total-row { margin-top: 4px; padding-top: 8px; }
+.document-field .invoice-total-row strong { font-size: 16px; }
+.document-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.document-hint.warning { color: #b87904; }
+.document-toggle { display: flex; gap: 5px; padding: 4px; border-radius: 10px; background: var(--surface-soft); width: max-content; }
+.document-toggle button { padding: 6px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.document-toggle button.active { background: var(--accent); color: #063a3e; font-weight: 800; }
+.parcialidad { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.parcialidad-head { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, .8fr) 32px; align-items: center; gap: 8px; }
+.parcialidad-head b { color: var(--ink-soft); font-size: 11px; text-align: center; }
+.parcialidad-remove { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.parcialidad-remove:hover { color: #d84036; background: var(--surface-hover); }
+.parcialidad-remove ion-icon { font-size: 17px; }
+.parcialidad-invoices { display: flex; flex-wrap: wrap; gap: 5px; }
+.parcialidad-invoices button { padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
+.parcialidad-invoices button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-strong); }
+.document-fields .secondary-action { display: inline-flex; align-items: center; gap: 5px; width: max-content; margin-top: 2px; }
+.parcialidades-total.mismatch strong { color: #b87904; }
+.document-success { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, #2cae60 45%, var(--line)); border-radius: 10px; background: color-mix(in srgb, #2cae60 9%, var(--surface)); color: var(--ink-soft); font-size: 11px; }
+.document-success ion-icon { flex: none; font-size: 17px; color: #218e50; }
+.document-success strong { word-break: break-all; }
+.dialog-card > footer .confirm:disabled { opacity: .55; cursor: not-allowed; }
 .invoice-select-all { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
 .invoice-rows { display: grid; gap: 1px; }
 .invoice-row { display: grid; grid-template-columns: 18px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 12px; cursor: pointer; }

@@ -251,10 +251,26 @@
         <button type="button" class="action-button" (click)="openInvoicesModal()">
           <ion-icon name="document-text-outline"></ion-icon>Ver facturas<span class="action-count">{{ detail.invoices.length }}</span>
         </button>
-        <button type="button" class="action-button danger" [class.active]="blacklistPanelOpen" (click)="blacklistPanelOpen = !blacklistPanelOpen">
-          <ion-icon name="alert-circle-outline"></ion-icon>Lista negra
+        <button type="button" class="action-button document" [class.active]="documentMenuOpen" [attr.aria-expanded]="documentMenuOpen" (click)="toggleDocumentMenu()">
+          <ion-icon name="document-attach-outline"></ion-icon>Generar documento
+        </button>
+        <button type="button" class="action-button danger icon-only" [class.active]="blacklistPanelOpen" [attr.aria-expanded]="blacklistPanelOpen"
+          aria-label="Lista negra" data-tooltip="Lista negra" (click)="toggleBlacklistPanel()">
+          <ion-icon name="warning-outline"></ion-icon>
         </button>
       </section>
+
+      @if (documentMenuOpen) {
+        <section class="drawer-section document-menu" aria-label="Tipos de documento">
+          @for (type of documentTypes; track type.value) {
+            <button type="button" (click)="openDocumentForm(type.value)">
+              <ion-icon [name]="type.icon"></ion-icon>
+              <span><strong>{{ type.label }}</strong><small>{{ type.description }}</small></span>
+              <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
+            </button>
+          }
+        </section>
+      }
 
       @if (blacklistPanelOpen) {
         <section class="drawer-section blacklist-control">
@@ -299,6 +315,118 @@
     </div>
     <footer class="invoices-dialog-footer">
       <button type="button" class="confirm" (click)="closeInvoicesModal()">Cerrar</button>
+    </footer>
+  </section>
+}
+
+@if (documentForm && detail) {
+  <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeDocumentForm()"></button>
+  <section class="dialog-card document-dialog" role="dialog" aria-modal="true" [attr.aria-label]="documentForm.label">
+    <header>
+      <div><h2>{{ documentForm.label }}</h2><p class="document-dialog-client">{{ detail.name }} · PDF con formato oficial</p></div>
+      <button type="button" aria-label="Cerrar" (click)="closeDocumentForm()"><ion-icon name="close-outline"></ion-icon></button>
+    </header>
+    <div class="dialog-content document-fields">
+      <div class="document-row">
+        <label class="document-field grow"><span>Dirigido a</span><input type="text" [(ngModel)]="documentForm.nombre" maxlength="160" /></label>
+        <label class="document-field"><span>Fecha</span><input type="date" [(ngModel)]="documentForm.fechaISO" /></label>
+      </div>
+      <label class="document-field"><span>Dirección <small>(opcional)</small></span><input type="text" [(ngModel)]="documentForm.direccion" maxlength="240" /></label>
+
+      <div class="document-field">
+        <span class="document-field-title">Facturas<small>{{ documentForm.facturaIds.size }} de {{ documentInvoices().length }}</small></span>
+        @if (documentInvoices().length) {
+          <label class="invoice-select-all"><input type="checkbox" [checked]="allDocumentInvoicesSelected()" (change)="toggleAllDocumentInvoices()" />Seleccionar todas</label>
+        }
+        <div class="invoice-rows document-invoices">
+          @for (invoice of documentInvoices(); track invoice.id) {
+            <label class="invoice-row" [class.selected]="documentForm.facturaIds.has(invoice.id)">
+              <input type="checkbox" [checked]="documentForm.facturaIds.has(invoice.id)" (change)="toggleDocumentInvoice(invoice.id)" />
+              <span class="invoice-folio">{{ invoice.folio }}</span>
+              <span class="invoice-date">{{ invoice.dias_vencida > 0 ? invoice.dias_vencida + ' días' : 'Al corriente' }}</span>
+              <b class="invoice-amount">{{ moneyExact(invoice.monto) }}</b>
+            </label>
+          } @empty { <p class="empty-line">Sin facturas activas.</p> }
+        </div>
+        <div class="invoice-total-row"><span>Monto del documento</span><strong>{{ moneyExact(documentTotal()) }}</strong></div>
+      </div>
+
+      @if (documentForm.tipo === 'aviso_deuda') {
+        <label class="document-field"><span>Nota adicional <small>(opcional, p. ej. mantenimiento pendiente)</small></span>
+          <textarea [(ngModel)]="documentForm.notaAdicional" rows="2" maxlength="400"></textarea>
+        </label>
+      }
+
+      @if (documentForm.tipo === 'aviso_retiro') {
+        <div class="document-row">
+          <label class="document-field grow"><span>Fecha de retiro</span><input type="date" [(ngModel)]="documentForm.retiroFechaISO" /></label>
+          <label class="document-field grow"><span>Horario de arribo</span><input type="time" [(ngModel)]="documentForm.retiroHora" /></label>
+        </div>
+        <p class="document-hint">Si aún no están definidos, déjalos vacíos: el documento dirá “Por definir”.</p>
+        <label class="document-field"><span>Equipos a retirar <small>(separados por coma)</small></span>
+          <input type="text" [(ngModel)]="documentForm.equipos" placeholder="AGS2-99, AGS2-93" />
+        </label>
+      }
+
+      @if (documentForm.tipo === 'acuerdo_pagos') {
+        <div class="document-field">
+          <span class="document-field-title">Etapa</span>
+          <div class="document-toggle">
+            <button type="button" [class.active]="documentForm.esBorrador" (click)="documentForm.esBorrador = true">Propuesta</button>
+            <button type="button" [class.active]="!documentForm.esBorrador" (click)="documentForm.esBorrador = false">Acuerdo aceptado</button>
+          </div>
+        </div>
+
+        <div class="document-field">
+          <span class="document-field-title">Parcialidades<small>{{ documentForm.parcialidades.length }}</small></span>
+          @for (parcialidad of documentForm.parcialidades; track $index; let i = $index) {
+            <div class="parcialidad">
+              <div class="parcialidad-head">
+                <b>{{ i + 1 }}</b>
+                <input type="date" aria-label="Fecha compromiso" [(ngModel)]="parcialidad.fechaISO" />
+                <input type="number" aria-label="Importe" min="0" step="0.01" placeholder="Importe" [(ngModel)]="parcialidad.importe" />
+                <button type="button" class="parcialidad-remove" aria-label="Quitar parcialidad" (click)="removeParcialidad(i)"><ion-icon name="remove-circle-outline"></ion-icon></button>
+              </div>
+              <div class="parcialidad-invoices">
+                @for (invoice of documentSelectedInvoices(); track invoice.id) {
+                  <button type="button" [class.active]="parcialidad.facturaIds.has(invoice.id)" (click)="toggleParcialidadInvoice(parcialidad, invoice.id)">{{ invoice.folio }}</button>
+                } @empty { <span class="empty-line">Selecciona facturas arriba.</span> }
+              </div>
+            </div>
+          }
+          <button type="button" class="secondary-action" (click)="addParcialidad()"><ion-icon name="add-outline"></ion-icon>Agregar parcialidad</button>
+          <div class="invoice-total-row parcialidades-total" [class.mismatch]="!parcialidadesMatchTotal()">
+            <span>Suma de parcialidades</span><strong>{{ moneyExact(parcialidadesTotal()) }}</strong>
+          </div>
+          @if (!parcialidadesMatchTotal()) {
+            <p class="document-hint warning">No coincide con el monto de las facturas ({{ moneyExact(documentTotal()) }}). Puedes generarlo así, pero revisa las cifras.</p>
+          }
+        </div>
+
+        <label class="document-field"><span>Condiciones particulares <small>(opcional, una por línea)</small></span>
+          <textarea [(ngModel)]="documentForm.condiciones" rows="2" placeholder="Ej. Se acepta mobiliario como parte de pago."></textarea>
+        </label>
+      }
+
+      <label class="document-field"><span>Tamaño de papel</span>
+        <select [(ngModel)]="documentForm.tamanoPapel"><option value="carta">Carta</option><option value="oficio">Oficio</option></select>
+      </label>
+
+      @if (documentFormIssue() && !documentResult) { <p class="document-hint">{{ documentFormIssue() }}</p> }
+      @if (documentError) { <div class="error-banner">{{ documentError }}</div> }
+      @if (documentResult) {
+        <div class="document-success">
+          <ion-icon name="download-outline"></ion-icon>
+          <span>Se descargó <strong>{{ documentResult.fileName }}</strong></span>
+        </div>
+        @for (warning of documentResult.warnings; track $index) { <p class="document-hint warning">{{ warning }}</p> }
+      }
+    </div>
+    <footer>
+      <button type="button" (click)="closeDocumentForm()">{{ documentResult ? 'Cerrar' : 'Cancelar' }}</button>
+      <button type="button" class="confirm" [disabled]="documentGenerating || !!documentFormIssue()" [attr.title]="documentFormIssue() || null" (click)="generateDocument()">
+        {{ documentGenerating ? 'Generando…' : documentResult ? 'Generar de nuevo' : 'Generar PDF' }}
+      </button>
     </footer>
   </section>
 }
