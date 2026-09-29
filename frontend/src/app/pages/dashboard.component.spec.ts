@@ -106,3 +106,40 @@ describe('DashboardComponent recovery ordering', () => {
     expect(dashboard.data.recuperadoSemanal.rows).toEqual(rows);
   });
 });
+
+describe('DashboardComponent segmentation', () => {
+  it('calculates segment and tramo percentages, preserves order, and assigns colors', () => {
+    const dashboard = component([]);
+    dashboard.data.segmentacion = [
+      { segment: 'residencial', label: 'Residencial', monto: 100, tramos: [
+        { tramo: 'good', label: 'Al corriente', monto: 25 },
+        { tramo: 'critical', label: '+60 días', monto: 75 },
+      ] },
+      { segment: 'comercial', label: 'Comercial', monto: 0, tramos: [
+        { tramo: 'warning', label: '1-30 días', monto: 0 },
+      ] },
+    ];
+
+    const result = dashboard.segmentRows();
+    expect(result[0].pct).toBe('100.0');
+    expect(result[0].tramos.map((tramo: any) => tramo.pct)).toEqual(['25.0', '75.0']);
+    expect(result[0].tramos.map((tramo: any) => tramo.tramo)).toEqual(['good', 'critical']);
+    expect(result[0].tramos.map((tramo: any) => tramo.color)).toEqual(['#2FA84F', '#C0392B']);
+    expect(result[1].pct).toBe('0.0');
+    expect(result[1].tramos[0].pct).toBe('0.0');
+  });
+
+  it('toggles segments immutably and resets expansion on input changes', () => {
+    const dashboard = component([]);
+    const empty = dashboard.expandedSegments;
+    dashboard.toggleSegment('comercial');
+    expect(dashboard.expandedSegments).not.toBe(empty);
+    expect(dashboard.isSegmentExpanded('comercial')).toBe(true);
+    dashboard.toggleSegment('comercial');
+    expect(dashboard.isSegmentExpanded('comercial')).toBe(false);
+    dashboard.toggleSegment('residencial');
+    (dashboard as any).renderCharts = () => undefined;
+    dashboard.ngOnChanges();
+    expect(dashboard.expandedSegments.size).toBe(0);
+  });
+});

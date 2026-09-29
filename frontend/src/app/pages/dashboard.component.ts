@@ -9,6 +9,7 @@ import {
   renderDonut,
   renderFunnel,
   renderSegmentacion,
+  TRAMO_COLOR,
 } from '../core/charts';
 
 @Component({
@@ -34,12 +35,14 @@ export class DashboardComponent implements OnChanges {
   recoveryChart?: SafeHtml;
   overdueChart?: SafeHtml;
   expandedRecoveryClients = new Set<string>();
+  expandedSegments = new Set<string>();
 
   constructor(private readonly sanitizer: DomSanitizer) {}
 
   ngOnChanges(): void {
     if (!this.data) return;
     this.expandedRecoveryClients = new Set();
+    this.expandedSegments = new Set();
     this.renderCharts();
   }
 
@@ -133,6 +136,35 @@ export class DashboardComponent implements OnChanges {
     const next = new Set(this.expandedRecoveryClients);
     next.has(key) ? next.delete(key) : next.add(key);
     this.expandedRecoveryClients = next;
+  }
+
+  isSegmentExpanded(segment: string): boolean {
+    return this.expandedSegments.has(segment);
+  }
+
+  toggleSegment(segment: string): void {
+    const next = new Set(this.expandedSegments);
+    next.has(segment) ? next.delete(segment) : next.add(segment);
+    this.expandedSegments = next;
+  }
+
+  segmentRows(): any[] {
+    const rows = this.data?.segmentacion ?? [];
+    const total = rows.reduce((sum: number, row: any) => sum + Number(row.monto ?? 0), 0);
+    return rows.map((row: any) => {
+      const monto = Number(row.monto ?? 0);
+      return {
+        ...row,
+        monto,
+        pct: total ? ((monto / total) * 100).toFixed(1) : '0.0',
+        tramos: (row.tramos ?? []).map((tramo: any) => ({
+          ...tramo,
+          monto: Number(tramo.monto ?? 0),
+          pct: monto ? ((Number(tramo.monto ?? 0) / monto) * 100).toFixed(1) : '0.0',
+          color: TRAMO_COLOR[tramo.tramo],
+        })),
+      };
+    });
   }
 
   private paymentTime(payment: any): number {
