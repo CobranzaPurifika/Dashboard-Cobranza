@@ -54,6 +54,10 @@
 .period-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
 .period-toggle button { border: 0; border-radius: 7px; padding: 5px 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; }
 .period-toggle .active { color: #07383c; background: var(--accent); font-weight: 750; }
+.sort-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
+.sort-toggle button { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
+.sort-toggle button.active { color: #07383c; background: var(--accent); }
+.sort-toggle svg { width: 18px; height: 18px; }
 .recovery-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .recovered-summary { display: flex; align-items: baseline; justify-content: space-between; margin: 12px 0 18px; }
 .recovered-summary strong { color: var(--ink); font-size: 32px; letter-spacing: -.04em; }
@@ -121,4 +125,5 @@
   .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
   .recovered-card .panel-title { flex-wrap: wrap; }
   .recovery-controls { width: 100%; justify-content: space-between; }
+  .sort-toggle button { min-height: 32px; }
 }

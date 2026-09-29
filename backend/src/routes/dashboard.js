@@ -2,6 +2,7 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
+import { summarizePayments } from "../domain/recoveryPayments.js";
 
 export const dashboardRouter = Router();
 
@@ -315,14 +316,4 @@ function baselineQuery(tipoCorte, cutoffCondition) {
             sum(tramo_60_mas_monto)::float as tramo_60_mas_monto,
             sum(saldo_total)::float as saldo_total
      from latest`;
-}
-
-export function summarizePayments(rows) {
-  return {
-    total: rows.reduce((sum, row) => sum + Number(row.monto), 0),
-    count: new Set(rows.map((row) =>
-      row.cliente_id || `${row.franchise_id}|${String(row.name ?? "").toLowerCase()}`
-    )).size,
-    rows: rows.map(({ is_weekly: _isWeekly, is_monthly: _isMonthly, ...row }) => row),
-  };
 }

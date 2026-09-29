@@ -25,7 +25,7 @@ export class DashboardComponent implements OnChanges {
 
   includeCurrent = true;
   recoveryPeriod: 'semana' | 'mes' = 'semana';
-  recoverySort: 'monto' | 'fecha' = 'monto';
+  recoverySort: { key: 'nombre' | 'monto' | 'fecha'; dir: 'asc' | 'desc' } = { key: 'monto', dir: 'desc' };
   readonly periods: ('Semana' | 'Mes')[] = ['Semana', 'Mes'];
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
   funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
@@ -53,6 +53,29 @@ export class DashboardComponent implements OnChanges {
     this.expandedRecoveryClients = new Set();
   }
 
+  setRecoverySort(key: 'nombre' | 'monto' | 'fecha'): void {
+    const defaults = { nombre: 'asc', monto: 'desc', fecha: 'desc' } as const;
+    this.recoverySort = this.recoverySort.key === key
+      ? { key, dir: this.recoverySort.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: defaults[key] };
+  }
+
+  recoverySortDirection(key: 'nombre' | 'monto' | 'fecha'): 'asc' | 'desc' {
+    if (this.recoverySort.key === key) return this.recoverySort.dir;
+    return key === 'nombre' ? 'asc' : 'desc';
+  }
+
+  recoverySortLabel(key: 'nombre' | 'monto' | 'fecha'): string {
+    const dir = this.recoverySortDirection(key);
+    const order = key === 'nombre'
+      ? (dir === 'asc' ? 'A → Z' : 'Z → A')
+      : key === 'monto'
+        ? (dir === 'asc' ? 'menor a mayor' : 'mayor a menor')
+        : (dir === 'asc' ? 'más antigua primero' : 'más reciente primero');
+    const label = `Ordenar por ${key} (${order})`;
+    return this.recoverySort.key === key ? `${label}, clic para invertir` : label;
+  }
+
   recoveryData(): any {
     return this.recoveryPeriod === 'mes'
       ? this.data?.recuperadoMensual ?? { total: 0, count: 0, rows: [] }
@@ -75,18 +98,31 @@ export class DashboardComponent implements OnChanges {
       group.payments.push(payment);
       groups.set(key, group);
     }
-    const byAmount = [...groups.values()].sort((a, b) => b.total - a.total);
+    const nameAscending = (a: { name: string }, b: { name: string }) =>
+      a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+    const tieBreak = (a: { name: string; total: number }, b: { name: string; total: number }) =>
+      b.total - a.total || nameAscending(a, b);
+    const byAmount = [...groups.values()].sort((a, b) => b.total - a.total || nameAscending(a, b));
     const visible = this.isAnonymous ? byAmount.slice(0, 3) : byAmount;
 
     for (const client of visible) {
-      client.payments.sort((a, b) => this.paymentTime(b) - this.paymentTime(a));
+      client.payments = [...client.payments].sort((a, b) =>
+        this.recoverySort.key === 'fecha' && this.recoverySort.dir === 'asc'
+          ? this.paymentTime(a) - this.paymentTime(b)
+          : this.paymentTime(b) - this.paymentTime(a)
+      );
     }
 
-    return this.recoverySort === 'monto'
-      ? visible
-      : visible.sort((a, b) =>
-          this.paymentTime(b.payments[0]) - this.paymentTime(a.payments[0]) || b.total - a.total
-        );
+    const recentPaymentTime = (client: { payments: any[] }) =>
+      Math.max(...client.payments.map((payment) => this.paymentTime(payment)));
+    const direction = this.recoverySort.dir === 'asc' ? 1 : -1;
+    return [...visible].sort((a, b) => {
+      let primary = 0;
+      if (this.recoverySort.key === 'nombre') primary = nameAscending(a, b);
+      if (this.recoverySort.key === 'monto') primary = a.total - b.total;
+      if (this.recoverySort.key === 'fecha') primary = recentPaymentTime(a) - recentPaymentTime(b);
+      return primary * direction || tieBreak(a, b);
+    });
   }
 
   isRecoveryClientExpanded(key: string): boolean {

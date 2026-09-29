@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { summarizePayments } from "../src/routes/dashboard.js";
+import { summarizePayments } from "../src/domain/recoveryPayments.js";
 
 test("summarizePayments removes period flags without changing totals", () => {
   const result = summarizePayments([
