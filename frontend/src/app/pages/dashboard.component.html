@@ -100,7 +100,32 @@
       <article class="panel-card recovered-card">
         <div class="panel-title">
           <div><span class="eyebrow">RECUPERACIÓN</span><h2>Monto recuperado</h2></div>
-          <div class="period-toggle"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+          <div class="recovery-controls">
+            <div class="sort-toggle" role="group" aria-label="Ordenar">
+              <button type="button" [class.active]="recoverySort.key === 'nombre'" [attr.aria-pressed]="recoverySort.key === 'nombre'" [attr.aria-label]="recoverySortLabel('nombre')" [title]="recoverySortLabel('nombre')" (click)="setRecoverySort('nombre')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  @if (recoverySortDirection('nombre') === 'asc') { <path d="M3 10 5.5 3 8 10M3.9 7.6h3.2"/><path d="M3 14h5l-5 7h5"/> }
+                  @else { <path d="M3 3h5l-5 7h5"/><path d="M3 21 5.5 14 8 21M3.9 18.6h3.2"/> }
+                  <path d="M18 4v15M14.5 15.5 18 19l3.5-3.5" opacity=".55"/>
+                </svg>
+              </button>
+              <button type="button" [class.active]="recoverySort.key === 'monto'" [attr.aria-pressed]="recoverySort.key === 'monto'" [attr.aria-label]="recoverySortLabel('monto')" [title]="recoverySortLabel('monto')" (click)="setRecoverySort('monto')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 5.5H5.8a2.3 2.3 0 0 0 0 4.6h2.4a2.3 2.3 0 0 1 0 4.6H4.5M6.8 3.5v2M6.8 14.7v2"/>
+                  @if (recoverySortDirection('monto') === 'desc') { <path d="M18 4v15M14.5 15.5 18 19l3.5-3.5" opacity=".55"/> }
+                  @else { <path d="M18 20V5M14.5 8.5 18 5l3.5 3.5" opacity=".55"/> }
+                </svg>
+              </button>
+              <button type="button" [class.active]="recoverySort.key === 'fecha'" [attr.aria-pressed]="recoverySort.key === 'fecha'" [attr.aria-label]="recoverySortLabel('fecha')" [title]="recoverySortLabel('fecha')" (click)="setRecoverySort('fecha')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="5" width="11" height="12" rx="2.5"/><path d="M5.5 3v4M10.5 3v4M2.5 9.5h11"/>
+                  @if (recoverySortDirection('fecha') === 'desc') { <path d="M18 4v15M14.5 15.5 18 19l3.5-3.5" opacity=".55"/> }
+                  @else { <path d="M18 20V5M14.5 8.5 18 5l3.5 3.5" opacity=".55"/> }
+                </svg>
+              </button>
+            </div>
+            <div class="period-toggle" aria-label="Periodo"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" title="Últimos 7 días" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+          </div>
         </div>
         <div class="recovered-summary">
           <strong>{{ money(recoveryData().total) }}</strong>
@@ -126,7 +151,7 @@
             }
           </div>
         } @else {
-          <div class="empty-state">Aún no hay pagos registrados en {{ recoveryPeriod === 'mes' ? 'el mes' : 'la semana' }}.</div>
+          <div class="empty-state">{{ recoveryPeriod === 'mes' ? 'Aún no hay pagos registrados en el mes.' : 'Aún no hay pagos registrados en los últimos 7 días.' }}</div>
         }
       </article>
 

@@ -54,6 +54,14 @@
 .period-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
 .period-toggle button { border: 0; border-radius: 7px; padding: 5px 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; }
 .period-toggle .active { color: #07383c; background: var(--accent); font-weight: 750; }
+.sort-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 0; background: transparent; }
+.sort-toggle button { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); opacity: .7; transition: color .15s, opacity .15s, filter .15s; }
+.sort-toggle button:not(.active):hover { color: var(--ink); opacity: 1; }
+.sort-toggle button.active { color: var(--accent-strong); background: transparent; opacity: 1; filter: drop-shadow(0 0 4px rgba(var(--ion-color-primary-rgb), .55)); }
+.sort-toggle button.active svg path[opacity] { opacity: .8; }
+.sort-toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sort-toggle svg { width: 18px; height: 18px; }
+.recovery-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .recovered-summary { display: flex; align-items: baseline; justify-content: space-between; margin: 12px 0 18px; }
 .recovered-summary strong { color: var(--ink); font-size: 32px; letter-spacing: -.04em; }
 .recovered-summary span { color: var(--muted); font-size: 12px; }
@@ -118,4 +126,7 @@
   .donut { margin: 0 auto; width: min(70vw, 220px); }
   .balance-legend { grid-template-columns: 1fr; }
   .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
+  .recovered-card .panel-title { flex-wrap: wrap; }
+  .recovery-controls { width: 100%; justify-content: space-between; }
+  .sort-toggle button { min-height: 32px; }
 }
