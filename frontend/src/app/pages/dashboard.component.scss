@@ -47,8 +47,10 @@
 .legend { min-width: 0; }
 .balance-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 15px; padding-top: 8px; border-top: 1px solid var(--line); }
 .funnel-card, .distribution-card { min-height: 345px; }
+.funnel-card { display: flex; flex-direction: column; }
 .funnel, .distribution { min-height: 175px; }
-.funnel-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(105px, .62fr); gap: 12px; align-items: start; }
+.funnel { display: flex; flex-direction: column; justify-content: center; }
+.funnel-layout { display: grid; flex: 1; grid-template-columns: minmax(0, 1.55fr) minmax(105px, .62fr); gap: 12px; align-items: stretch; }
 .funnel-layout .rates { grid-template-columns: 1fr; }
 .promise { margin-top: 9px; }
 .period-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
