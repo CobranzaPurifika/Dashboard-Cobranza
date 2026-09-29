@@ -133,7 +133,6 @@ export function avisoRetiro(layout, data) {
     ],
     [
       ["Fecha estipulada", data.fechaRetiro || "Por definir"],
-      ["Horario de arribo", data.horarioRetiro || "Por definir"],
       ["Personal técnico autorizado", "Personal identificado con uniforme oficial de la empresa"],
       ["Equipos a retirar", (data.equipos ?? []).join(", ") || "Por definir"],
     ],

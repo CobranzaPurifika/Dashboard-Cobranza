@@ -15,7 +15,8 @@ const MARGENES = {
 function render(tipo, data, density) {
   const scale = NIVELES_DENSIDAD[density].escalaEspaciado;
   const layout = new DocumentLayout({
-    pageSize: PAGE_SIZES[data.tamanoPapel] ?? PAGE_SIZES[TIPOS_DOCUMENTO[tipo].papel],
+    // Papel fijo por tipo: aviso de deuda en carta; retiro y acuerdo en oficio.
+    pageSize: PAGE_SIZES[TIPOS_DOCUMENTO[tipo].papel],
     margins: { side: Math.max(35, MARGENES[tipo].side * scale), top: 0, bottom: 0 },
     density,
     header: { franquicia: data.franquicia, fecha: data.fecha },

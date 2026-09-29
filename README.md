@@ -83,8 +83,11 @@ espaciado hasta que cabe en una sola página; el nombre del archivo sigue el pat
 Montos, folios y fechas de factura salen siempre de la base, no del navegador. La fecha de
 vencimiento se toma de la fila más reciente de la BDD cruda (columna J). Si el prefijo de los
 folios no coincide con la franquicia del cliente, se usan los datos bancarios de la franquicia
-de las facturas y se avisa en pantalla. Fecha y horario de retiro sin capturar se imprimen como
-“Por definir”. Generar un documento no registra gestión ni modifica al cliente. La fuente
+de las facturas y se avisa en pantalla. El papel es fijo por tipo. El aviso de deuda puede incluir
+una nota de mantenimiento pendiente (casilla, texto editable). La fecha de retiro sin capturar se
+imprime como “Por definir” y el retiro no lleva horario. En el acuerdo, las facturas se reparten
+de la más antigua a la más reciente entre las parcialidades (la última lleva menos si no alcanza
+parejo) y cada importe se calcula con sus facturas. Generar un documento no registra gestión ni modifica al cliente. La fuente
 Carlito (equivalente métrico de Calibri) se distribuye bajo SIL OFL 1.1
 (`backend/src/documents/assets/fonts/OFL.txt`).
 

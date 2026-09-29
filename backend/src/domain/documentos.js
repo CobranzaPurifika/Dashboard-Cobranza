@@ -4,7 +4,7 @@
 // inventar cifras en un documento con peso legal.
 import { FRANQUICIAS, TIPOS_DOCUMENTO, franquiciaPorFacturas } from "../documents/brand.js";
 import {
-  fechaConDia, fechaLarga, horarioArribo, isIsoDate, listaFolios,
+  fechaConDia, fechaLarga, isIsoDate, listaFolios,
   montoTexto, montoTotalTexto, nombreArchivo,
 } from "../documents/format.js";
 
@@ -57,8 +57,6 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
   if (!nombre) fail("El nombre del destinatario es obligatorio");
   const direccion = cleanText(body.destinatario?.direccion, 240);
 
-  const tamanoPapel = body.tamanoPapel ?? TIPOS_DOCUMENTO[tipo].papel;
-  if (!["carta", "oficio"].includes(tamanoPapel)) fail("Tamaño de papel no válido");
 
   const warnings = [];
   // Los folios mandan sobre la franquicia registrada: ante una discrepancia se usan la razón
@@ -82,7 +80,6 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
     franquicia,
     franquiciaId,
     fecha: fechaLarga(fechaISO),
-    tamanoPapel,
     destinatario: { nombre, direccion },
     montoTotal: montoTotalTexto(total),
     montoTotalNumero: total,
@@ -104,11 +101,9 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
   if (tipo === "aviso_retiro") {
     const retiro = body.retiro ?? {};
     if (retiro.fechaISO && !isIsoDate(retiro.fechaISO)) fail("La fecha de retiro no es válida");
-    if (retiro.hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(retiro.hora)) fail("El horario de retiro no es válido");
-    // Sin fecha u hora definidas el documento dice literalmente "Por definir" -- nunca se
-    // inventa una fecha de retiro que aún no está agendada.
+    // Sin fecha definida el documento dice literalmente "Por definir" -- nunca se inventa una
+    // fecha de retiro que aún no está agendada.
     data.fechaRetiro = retiro.fechaISO ? fechaConDia(retiro.fechaISO) : "Por definir";
-    data.horarioRetiro = retiro.hora ? horarioArribo(retiro.hora) : "Por definir";
     data.equipos = String(retiro.equipos ?? "").split(/[,\n]/).map((equipo) => cleanText(equipo, 60)).filter(Boolean).slice(0, 40);
   }
 

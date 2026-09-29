@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { buildDocumentData } from "../src/domain/documentos.js";
 import { generateDocumentPdf } from "../src/documents/generate.js";
-import { fechaConDia, fechaLarga, horarioArribo, listaFolios, slugCliente } from "../src/documents/format.js";
+import { fechaConDia, fechaLarga, listaFolios, slugCliente } from "../src/documents/format.js";
 
 const cliente = { id: "ags-quevedo", name: "JORGE QUEVEDO", franchise_id: "aguascalientes" };
 const invoices = [
@@ -12,11 +12,9 @@ const invoices = [
 ];
 const base = { facturaIds: [2, 1], fechaISO: "2026-08-18", destinatario: { nombre: "Sr. Jorge Quevedo" } };
 
-test("formatea fechas, horarios y listas de folios en español", () => {
+test("formatea fechas y listas de folios en español", () => {
   assert.equal(fechaLarga("2026-08-18"), "18 de agosto de 2026");
   assert.equal(fechaConDia("2026-07-28"), "Martes 28 de julio de 2026");
-  assert.equal(horarioArribo("12:30"), "A partir de las 12:30 PM");
-  assert.equal(horarioArribo("09:05"), "A partir de las 9:05 AM");
   assert.equal(listaFolios(["A", "B", "C"]), "A, B y C");
   assert.equal(slugCliente("MEIKERGRUP — Sr. Rodolfo Reynoso"), "Meikergrup");
   assert.equal(slugCliente("Grupo Ferretero del Bajío"), "GrupoFerreteroDelBajio");
@@ -48,16 +46,22 @@ test("el prefijo de los folios corrige una franquicia mal registrada", () => {
   assert.match(fileName, /^AGS2_/);
 });
 
-test("el aviso de retiro nunca inventa fecha u horario sin definir", () => {
+test("el aviso de retiro nunca inventa una fecha sin definir y no lleva horario", () => {
   const { data } = buildDocumentData("aviso_retiro", cliente, invoices, { ...base, retiro: { equipos: "AGS2-99, AGS2-93" } });
   assert.equal(data.fechaRetiro, "Por definir");
-  assert.equal(data.horarioRetiro, "Por definir");
+  assert.equal(data.horarioRetiro, undefined);
   assert.deepEqual(data.equipos, ["AGS2-99", "AGS2-93"]);
 
-  const agendado = buildDocumentData("aviso_retiro", cliente, invoices, { ...base, retiro: { fechaISO: "2026-08-12", hora: "12:30" } }).data;
+  const agendado = buildDocumentData("aviso_retiro", cliente, invoices, { ...base, retiro: { fechaISO: "2026-08-12" } }).data;
   assert.equal(agendado.fechaRetiro, "Miércoles 12 de agosto de 2026");
-  assert.equal(agendado.horarioRetiro, "A partir de las 12:30 PM");
-  assert.throws(() => buildDocumentData("aviso_retiro", cliente, invoices, { ...base, retiro: { hora: "25:00" } }), /horario/);
+  assert.throws(() => buildDocumentData("aviso_retiro", cliente, invoices, { ...base, retiro: { fechaISO: "2026-13-01" } }), /fecha de retiro/);
+});
+
+test("el papel es fijo por tipo aunque el navegador pida otro", async () => {
+  const deuda = buildDocumentData("aviso_deuda", cliente, invoices, { ...base, tamanoPapel: "oficio" }).data;
+  assert.equal(deuda.tamanoPapel, undefined);
+  const pdf = await generateDocumentPdf("aviso_deuda", deuda);
+  assert.match(pdf.buffer.toString("latin1"), /\/MediaBox \[0 0 612 792\]/);
 });
 
 test("el acuerdo valida parcialidades y avisa si no suman el adeudo", () => {

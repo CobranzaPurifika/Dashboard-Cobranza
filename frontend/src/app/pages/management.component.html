@@ -323,7 +323,7 @@
   <button class="modal-backdrop dialog-layer" type="button" aria-label="Cerrar" (click)="closeDocumentForm()"></button>
   <section class="dialog-card document-dialog" role="dialog" aria-modal="true" [attr.aria-label]="documentForm.label">
     <header>
-      <div><h2>{{ documentForm.label }}</h2><p class="document-dialog-client">{{ detail.name }} · PDF con formato oficial</p></div>
+      <div><h2>{{ documentForm.label }}</h2><p class="document-dialog-client">{{ detail.name }} · PDF {{ paperLabel(documentForm.tipo) }}</p></div>
       <button type="button" aria-label="Cerrar" (click)="closeDocumentForm()"><ion-icon name="close-outline"></ion-icon></button>
     </header>
     <div class="dialog-content document-fields">
@@ -352,17 +352,20 @@
       </div>
 
       @if (documentForm.tipo === 'aviso_deuda') {
-        <label class="document-field"><span>Nota adicional <small>(opcional, p. ej. mantenimiento pendiente)</small></span>
-          <textarea [(ngModel)]="documentForm.notaAdicional" rows="2" maxlength="400"></textarea>
-        </label>
+        <div class="document-field">
+          <label class="document-check"><input type="checkbox" [(ngModel)]="documentForm.incluirNota" />Incluir nota de mantenimiento pendiente</label>
+          @if (documentForm.incluirNota) {
+            <textarea aria-label="Nota de mantenimiento" [(ngModel)]="documentForm.notaAdicional" rows="3" maxlength="400"></textarea>
+          }
+        </div>
       }
 
       @if (documentForm.tipo === 'aviso_retiro') {
-        <div class="document-row">
-          <label class="document-field grow"><span>Fecha de retiro</span><input type="date" [(ngModel)]="documentForm.retiroFechaISO" /></label>
-          <label class="document-field grow"><span>Horario de arribo</span><input type="time" [(ngModel)]="documentForm.retiroHora" /></label>
+        <div class="document-field">
+          <span>Fecha de retiro</span>
+          <app-date-picker [(value)]="documentForm.retiroFechaISO" [min]="documentForm.fechaISO" placeholder="Por definir"></app-date-picker>
+          <p class="document-hint">Si aún no está definida, déjala vacía: el documento dirá “Por definir”.</p>
         </div>
-        <p class="document-hint">Si aún no están definidos, déjalos vacíos: el documento dirá “Por definir”.</p>
         <label class="document-field"><span>Equipos a retirar <small>(separados por coma)</small></span>
           <input type="text" [(ngModel)]="documentForm.equipos" placeholder="AGS2-99, AGS2-93" />
         </label>
@@ -384,8 +387,8 @@
               <div class="parcialidad-head">
                 <b>{{ i + 1 }}</b>
                 <input type="date" aria-label="Fecha compromiso" [(ngModel)]="parcialidad.fechaISO" />
-                <input type="number" aria-label="Importe" min="0" step="0.01" placeholder="Importe" [(ngModel)]="parcialidad.importe" />
-                <button type="button" class="parcialidad-remove" aria-label="Quitar parcialidad" (click)="removeParcialidad(i)"><ion-icon name="remove-circle-outline"></ion-icon></button>
+                <strong class="parcialidad-amount">{{ moneyExact(parcialidadImporte(parcialidad)) }}</strong>
+                <button type="button" class="parcialidad-remove" aria-label="Quitar parcialidad" [disabled]="documentForm.parcialidades.length <= 1" (click)="removeParcialidad(i)"><ion-icon name="remove-circle-outline"></ion-icon></button>
               </div>
               <div class="parcialidad-invoices">
                 @for (invoice of documentSelectedInvoices(); track invoice.id) {
@@ -394,23 +397,14 @@
               </div>
             </div>
           }
-          <button type="button" class="secondary-action" (click)="addParcialidad()"><ion-icon name="add-outline"></ion-icon>Agregar parcialidad</button>
-          <div class="invoice-total-row parcialidades-total" [class.mismatch]="!parcialidadesMatchTotal()">
-            <span>Suma de parcialidades</span><strong>{{ moneyExact(parcialidadesTotal()) }}</strong>
-          </div>
-          @if (!parcialidadesMatchTotal()) {
-            <p class="document-hint warning">No coincide con el monto de las facturas ({{ moneyExact(documentTotal()) }}). Puedes generarlo así, pero revisa las cifras.</p>
-          }
+          <button type="button" class="secondary-action" [disabled]="!canAddParcialidad()" (click)="addParcialidad()"><ion-icon name="add-outline"></ion-icon>Agregar parcialidad</button>
+          <p class="document-hint">Las facturas se reparten solas de la más antigua a la más reciente y el importe se calcula con ellas. Toca un folio para moverlo a otra parcialidad.</p>
         </div>
 
         <label class="document-field"><span>Condiciones particulares <small>(opcional, una por línea)</small></span>
           <textarea [(ngModel)]="documentForm.condiciones" rows="2" placeholder="Ej. Se acepta mobiliario como parte de pago."></textarea>
         </label>
       }
-
-      <label class="document-field"><span>Tamaño de papel</span>
-        <select [(ngModel)]="documentForm.tamanoPapel"><option value="carta">Carta</option><option value="oficio">Oficio</option></select>
-      </label>
 
       @if (documentFormIssue() && !documentResult) { <p class="document-hint">{{ documentFormIssue() }}</p> }
       @if (documentError) { <div class="error-banner">{{ documentError }}</div> }

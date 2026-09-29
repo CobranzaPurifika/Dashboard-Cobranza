@@ -37,14 +37,6 @@ export function fechaCorta(iso) {
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 }
 
-// "12:30" -> "A partir de las 12:30 PM"
-export function horarioArribo(hhmm) {
-  const [hours, minutes] = String(hhmm).split(":").map(Number);
-  const suffix = hours >= 12 ? "PM" : "AM";
-  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `A partir de las ${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
-}
-
 const moneyFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function montoTexto(value) {
