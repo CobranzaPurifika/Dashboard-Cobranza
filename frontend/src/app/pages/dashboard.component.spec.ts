@@ -108,6 +108,28 @@ describe('DashboardComponent recovery ordering', () => {
 });
 
 describe('DashboardComponent segmentation', () => {
+  it('calculates the total and accessible label for two segments', () => {
+    const dashboard = component([]);
+    dashboard.data.segmentacion = [
+      { segment: 'comercial', label: 'Comercial', monto: 877 },
+      { segment: 'residencial', label: 'Residencial', monto: 123 },
+    ];
+
+    expect(dashboard.segmentTotal()).toBe(1000);
+    expect(dashboard.segmentBarLabel()).toBe('Comercial 87.7% · Residencial 12.3%');
+  });
+
+  it('includes a zero-value segment in the accessible label', () => {
+    const dashboard = component([]);
+    dashboard.data.segmentacion = [
+      { segment: 'comercial', label: 'Comercial', monto: 100 },
+      { segment: 'residencial', label: 'Residencial', monto: 0 },
+    ];
+
+    expect(dashboard.segmentTotal()).toBe(100);
+    expect(dashboard.segmentBarLabel()).toBe('Comercial 100.0% · Residencial 0.0%');
+  });
+
   it('calculates segment and tramo percentages, preserves order, and assigns colors', () => {
     const dashboard = component([]);
     dashboard.data.segmentacion = [

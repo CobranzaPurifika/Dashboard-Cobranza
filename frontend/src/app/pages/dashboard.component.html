@@ -163,33 +163,40 @@
       @if (!isAnonymous) {
         <article class="panel-card segmentation-card">
           <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
-          <div class="segmentation-layout">
-            <div class="segment-donut" [innerHTML]="segmentation.svg"></div>
-            <div class="segment-list">
+          <div class="segment-summary">
+            <div class="segment-total"><span>Total cartera</span><strong>{{ money(segmentTotal()) }}</strong></div>
+            <div class="segment-bar" role="img" [attr.aria-label]="segmentBarLabel()">
               @for (row of segmentRows(); track row.segment) {
-                <div class="segment-item">
-                  <button type="button" class="segment-toggle" [attr.aria-expanded]="isSegmentExpanded(row.segment)" (click)="toggleSegment(row.segment)">
-                    <ion-icon [name]="isSegmentExpanded(row.segment) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-                    <span class="segment-icon" [class.commercial]="row.segment === 'comercial'" aria-hidden="true">
-                      @if (row.segment === 'comercial') {
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16"/><path d="M15 9h3a2 2 0 0 1 2 2v10"/><path d="M2.5 21h19"/><path d="M8 7h3M8 11h3M8 15h3"/></svg>
-                      } @else {
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>
-                      }
-                    </span>
-                    <span class="segment-name">{{ row.label }} · {{ row.clientes }} clientes</span>
-                    <strong>{{ money(row.monto) }}</strong><small>{{ row.pct }}%</small>
-                  </button>
-                  @if (isSegmentExpanded(row.segment)) {
-                    <div class="segment-tramos">
-                      @for (t of row.tramos; track t.tramo) {
-                        <div><i class="tramo-dot" [style.background]="t.color"></i><span>{{ t.label }}</span><b>{{ money(t.monto) }}</b><small>{{ t.pct }}%</small></div>
-                      }
-                    </div>
-                  }
-                </div>
+                @if (row.monto > 0) {
+                  <i [class.commercial]="row.segment === 'comercial'" [style.flex-basis.%]="row.pct" [title]="row.label + ': ' + money(row.monto) + ' (' + row.pct + '%)'"></i>
+                }
               }
             </div>
+          </div>
+          <div class="segment-list">
+            @for (row of segmentRows(); track row.segment) {
+              <div class="segment-item">
+                <button type="button" class="segment-toggle" [attr.aria-expanded]="isSegmentExpanded(row.segment)" (click)="toggleSegment(row.segment)">
+                  <ion-icon [name]="isSegmentExpanded(row.segment) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+                  <span class="segment-icon" [class.commercial]="row.segment === 'comercial'" aria-hidden="true">
+                    @if (row.segment === 'comercial') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16"/><path d="M15 9h3a2 2 0 0 1 2 2v10"/><path d="M2.5 21h19"/><path d="M8 7h3M8 11h3M8 15h3"/></svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>
+                    }
+                  </span>
+                  <span class="segment-name">{{ row.label }} · {{ row.clientes }} clientes</span>
+                  <strong>{{ money(row.monto) }}</strong><small>{{ row.pct }}%</small>
+                </button>
+                @if (isSegmentExpanded(row.segment)) {
+                  <div class="segment-tramos">
+                    @for (t of row.tramos; track t.tramo) {
+                      <div><i class="tramo-dot" [style.background]="t.color"></i><span>{{ t.label }}</span><b>{{ money(t.monto) }}</b><small>{{ t.pct }}%</small></div>
+                    }
+                  </div>
+                }
+              </div>
+            }
           </div>
           <div class="coverage">
             <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
