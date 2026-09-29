@@ -49,7 +49,6 @@
 .funnel-card, .distribution-card { min-height: 345px; }
 .funnel-card { display: flex; flex-direction: column; }
 .funnel, .distribution { min-height: 175px; }
-.funnel { display: flex; flex-direction: column; justify-content: center; }
 .funnel-layout { display: grid; flex: 1; grid-template-columns: minmax(0, 1.55fr) minmax(105px, .62fr); gap: 12px; align-items: stretch; }
 .funnel-layout .rates { grid-template-columns: 1fr; }
 .promise { margin-top: 9px; }
