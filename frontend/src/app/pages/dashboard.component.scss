@@ -103,6 +103,20 @@
 .recovery-history-card { grid-column: 3; grid-row: 3; }
 .segmentation-layout { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); align-items: center; gap: 12px; }
 .segment-donut { width: min(180px, 100%); margin: 0 auto; }
+.segment-list { width: 100%; min-width: 0; }
+.segment-toggle { display: grid; width: 100%; grid-template-columns: 14px 18px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 11px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink-soft); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.segment-toggle:hover { color: var(--ink); }
+.segment-toggle ion-icon { color: var(--muted); font-size: 11px; }
+.segment-toggle strong { color: var(--ink); white-space: nowrap; }
+.segment-toggle small { color: var(--muted); font-size: 10px; }
+.segment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segment-icon { display: grid; place-items: center; width: 18px; height: 18px; color: #B5507A; filter: drop-shadow(0 0 3px color-mix(in srgb, #B5507A 40%, transparent)); }
+.segment-icon.commercial { color: #3E63A8; filter: drop-shadow(0 0 3px color-mix(in srgb, #3E63A8 40%, transparent)); }
+.segment-icon svg { width: 16px; height: 16px; }
+.segment-tramos { padding: 2px 0 6px 24px; border-bottom: 1px solid var(--line); }
+.segment-tramos div { display: grid; grid-template-columns: 8px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; color: var(--muted); font-size: 10px; }
+.segment-tramos b { color: var(--ink-soft); font-weight: 700; }
+.tramo-dot { width: 7px; height: 7px; border-radius: 50%; }
 .coverage { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
 .coverage > div:first-child { display: flex; justify-content: space-between; margin-bottom: 9px; color: var(--muted); font-size: 12px; }
 .coverage strong { color: var(--ink); }

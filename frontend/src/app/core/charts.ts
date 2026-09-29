@@ -4,7 +4,7 @@
 // consumiendo la respuesta de /api/dashboard/:franchise en vez de mutar un JSON en memoria.
 
 const fmtMoney = (n) => "$" + Math.round(Number(n ?? 0)).toLocaleString("es-MX");
-const TRAMO_COLOR = { good: "#2FA84F", warning: "#F2A413", serious: "#E2672A", critical: "#C0392B" };
+export const TRAMO_COLOR: Record<string, string> = { good: "#2FA84F", warning: "#F2A413", serious: "#E2672A", critical: "#C0392B" };
 
 export function renderDonut(saldos, { incluirCorriente = true } = {}) {
   const visibles = incluirCorriente ? saldos : saldos.filter((s) => s.tramo !== "good");

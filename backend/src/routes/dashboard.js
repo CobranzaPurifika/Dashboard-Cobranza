@@ -3,6 +3,7 @@ import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
 import { summarizePayments } from "../domain/recoveryPayments.js";
+import { attachSegmentTramos } from "../domain/segmentation.js";
 
 export const dashboardRouter = Router();
 
@@ -26,6 +27,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       kpi,
       saldos,
       segmentacion,
+      segmentoTramos,
       totalClientes,
       gestionadosMes,
       historico,
@@ -70,6 +72,17 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         `select segment, segment_label as label, count(*)::int as clientes, coalesce(sum(saldo),0)::float as monto
          from clientes ${whereClientes}
          group by segment, segment_label`,
+        params
+      ),
+      pool.query(
+        `select c.segment,
+           case when f.dias_vencida <= 0 then 'good' when f.dias_vencida <= 30 then 'warning'
+                when f.dias_vencida <= 60 then 'serious' else 'critical' end as tramo,
+           coalesce(sum(f.monto),0)::float as monto,
+           count(distinct f.cliente_id)::int as clientes
+         from facturas f join clientes c on c.id = f.cliente_id
+         where c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'
+         group by 1, 2`,
         params
       ),
       pool.query(`select count(*)::int as total from clientes ${whereClientes}`, params),
@@ -235,7 +248,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         mes: baselineMensualRow ? { fechaCorte: baselineMensualRow.fecha_corte } : null,
       },
       saldos: saldos.rows,
-      segmentacion: segmentacion.rows,
+      segmentacion: attachSegmentTramos(segmentacion.rows, segmentoTramos.rows),
       gestion: {
         total: totalClientes.rows[0].total,
         gestionados: gestionadosMes.rows[0].gestionados,
