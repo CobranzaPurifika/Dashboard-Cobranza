@@ -343,12 +343,13 @@
             <label class="invoice-row" [class.selected]="documentForm.facturaIds.has(invoice.id)">
               <input type="checkbox" [checked]="documentForm.facturaIds.has(invoice.id)" (change)="toggleDocumentInvoice(invoice.id)" />
               <span class="invoice-folio">{{ invoice.folio }}</span>
-              <span class="invoice-date">{{ invoice.dias_vencida > 0 ? invoice.dias_vencida + ' días' : 'Al corriente' }}</span>
+              <span class="invoice-date" [attr.title]="invoice.vencimiento_iso ? 'Vence ' + shortDate(invoice.vencimiento_iso) : 'Sin días de crédito en la BDD'">{{ invoiceDays(invoice) > 0 ? invoiceDays(invoice) + ' días' : 'Al corriente' }}</span>
               <b class="invoice-amount">{{ moneyExact(invoice.monto) }}</b>
             </label>
-          } @empty { <p class="empty-line">Sin facturas activas.</p> }
+          } @empty { <p class="empty-line">{{ documentInvoicesLoading ? 'Cargando facturas…' : 'Sin facturas activas.' }}</p> }
         </div>
-        <div class="invoice-total-row"><span>Monto del documento</span><strong>{{ moneyExact(documentTotal()) }}</strong></div>
+        <p class="document-hint">Días de atraso a la fecha del documento: vencimiento = fecha de factura + días de crédito.</p>
+        <div class="invoice-total-row"><span>{{ documentForm.tipo === 'acuerdo_pagos' ? 'Adeudo de las facturas' : 'Monto del documento' }}</span><strong>{{ moneyExact(documentTotal()) }}</strong></div>
       </div>
 
       @if (documentForm.tipo === 'aviso_deuda') {
@@ -381,24 +382,38 @@
         </div>
 
         <div class="document-field">
+          <span>Bonificación <small>(opcional, se descuenta del adeudo)</small></span>
+          <input type="number" min="0" step="0.01" placeholder="0.00" [ngModel]="documentForm.bonificacion" (ngModelChange)="setBonificacion($event)" />
+          <div class="invoice-total-row"><span>Adeudo a regularizar</span><strong>{{ moneyExact(acuerdoNeto()) }}</strong></div>
+        </div>
+
+        <div class="document-field">
           <span class="document-field-title">Parcialidades<small>{{ documentForm.parcialidades.length }}</small></span>
           @for (parcialidad of documentForm.parcialidades; track $index; let i = $index) {
             <div class="parcialidad">
               <div class="parcialidad-head">
                 <b>{{ i + 1 }}</b>
                 <input type="date" aria-label="Fecha compromiso" [(ngModel)]="parcialidad.fechaISO" />
-                <strong class="parcialidad-amount">{{ moneyExact(parcialidadImporte(parcialidad)) }}</strong>
+                <input type="number" class="parcialidad-importe" aria-label="Importe" min="0" step="0.01" [ngModel]="parcialidad.importe" (ngModelChange)="setParcialidadImporte(i, $event)" />
                 <button type="button" class="parcialidad-remove" aria-label="Quitar parcialidad" [disabled]="documentForm.parcialidades.length <= 1" (click)="removeParcialidad(i)"><ion-icon name="remove-circle-outline"></ion-icon></button>
               </div>
               <div class="parcialidad-invoices">
-                @for (invoice of documentSelectedInvoices(); track invoice.id) {
-                  <button type="button" [class.active]="parcialidad.facturaIds.has(invoice.id)" (click)="toggleParcialidadInvoice(parcialidad, invoice.id)">{{ invoice.folio }}</button>
-                } @empty { <span class="empty-line">Selecciona facturas arriba.</span> }
+                @for (cobertura of parcialidadCobertura(i); track cobertura.invoice.id) {
+                  <span class="folio-tag" [class.parcial]="cobertura.parcial">{{ cobertura.invoice.folio }}@if (cobertura.parcial) { <small>parcial</small> }</span>
+                } @empty { <span class="empty-line">Sin facturas: el importe es cero.</span> }
               </div>
             </div>
           }
           <button type="button" class="secondary-action" [disabled]="!canAddParcialidad()" (click)="addParcialidad()"><ion-icon name="add-outline"></ion-icon>Agregar parcialidad</button>
-          <p class="document-hint">Las facturas se reparten solas de la más antigua a la más reciente y el importe se calcula con ellas. Toca un folio para moverlo a otra parcialidad.</p>
+          <div class="invoice-total-row parcialidades-total" [class.mismatch]="parcialidadesDiferencia() !== 0">
+            <span>Suma de parcialidades</span><strong>{{ moneyExact(parcialidadesTotal()) }}</strong>
+          </div>
+          @if (parcialidadesDiferencia() > 0) {
+            <p class="document-hint warning">Faltan {{ moneyExact(parcialidadesDiferencia()) }} por cubrir. Ajusta un importe o agrega una parcialidad.</p>
+          } @else if (parcialidadesDiferencia() < 0) {
+            <p class="document-hint warning">Las parcialidades exceden el adeudo por {{ moneyExact(-parcialidadesDiferencia()) }}.</p>
+          }
+          <p class="document-hint">Las facturas se reparten de la más antigua a la más reciente. Si cambias un importe, la siguiente parcialidad se recalcula; una factura puede quedar dividida entre dos pagos.</p>
         </div>
 
         <label class="document-field"><span>Condiciones particulares <small>(opcional, una por línea)</small></span>

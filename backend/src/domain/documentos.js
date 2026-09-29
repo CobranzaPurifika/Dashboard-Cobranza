@@ -4,7 +4,7 @@
 // inventar cifras en un documento con peso legal.
 import { FRANQUICIAS, TIPOS_DOCUMENTO, franquiciaPorFacturas } from "../documents/brand.js";
 import {
-  fechaConDia, fechaLarga, isIsoDate, listaFolios,
+  fechaConDia, fechaCorta, fechaLarga, isIsoDate, listaFolios,
   montoTexto, montoTotalTexto, nombreArchivo,
 } from "../documents/format.js";
 
@@ -38,8 +38,31 @@ function idList(value) {
   return [...new Set(value.map((id) => String(id)))];
 }
 
-// invoices: filas de la BDD del cliente con { id, folio, monto, dias_vencida,
-// fecha_facturacion_texto, fecha_vencimiento_texto }.
+function addDaysISO(iso, days) {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+function daysBetween(fromISO, toISO) {
+  return Math.round((Date.parse(`${toISO}T00:00:00Z`) - Date.parse(`${fromISO}T00:00:00Z`)) / 86_400_000);
+}
+
+// Solo para documentos: el vencimiento es la fecha de facturación más los días de crédito
+// de la BDD, y los días de atraso se cuentan a la fecha del documento. No se usan los días
+// de la BDD porque las facturas con pago parcial llegan con 0 aunque sí estén vencidas. Si
+// una factura no tiene días de crédito (histórico sin fila en la BDD cruda), se conservan sus
+// días de la BDD y el vencimiento queda sin dato.
+export function invoiceSchedule(invoice, fechaISO) {
+  const credito = invoice.dias_credito;
+  if (!isIsoDate(invoice.fecha_facturacion_iso) || !Number.isInteger(credito) || credito < 0) {
+    return { vencimientoISO: null, diasAtraso: Math.max(0, Number(invoice.dias_vencida) || 0) };
+  }
+  const vencimientoISO = addDaysISO(invoice.fecha_facturacion_iso, credito);
+  return { vencimientoISO, diasAtraso: Math.max(0, daysBetween(vencimientoISO, fechaISO)) };
+}
+
+// invoices: facturas del cliente con { id, folio, monto, dias_vencida, fecha_facturacion_iso,
+// dias_credito }.
 export function buildDocumentData(tipo, cliente, invoices, body = {}) {
   if (!DOCUMENT_TYPES.includes(tipo)) fail("Tipo de documento desconocido");
 
@@ -69,12 +92,24 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
   }
   const franquicia = FRANQUICIAS[franquiciaId] ?? fail("La franquicia del cliente no es válida");
 
-  const totalCents = selected.reduce((sum, invoice) => sum + toCents(invoice.monto), 0);
-  const total = totalCents / 100;
-  const sinVencimiento = selected.filter((invoice) => !invoice.fecha_vencimiento_texto);
-  if (sinVencimiento.length && tipo !== "acuerdo_pagos") {
-    warnings.push(`No se encontró la fecha de vencimiento de ${listaFolios(sinVencimiento.map((invoice) => invoice.folio))}; se muestra "—".`);
+  const facturasCents = selected.reduce((sum, invoice) => sum + toCents(invoice.monto), 0);
+  const schedules = selected.map((invoice) => invoiceSchedule(invoice, fechaISO));
+  const sinCredito = selected.filter((_, index) => !schedules[index].vencimientoISO);
+  if (sinCredito.length && tipo !== "acuerdo_pagos") {
+    warnings.push(`No se encontraron los días de crédito de ${listaFolios(sinCredito.map((invoice) => invoice.folio))}; su vencimiento se muestra "—" y sus días de atraso son los de la BDD.`);
   }
+
+  // Bonificación (solo acuerdo de pagos): se descuenta del adeudo de las facturas y las
+  // parcialidades cubren el neto.
+  let bonificacionCents = 0;
+  if (tipo === "acuerdo_pagos" && body.acuerdo?.bonificacion != null && body.acuerdo.bonificacion !== "") {
+    const bonificacion = Number(body.acuerdo.bonificacion);
+    if (!Number.isFinite(bonificacion) || bonificacion < 0) fail("La bonificación no es válida");
+    bonificacionCents = toCents(bonificacion);
+    if (bonificacionCents >= facturasCents) fail("La bonificación debe ser menor al adeudo de las facturas seleccionadas");
+  }
+  const totalCents = facturasCents - bonificacionCents;
+  const total = totalCents / 100;
 
   const data = {
     franquicia,
@@ -83,15 +118,18 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
     destinatario: { nombre, direccion },
     montoTotal: montoTotalTexto(total),
     montoTotalNumero: total,
-    diasMora: Math.max(0, ...selected.map((invoice) => Number(invoice.dias_vencida) || 0)),
-    facturas: selected.map((invoice) => ({
+    diasMora: Math.max(0, ...schedules.map((schedule) => schedule.diasAtraso)),
+    facturas: selected.map((invoice, index) => ({
       folio: invoice.folio,
-      fechaFactura: invoice.fecha_facturacion_texto || "—",
-      fechaVencimiento: invoice.fecha_vencimiento_texto || "—",
-      diasAtraso: Math.max(0, Number(invoice.dias_vencida) || 0),
+      fechaFactura: isIsoDate(invoice.fecha_facturacion_iso) ? fechaCorta(invoice.fecha_facturacion_iso) : "—",
+      fechaVencimiento: schedules[index].vencimientoISO ? fechaCorta(schedules[index].vencimientoISO) : "—",
+      diasAtraso: schedules[index].diasAtraso,
       importe: montoTexto(invoice.monto),
     })),
   };
+  if (bonificacionCents) {
+    data.bonificacion = { original: montoTotalTexto(facturasCents / 100), monto: montoTotalTexto(bonificacionCents / 100) };
+  }
 
   if (tipo === "aviso_deuda") {
     const nota = cleanText(body.notaAdicional);
@@ -127,7 +165,7 @@ export function buildDocumentData(tipo, cliente, invoices, body = {}) {
       return { fecha: fechaConDia(parcialidad.fechaISO), facturas: listaFolios(folios), importe: montoTexto(importe) };
     });
     if (parcialidadesCents !== totalCents) {
-      warnings.push(`Las parcialidades suman ${montoTotalTexto(parcialidadesCents / 100)} y el adeudo de las facturas seleccionadas es ${data.montoTotal}.`);
+      warnings.push(`Las parcialidades suman ${montoTotalTexto(parcialidadesCents / 100)} y el adeudo a regularizar es ${data.montoTotal}.`);
     }
     data.esBorrador = acuerdo.esBorrador !== false;
     data.condiciones = (Array.isArray(acuerdo.condiciones) ? acuerdo.condiciones : [])

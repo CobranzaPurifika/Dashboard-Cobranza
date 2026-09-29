@@ -187,7 +187,16 @@ export function acuerdoPagos(layout, data) {
 
   if (data.montoTotal) {
     layout.montoDestacado("Adeudo total a regularizar:", data.montoTotal);
-    layout.spacer(7);
+    layout.spacer(4);
+    if (data.bonificacion) {
+      layout.parrafoMixto([
+        { text: "Adeudo original de las facturas: " },
+        { text: data.bonificacion.original, bold: true },
+        { text: "   ·   Bonificación otorgada: " },
+        { text: `−${data.bonificacion.monto}`, bold: true },
+      ], { after: 4, line: 260 });
+    }
+    layout.spacer(3);
   }
 
   layout.seccion(esBorrador ? "Esquema de pagos propuesto" : "Esquema de pagos acordado", { before: 9, after: 5 });

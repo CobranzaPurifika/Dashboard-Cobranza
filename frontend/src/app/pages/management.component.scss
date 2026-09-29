@@ -233,16 +233,18 @@ button, input, select, textarea { font: inherit; }
 .document-toggle button { padding: 6px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .document-toggle button.active { background: var(--accent); color: #063a3e; font-weight: 800; }
 .parcialidad { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
-.parcialidad-head { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 32px; align-items: center; gap: 8px; }
+.parcialidad-head { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, .85fr) 32px; align-items: center; gap: 8px; }
 .parcialidad-head b { color: var(--ink-soft); font-size: 11px; text-align: center; }
 .parcialidad-remove { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .parcialidad-remove:hover { color: #d84036; background: var(--surface-hover); }
 .parcialidad-remove ion-icon { font-size: 17px; }
 .parcialidad-invoices { display: flex; flex-wrap: wrap; gap: 5px; }
-.parcialidad-invoices button { padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
-.parcialidad-invoices button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-strong); }
 .document-fields .secondary-action { display: inline-flex; align-items: center; gap: 5px; width: max-content; margin-top: 2px; }
-.parcialidad-amount { min-width: 92px; color: var(--ink); font-size: 13px; text-align: right; }
+.parcialidad-head .parcialidad-importe { text-align: right; font-weight: 700; }
+.folio-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-strong); font-size: 10px; font-weight: 700; }
+.folio-tag.parcial { border-style: dashed; }
+.folio-tag small { color: var(--muted); font-size: 9px; font-weight: 600; }
+.parcialidades-total.mismatch strong { color: #b87904; }
 .parcialidad-remove:disabled { opacity: .3; cursor: default; }
 .document-check { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 11px; font-weight: 650; cursor: pointer; }
 .document-check input { accent-color: var(--accent); }

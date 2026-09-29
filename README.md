@@ -80,14 +80,18 @@ cliente). El backend (`backend/src/documents/`) dibuja el PDF con `pdfkit` y com
 espaciado hasta que cabe en una sola página; el nombre del archivo sigue el patrón
 `<Prefijo>_<Tipo>_<Cliente>_<AAAA-MM-DD>.pdf`.
 
-Montos, folios y fechas de factura salen siempre de la base, no del navegador. La fecha de
-vencimiento se toma de la fila más reciente de la BDD cruda (columna J). Si el prefijo de los
+Montos, folios y fechas de factura salen siempre de la base, no del navegador. Solo para los
+documentos, el vencimiento es la fecha de facturación más los días de crédito (columna K de la BDD
+cruda) y los días de atraso se cuentan a la fecha del documento; no se usan los días de la BDD
+porque las facturas con pago parcial llegan con 0 aunque estén vencidas. Si el prefijo de los
 folios no coincide con la franquicia del cliente, se usan los datos bancarios de la franquicia
 de las facturas y se avisa en pantalla. El papel es fijo por tipo. El aviso de deuda puede incluir
 una nota de mantenimiento pendiente (casilla, texto editable). La fecha de retiro sin capturar se
-imprime como “Por definir” y el retiro no lleva horario. En el acuerdo, las facturas se reparten
-de la más antigua a la más reciente entre las parcialidades (la última lleva menos si no alcanza
-parejo) y cada importe se calcula con sus facturas. Generar un documento no registra gestión ni modifica al cliente. La fuente
+imprime como “Por definir” y el retiro no lleva horario. En el acuerdo se puede otorgar una
+bonificación (se descuenta del adeudo y se muestra en el PDF); el neto se reparte por número de
+facturas, de la más antigua a la más reciente (la última lleva menos si no alcanza parejo). Al
+editar un importe, la siguiente parcialidad absorbe la diferencia y una factura puede quedar
+dividida entre dos pagos. Generar un documento no registra gestión ni modifica al cliente. La fuente
 Carlito (equivalente métrico de Calibri) se distribuye bajo SIL OFL 1.1
 (`backend/src/documents/assets/fonts/OFL.txt`).
 

@@ -109,6 +109,8 @@ export class ApiService {
     return this.request(`/clientes/${id}/promise`, { method: 'DELETE' });
   }
 
+  documentoFacturas = (id: string) => this.request(`/clientes/${encodeURIComponent(id)}/documentos/facturas`);
+
   // Genera un documento formal (aviso de deuda, aviso de retiro o acuerdo de pagos) y lo
   // regresa como PDF junto con el nombre de archivo estandarizado y los avisos del backend
   // (p. ej. franquicia corregida por prefijo de folio o parcialidades que no suman el adeudo).

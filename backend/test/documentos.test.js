@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildDocumentData } from "../src/domain/documentos.js";
+import { buildDocumentData, invoiceSchedule } from "../src/domain/documentos.js";
 import { generateDocumentPdf } from "../src/documents/generate.js";
 import { fechaConDia, fechaLarga, listaFolios, slugCliente } from "../src/documents/format.js";
 
 const cliente = { id: "ags-quevedo", name: "JORGE QUEVEDO", franchise_id: "aguascalientes" };
 const invoices = [
-  { id: 1, folio: "AGS2 2758", monto: 240, dias_vencida: 414, fecha_facturacion_iso: "2025-06-01", fecha_facturacion_texto: "01/06/2025", fecha_vencimiento_texto: "30/06/2025" },
-  { id: 2, folio: "AGS2 2801", monto: 5460, dias_vencida: 380, fecha_facturacion_iso: "2025-07-01", fecha_facturacion_texto: "01/07/2025", fecha_vencimiento_texto: "31/07/2025" },
+  { id: 1, folio: "AGS2 2758", monto: 240, dias_vencida: 414, fecha_facturacion_iso: "2025-06-01", dias_credito: 30 },
+  { id: 2, folio: "AGS2 2801", monto: 5460, dias_vencida: 0, fecha_facturacion_iso: "2025-07-01", dias_credito: 30 },
 ];
 const base = { facturaIds: [2, 1], fechaISO: "2026-08-18", destinatario: { nombre: "Sr. Jorge Quevedo" } };
 
@@ -23,12 +23,27 @@ test("formatea fechas y listas de folios en español", () => {
 test("el aviso de deuda toma montos y folios de la base, no del formulario", () => {
   const { data, warnings, fileName } = buildDocumentData("aviso_deuda", cliente, invoices, { ...base, montoTotal: "$1.00" });
   assert.equal(data.montoTotal, "$5,700.00 MXN");
-  assert.equal(data.diasMora, 414);
+  assert.equal(data.diasMora, 413);
+  assert.deepEqual(data.facturas[0], { folio: "AGS2 2758", fechaFactura: "01/06/2025", fechaVencimiento: "01/07/2025", diasAtraso: 413, importe: "$240.00" });
+  // Pago parcial: la BDD trae 0 días, pero con crédito de 30 días sí está vencida.
+  assert.equal(data.facturas[1].diasAtraso, 383);
   assert.deepEqual(data.facturas.map((factura) => factura.folio), ["AGS2 2758", "AGS2 2801"]);
   assert.equal(data.fecha, "18 de agosto de 2026");
   assert.equal(data.franquicia.razonSocial, "Stream Ingeniería Sustentable");
   assert.equal(fileName, "AGS2_AvisoDeuda_SrJorgeQuevedo_2026-08-18.pdf");
   assert.deepEqual(warnings, []);
+});
+
+test("vencimiento = fecha de factura + días de crédito, atraso a la fecha del documento", () => {
+  assert.deepEqual(invoiceSchedule({ fecha_facturacion_iso: "2026-06-01", dias_credito: 30, dias_vencida: 0 }, "2026-09-29"), { vencimientoISO: "2026-07-01", diasAtraso: 90 });
+  assert.deepEqual(invoiceSchedule({ fecha_facturacion_iso: "2026-09-01", dias_credito: 60, dias_vencida: 0 }, "2026-09-29"), { vencimientoISO: "2026-10-31", diasAtraso: 0 });
+  assert.deepEqual(invoiceSchedule({ fecha_facturacion_iso: "2026-09-01", dias_credito: 0, dias_vencida: 0 }, "2026-09-29"), { vencimientoISO: "2026-09-01", diasAtraso: 28 });
+  // Sin días de crédito (histórico): se conservan los días de la BDD y no se inventa vencimiento.
+  assert.deepEqual(invoiceSchedule({ fecha_facturacion_iso: "2026-06-01", dias_credito: null, dias_vencida: 12 }, "2026-09-29"), { vencimientoISO: null, diasAtraso: 12 });
+
+  const { data, warnings } = buildDocumentData("aviso_deuda", cliente, [{ ...invoices[0], dias_credito: null }], { ...base, facturaIds: [1] });
+  assert.equal(data.facturas[0].fechaVencimiento, "—");
+  assert.equal(warnings.length, 1);
 });
 
 test("rechaza facturas ajenas al cliente y datos obligatorios faltantes", () => {
@@ -86,6 +101,24 @@ test("el acuerdo valida parcialidades y avisa si no suman el adeudo", () => {
   assert.throws(() => buildDocumentData("acuerdo_pagos", cliente, invoices, {
     ...base, facturaIds: [1], acuerdo: { parcialidades: [{ fechaISO: "2026-07-28", facturaIds: [2], importe: 10 }] },
   }), /no está seleccionada/);
+});
+
+test("la bonificación reduce el adeudo del acuerdo y las parcialidades cubren el neto", () => {
+  const acuerdo = {
+    bonificacion: 700,
+    parcialidades: [
+      { fechaISO: "2026-07-28", facturaIds: [1, 2], importe: 2500 },
+      { fechaISO: "2026-08-11", facturaIds: [2], importe: 2500 },
+    ],
+  };
+  const { data, warnings } = buildDocumentData("acuerdo_pagos", cliente, invoices, { ...base, acuerdo });
+  assert.equal(data.montoTotal, "$5,000.00 MXN");
+  assert.deepEqual(data.bonificacion, { original: "$5,700.00 MXN", monto: "$700.00 MXN" });
+  assert.equal(data.parcialidades[1].facturas, "AGS2 2801");
+  assert.deepEqual(warnings, []);
+  assert.throws(() => buildDocumentData("acuerdo_pagos", cliente, invoices, { ...base, acuerdo: { ...acuerdo, bonificacion: 5700 } }), /bonificación/);
+  assert.throws(() => buildDocumentData("acuerdo_pagos", cliente, invoices, { ...base, acuerdo: { ...acuerdo, bonificacion: -1 } }), /bonificación/);
+  assert.equal(buildDocumentData("aviso_deuda", cliente, invoices, { ...base, acuerdo }).data.bonificacion, undefined);
 });
 
 test("los tres documentos salen en una sola página y solo retiro/acuerdo llevan campo de firma", async () => {

@@ -22,8 +22,23 @@ const NOTA_MANTENIMIENTO = 'Le recordamos que su equipo purificador tiene un man
 
 interface Parcialidad {
   fechaISO: string;
-  facturaIds: Set<number>;
+  importe: number;
 }
+
+// Factura del formulario de documentos: vencimiento = fecha de facturación + días de crédito
+// (calculado en el backend); los días de atraso se cuentan contra la fecha del documento.
+interface DocumentInvoice {
+  id: number;
+  folio: string;
+  monto: number;
+  fecha_facturacion_iso: string | null;
+  vencimiento_iso: string | null;
+  dias_vencida_bdd: number;
+}
+
+// Tramo del adeudo que cubre una parcialidad dentro de una factura (parcial = la factura se
+// reparte entre dos o más pagos).
+interface Cobertura { invoice: DocumentInvoice; parcial: boolean }
 
 interface DocumentForm {
   tipo: DocumentType;
@@ -37,6 +52,7 @@ interface DocumentForm {
   retiroFechaISO: string;
   equipos: string;
   esBorrador: boolean;
+  bonificacion: number | null;
   parcialidades: Parcialidad[];
   condiciones: string;
 }
@@ -109,6 +125,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   documentGenerating = false;
   documentError = '';
   documentResult: { fileName: string; warnings: string[] } | null = null;
+  documentInvoicesData: DocumentInvoice[] = [];
+  documentInvoicesLoading = false;
   readonly documentTypes = DOCUMENT_TYPES;
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
@@ -869,33 +887,48 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     if (this.blacklistPanelOpen) this.documentMenuOpen = false;
   }
 
-  openDocumentForm(tipo: DocumentType): void {
+  async openDocumentForm(tipo: DocumentType): Promise<void> {
     if (!this.detail) return;
     const type = DOCUMENT_TYPES.find((option) => option.value === tipo)!;
-    const invoices: any[] = this.detail.invoices ?? [];
-    // El aviso de deuda parte de las facturas vencidas (todas si ninguna lo está); retiro y
-    // acuerdo parten del adeudo completo. En los tres casos se puede ajustar la selección.
-    const overdue = invoices.filter((invoice) => Number(invoice.dias_vencida) > 0);
-    const initial = tipo === 'aviso_deuda' && overdue.length ? overdue : invoices;
-    this.documentForm = {
+    const form: DocumentForm = {
       tipo,
       label: type.label,
       fechaISO: this.todayMexico(),
       nombre: this.detail.name ?? '',
       direccion: '',
-      facturaIds: new Set(initial.map((invoice) => invoice.id)),
+      facturaIds: new Set(),
       incluirNota: false,
       notaAdicional: NOTA_MANTENIMIENTO,
       retiroFechaISO: '',
       equipos: '',
       esBorrador: true,
+      bonificacion: null,
       parcialidades: [],
       condiciones: '',
     };
-    if (tipo === 'acuerdo_pagos') this.addParcialidad();
+    this.documentForm = form;
     this.documentMenuOpen = false;
     this.documentError = '';
     this.documentResult = null;
+    this.documentInvoicesData = [];
+    this.documentInvoicesLoading = true;
+    this.refresh();
+    try {
+      const invoices: DocumentInvoice[] = await this.api.documentoFacturas(this.detail.id);
+      if (this.documentForm !== form) return;
+      this.documentInvoicesData = invoices;
+      // El aviso de deuda parte de las facturas vencidas (todas si ninguna lo está); retiro y
+      // acuerdo parten del adeudo completo. En los tres casos se puede ajustar la selección.
+      const overdue = invoices.filter((invoice) => this.invoiceDays(invoice) > 0);
+      const initial = tipo === 'aviso_deuda' && overdue.length ? overdue : invoices;
+      form.facturaIds = new Set(initial.map((invoice) => invoice.id));
+      if (tipo === 'acuerdo_pagos') this.addParcialidad();
+    } catch (error: any) {
+      if (this.documentForm === form) this.documentError = error.message;
+    } finally {
+      if (this.documentForm === form) this.documentInvoicesLoading = false;
+      this.refresh();
+    }
   }
 
   closeDocumentForm(): void {
@@ -905,8 +938,17 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.documentResult = null;
   }
 
-  documentInvoices(): any[] {
-    return this.detail?.invoices ?? [];
+  // Ordenadas de la más antigua a la más reciente (así se reparten en las parcialidades).
+  documentInvoices(): DocumentInvoice[] {
+    return this.documentInvoicesData;
+  }
+
+  // Días de atraso a la fecha del documento; sin días de crédito se usan los de la BDD.
+  invoiceDays(invoice: DocumentInvoice): number {
+    const fecha = this.documentForm?.fechaISO || this.todayMexico();
+    if (!invoice.vencimiento_iso) return Math.max(0, Number(invoice.dias_vencida_bdd) || 0);
+    const diff = Math.round((Date.parse(`${fecha}T00:00:00Z`) - Date.parse(`${invoice.vencimiento_iso}T00:00:00Z`)) / 86_400_000);
+    return Math.max(0, diff);
   }
 
   toggleDocumentInvoice(id: number): void {
@@ -931,15 +973,12 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.distributeParcialidades();
   }
 
+  // Suma de las facturas seleccionadas (antes de bonificación).
   documentTotal(): number {
-    const form = this.documentForm;
-    if (!form) return 0;
-    return this.roundCents(this.documentInvoices()
-      .filter((invoice) => form.facturaIds.has(invoice.id))
-      .reduce((sum, invoice) => sum + Number(invoice.monto ?? 0), 0));
+    return this.roundCents(this.documentSelectedInvoices().reduce((sum, invoice) => sum + Number(invoice.monto ?? 0), 0));
   }
 
-  documentSelectedInvoices(): any[] {
+  documentSelectedInvoices(): DocumentInvoice[] {
     return this.documentInvoices().filter((invoice) => this.documentForm?.facturaIds.has(invoice.id));
   }
 
@@ -947,27 +986,46 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     return DOCUMENT_TYPES.find((option) => option.value === tipo)?.paper === 'carta' ? 'tamaño carta' : 'tamaño oficio';
   }
 
-  // Importe de cada parcialidad = suma de las facturas que cubre (se calcula solo).
-  parcialidadImporte(parcialidad: Parcialidad): number {
-    return this.roundCents(this.documentInvoices()
-      .filter((invoice) => parcialidad.facturaIds.has(invoice.id))
-      .reduce((sum, invoice) => sum + Number(invoice.monto ?? 0), 0));
+  bonificacionValue(): number {
+    const value = Number(this.documentForm?.bonificacion);
+    return Number.isFinite(value) && value > 0 ? this.roundCents(value) : 0;
+  }
+
+  // Adeudo a regularizar en el acuerdo: facturas seleccionadas menos la bonificación.
+  acuerdoNeto(): number {
+    return this.roundCents(Math.max(0, this.documentTotal() - this.bonificacionValue()));
+  }
+
+  setBonificacion(value: number | null): void {
+    const form = this.documentForm;
+    if (!form) return;
+    form.bonificacion = value;
+    this.distributeParcialidades();
+  }
+
+  parcialidadesTotal(): number {
+    return this.roundCents((this.documentForm?.parcialidades ?? []).reduce((sum, row) => sum + (Number(row.importe) || 0), 0));
+  }
+
+  // Positivo = falta por cubrir; negativo = las parcialidades exceden el adeudo.
+  parcialidadesDiferencia(): number {
+    return this.roundCents(this.acuerdoNeto() - this.parcialidadesTotal());
   }
 
   canAddParcialidad(): boolean {
     const form = this.documentForm;
-    return Boolean(form) && form!.parcialidades.length < form!.facturaIds.size;
+    return Boolean(form) && form!.facturaIds.size > 0 && form!.parcialidades.length < 36;
   }
 
   // Cada parcialidad nueva va dos semanas después de la anterior (la primera, a una semana) y
-  // las facturas se vuelven a repartir entre todas las filas.
+  // el adeudo se vuelve a repartir entre todas las filas.
   addParcialidad(): void {
     const form = this.documentForm;
-    if (!form || (form.parcialidades.length && !this.canAddParcialidad())) return;
+    if (!form || !this.canAddParcialidad()) return;
     const last = form.parcialidades[form.parcialidades.length - 1];
     form.parcialidades = [...form.parcialidades, {
       fechaISO: this.addDays(last?.fechaISO || this.todayMexico(), last ? 14 : 7),
-      facturaIds: new Set(),
+      importe: 0,
     }];
     this.distributeParcialidades();
   }
@@ -979,48 +1037,78 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     this.distributeParcialidades();
   }
 
-  // Mueve una factura a esta parcialidad (cada factura pertenece a una sola fila, así las
-  // parcialidades siempre suman el monto del documento).
-  toggleParcialidadInvoice(parcialidad: Parcialidad, id: number): void {
+  // Al editar a mano el importe de una parcialidad, la siguiente absorbe la diferencia para que
+  // el total siga cuadrando (así una factura puede quedar dividida entre dos pagos). Si es la
+  // última, se muestra cuánto falta o sobra.
+  setParcialidadImporte(index: number, value: number | null): void {
     const form = this.documentForm;
-    if (!form || parcialidad.facturaIds.has(id)) return;
-    form.parcialidades.forEach((row) => {
-      if (row.facturaIds.has(id)) row.facturaIds = new Set([...row.facturaIds].filter((invoiceId) => invoiceId !== id));
-    });
-    parcialidad.facturaIds = new Set([...parcialidad.facturaIds, id]);
+    if (!form) return;
+    const rows = form.parcialidades;
+    rows[index].importe = this.roundCents(Math.max(0, Number(value) || 0));
+    const next = rows[index + 1];
+    if (!next) return;
+    const others = rows.reduce((sum, row, position) => position === index + 1 ? sum : sum + (Number(row.importe) || 0), 0);
+    next.importe = this.roundCents(Math.max(0, this.acuerdoNeto() - others));
   }
 
-  // Reparte las facturas seleccionadas, de la más antigua a la más reciente, en bloques
-  // consecutivos del mismo tamaño; si no alcanza parejo, las primeras parcialidades llevan
-  // una factura más y la última lleva menos.
+  // Reparte el adeudo por número de facturas, de la más antigua a la más reciente; si no
+  // alcanza parejo, las primeras parcialidades llevan una factura más y la última menos. Con
+  // bonificación, cada importe se reduce en proporción y la última cuadra los centavos.
   private distributeParcialidades(): void {
     const form = this.documentForm;
     if (!form || !form.parcialidades.length) return;
-    const invoices = this.documentSelectedInvoices().sort((a, b) =>
-      String(a.fecha_facturacion ?? '').localeCompare(String(b.fecha_facturacion ?? ''))
-      || String(a.folio).localeCompare(String(b.folio)));
+    const invoices = this.documentSelectedInvoices();
     const rows = form.parcialidades.length;
+    const total = this.documentTotal();
+    const neto = this.acuerdoNeto();
+    const factor = total > 0 ? neto / total : 0;
     const base = Math.floor(invoices.length / rows);
     const extra = invoices.length % rows;
     let cursor = 0;
+    let assigned = 0;
     form.parcialidades.forEach((parcialidad, index) => {
       const size = base + (index < extra ? 1 : 0);
-      parcialidad.facturaIds = new Set(invoices.slice(cursor, cursor + size).map((invoice) => invoice.id));
+      const chunk = invoices.slice(cursor, cursor + size).reduce((sum, invoice) => sum + Number(invoice.monto ?? 0), 0);
       cursor += size;
+      parcialidad.importe = index === rows - 1 ? this.roundCents(neto - assigned) : this.roundCents(chunk * factor);
+      assigned += parcialidad.importe;
     });
+  }
+
+  // Facturas que cubre cada parcialidad: el adeudo (ya con bonificación, en proporción) se
+  // acomoda de la factura más antigua a la más reciente y cada parcialidad toma el tramo que
+  // le toca según su importe. Una factura que cae entre dos tramos queda dividida.
+  parcialidadCobertura(index: number): Cobertura[] {
+    const form = this.documentForm;
+    if (!form) return [];
+    const factor = this.documentTotal() > 0 ? this.acuerdoNeto() / this.documentTotal() : 0;
+    const start = form.parcialidades.slice(0, index).reduce((sum, row) => sum + (Number(row.importe) || 0), 0);
+    const end = start + (Number(form.parcialidades[index]?.importe) || 0);
+    const cobertura: Cobertura[] = [];
+    let cursor = 0;
+    for (const invoice of this.documentSelectedInvoices()) {
+      const from = cursor;
+      const to = cursor + Number(invoice.monto ?? 0) * factor;
+      cursor = to;
+      const overlap = Math.min(end, to) - Math.max(start, from);
+      if (overlap > 0.004) cobertura.push({ invoice, parcial: overlap < to - from - 0.004 });
+    }
+    return cobertura;
   }
 
   documentFormIssue(): string {
     const form = this.documentForm;
     if (!form) return '';
+    if (this.documentInvoicesLoading) return 'Cargando facturas…';
     if (!form.facturaIds.size) return 'Selecciona al menos una factura.';
     if (!form.nombre.trim()) return 'Escribe a quién va dirigido el documento.';
     if (!form.fechaISO) return 'Indica la fecha del documento.';
     if (form.tipo === 'acuerdo_pagos') {
+      if (this.bonificacionValue() >= this.documentTotal()) return 'La bonificación debe ser menor al adeudo de las facturas.';
       if (!form.parcialidades.length) return 'Agrega al menos una parcialidad.';
-      const index = form.parcialidades.findIndex((parcialidad) =>
-        !parcialidad.fechaISO || !parcialidad.facturaIds.size);
-      if (index >= 0) return `Completa la parcialidad ${index + 1}: fecha y al menos una factura.`;
+      const index = form.parcialidades.findIndex((parcialidad, position) =>
+        !parcialidad.fechaISO || !(Number(parcialidad.importe) > 0) || !this.parcialidadCobertura(position).length);
+      if (index >= 0) return `Completa la parcialidad ${index + 1}: fecha e importe mayor a cero.`;
     }
     return '';
   }
@@ -1045,10 +1133,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
       if (form.tipo === 'acuerdo_pagos') {
         body.acuerdo = {
           esBorrador: form.esBorrador,
-          parcialidades: form.parcialidades.map((parcialidad) => ({
+          bonificacion: this.bonificacionValue() || null,
+          parcialidades: form.parcialidades.map((parcialidad, index) => ({
             fechaISO: parcialidad.fechaISO,
-            importe: this.parcialidadImporte(parcialidad),
-            facturaIds: [...parcialidad.facturaIds],
+            importe: this.roundCents(Number(parcialidad.importe) || 0),
+            facturaIds: this.parcialidadCobertura(index).map((cobertura) => cobertura.invoice.id),
           })),
           condiciones: form.condiciones.split('\n').map((line) => line.trim()).filter(Boolean),
         };
