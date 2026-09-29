@@ -101,8 +101,12 @@
 .overdue-history-card { grid-column: 2 / span 2; grid-row: 2; }
 .segmentation-card { grid-column: 2; grid-row: 3; }
 .recovery-history-card { grid-column: 3; grid-row: 3; }
-.segmentation-layout { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); align-items: center; gap: 12px; }
-.segment-donut { width: min(180px, 100%); margin: 0 auto; }
+.segment-summary { margin: 4px 0 14px; }
+.segment-total { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.segment-total strong { color: var(--ink); font-size: 18px; letter-spacing: -.02em; }
+.segment-bar { display: flex; gap: 2px; height: 8px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
+.segment-bar i { display: block; min-width: 3px; height: 100%; background: #B5507A; transition: flex-basis .3s ease; }
+.segment-bar i.commercial { background: #3E63A8; }
 .segment-list { width: 100%; min-width: 0; }
 .segment-toggle { display: grid; width: 100%; grid-template-columns: 14px 18px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 11px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink-soft); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
 .segment-toggle:hover { color: var(--ink); }
@@ -139,7 +143,7 @@
   .kpi-card strong { font-size: 34px; }
   .donut { margin: 0 auto; width: min(70vw, 220px); }
   .balance-legend { grid-template-columns: 1fr; }
-  .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
+  .funnel-layout { grid-template-columns: 1fr; }
   .recovered-card .panel-title { flex-wrap: wrap; }
   .recovery-controls { width: 100%; justify-content: space-between; }
   .sort-toggle button { min-height: 32px; }

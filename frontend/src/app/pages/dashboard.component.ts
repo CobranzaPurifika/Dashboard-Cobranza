@@ -8,7 +8,6 @@ import {
   renderDistribucion,
   renderDonut,
   renderFunnel,
-  renderSegmentacion,
   TRAMO_COLOR,
 } from '../core/charts';
 
@@ -31,7 +30,6 @@ export class DashboardComponent implements OnChanges {
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
   funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
   distribution: { rows?: SafeHtml; sub?: string } = {};
-  segmentation: { svg?: SafeHtml; legend?: SafeHtml } = {};
   recoveryChart?: SafeHtml;
   overdueChart?: SafeHtml;
   expandedRecoveryClients = new Set<string>();
@@ -167,6 +165,17 @@ export class DashboardComponent implements OnChanges {
     });
   }
 
+  segmentTotal(): number {
+    return (this.data?.segmentacion ?? [])
+      .reduce((sum: number, row: any) => sum + Number(row.monto ?? 0), 0);
+  }
+
+  segmentBarLabel(): string {
+    return this.segmentRows()
+      .map((row: any) => `${row.label} ${row.pct}%`)
+      .join(' · ');
+  }
+
   private paymentTime(payment: any): number {
     return new Date(payment?.fecha_iso ?? 0).getTime();
   }
@@ -189,7 +198,6 @@ export class DashboardComponent implements OnChanges {
     const donut = renderDonut(this.data.saldos ?? [], { incluirCorriente: this.includeCurrent });
     const funnel = renderFunnel(this.data.funnel ?? {}, this.data.expectativaCobro ?? 0);
     const distribution = renderDistribucion(this.data.distribucion ?? []);
-    const segmentation = renderSegmentacion(this.data.segmentacion ?? []);
 
     // Estos fragmentos se generan localmente y los valores variables son escapados en charts.ts.
     // Angular elimina SVG y estilos inline de un innerHTML normal; por eso se confían aquí,
@@ -201,7 +209,6 @@ export class DashboardComponent implements OnChanges {
       promise: this.safe(funnel.promise),
     };
     this.distribution = { rows: this.safe(distribution.rows), sub: distribution.sub };
-    this.segmentation = { svg: this.safe(segmentation.svg), legend: this.safe(segmentation.legend) };
     this.recoveryChart = this.safe(buildLineChartRecuperado(this.data.historico ?? []));
     this.overdueChart = this.safe(buildLineChartVencida(this.data.historicoVencida ?? []));
   }
