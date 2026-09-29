@@ -54,6 +54,7 @@
 .period-toggle { display: inline-flex; padding: 3px; background: var(--surface-soft); border-radius: 9px; }
 .period-toggle button { border: 0; border-radius: 7px; padding: 5px 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; }
 .period-toggle .active { color: #07383c; background: var(--accent); font-weight: 750; }
+.recovery-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .recovered-summary { display: flex; align-items: baseline; justify-content: space-between; margin: 12px 0 18px; }
 .recovered-summary strong { color: var(--ink); font-size: 32px; letter-spacing: -.04em; }
 .recovered-summary span { color: var(--muted); font-size: 12px; }
@@ -118,4 +119,6 @@
   .donut { margin: 0 auto; width: min(70vw, 220px); }
   .balance-legend { grid-template-columns: 1fr; }
   .funnel-layout, .segmentation-layout { grid-template-columns: 1fr; }
+  .recovered-card .panel-title { flex-wrap: wrap; }
+  .recovery-controls { width: 100%; justify-content: space-between; }
 }

@@ -100,7 +100,10 @@
       <article class="panel-card recovered-card">
         <div class="panel-title">
           <div><span class="eyebrow">RECUPERACIÓN</span><h2>Monto recuperado</h2></div>
-          <div class="period-toggle"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+          <div class="recovery-controls">
+            <div class="period-toggle" aria-label="Ordenar por"><button type="button" [class.active]="recoverySort === 'monto'" (click)="recoverySort = 'monto'">Monto</button><button type="button" [class.active]="recoverySort === 'fecha'" (click)="recoverySort = 'fecha'">Fecha</button></div>
+            <div class="period-toggle" aria-label="Periodo"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" title="Últimos 7 días" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+          </div>
         </div>
         <div class="recovered-summary">
           <strong>{{ money(recoveryData().total) }}</strong>
@@ -126,7 +129,7 @@
             }
           </div>
         } @else {
-          <div class="empty-state">Aún no hay pagos registrados en {{ recoveryPeriod === 'mes' ? 'el mes' : 'la semana' }}.</div>
+          <div class="empty-state">{{ recoveryPeriod === 'mes' ? 'Aún no hay pagos registrados en el mes.' : 'Aún no hay pagos registrados en los últimos 7 días.' }}</div>
         }
       </article>
 

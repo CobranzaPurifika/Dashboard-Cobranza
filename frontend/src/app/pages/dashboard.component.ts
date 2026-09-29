@@ -25,6 +25,7 @@ export class DashboardComponent implements OnChanges {
 
   includeCurrent = true;
   recoveryPeriod: 'semana' | 'mes' = 'semana';
+  recoverySort: 'monto' | 'fecha' = 'monto';
   readonly periods: ('Semana' | 'Mes')[] = ['Semana', 'Mes'];
   donut: { svg?: SafeHtml; legend?: SafeHtml } = {};
   funnel: { bars?: SafeHtml; rates?: SafeHtml; promise?: SafeHtml } = {};
@@ -74,8 +75,18 @@ export class DashboardComponent implements OnChanges {
       group.payments.push(payment);
       groups.set(key, group);
     }
-    const sorted = [...groups.values()].sort((a, b) => b.total - a.total);
-    return this.isAnonymous ? sorted.slice(0, 3) : sorted;
+    const byAmount = [...groups.values()].sort((a, b) => b.total - a.total);
+    const visible = this.isAnonymous ? byAmount.slice(0, 3) : byAmount;
+
+    for (const client of visible) {
+      client.payments.sort((a, b) => this.paymentTime(b) - this.paymentTime(a));
+    }
+
+    return this.recoverySort === 'monto'
+      ? visible
+      : visible.sort((a, b) =>
+          this.paymentTime(b.payments[0]) - this.paymentTime(a.payments[0]) || b.total - a.total
+        );
   }
 
   isRecoveryClientExpanded(key: string): boolean {
@@ -86,6 +97,10 @@ export class DashboardComponent implements OnChanges {
     const next = new Set(this.expandedRecoveryClients);
     next.has(key) ? next.delete(key) : next.add(key);
     this.expandedRecoveryClients = next;
+  }
+
+  private paymentTime(payment: any): number {
+    return new Date(payment?.fecha_iso ?? 0).getTime();
   }
 
   deltaLabel(metric: any, period: 'Semana' | 'Mes'): string {

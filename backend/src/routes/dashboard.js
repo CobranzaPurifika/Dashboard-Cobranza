@@ -106,12 +106,13 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
         `select p.cliente_id, coalesce(c.name, p.grupo_facturacion) as name,
                 coalesce(p.franchise_id, c.franchise_id) as franchise_id, p.fecha_iso, p.monto,
                 p.folio, p.factura,
-                p.fecha_iso >= greatest(
-                  date_trunc('week', (now() at time zone 'America/Mexico_City'))::date,
-                  date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
-                ) as is_weekly
+                p.fecha_iso >= ((now() at time zone 'America/Mexico_City')::date - 6) as is_weekly,
+                p.fecha_iso >= date_trunc('month', (now() at time zone 'America/Mexico_City'))::date as is_monthly
          from pagos p left join clientes c on c.id = p.cliente_id
-         where p.fecha_iso >= date_trunc('month', (now() at time zone 'America/Mexico_City'))::date
+         where p.fecha_iso >= least(
+           date_trunc('month', (now() at time zone 'America/Mexico_City'))::date,
+           (now() at time zone 'America/Mexico_City')::date - 6
+         )
          and coalesce(p.franchise_id, c.franchise_id) = any($1::text[])
          order by p.fecha_iso desc`,
         params
@@ -254,7 +255,7 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       historico: historico.rows,
       historicoVencida: historicoVencida.rows,
       recuperadoSemanal: summarizePayments(pagosMes.rows.filter((row) => row.is_weekly)),
-      recuperadoMensual: summarizePayments(pagosMes.rows),
+      recuperadoMensual: summarizePayments(pagosMes.rows.filter((row) => row.is_monthly)),
     };
     res.json(sanitizeDashboardForViewer(response, req.user));
   } catch (err) {
@@ -316,12 +317,12 @@ function baselineQuery(tipoCorte, cutoffCondition) {
      from latest`;
 }
 
-function summarizePayments(rows) {
+export function summarizePayments(rows) {
   return {
     total: rows.reduce((sum, row) => sum + Number(row.monto), 0),
     count: new Set(rows.map((row) =>
       row.cliente_id || `${row.franchise_id}|${String(row.name ?? "").toLowerCase()}`
     )).size,
-    rows: rows.map(({ is_weekly: _isWeekly, ...row }) => row),
+    rows: rows.map(({ is_weekly: _isWeekly, is_monthly: _isMonthly, ...row }) => row),
   };
 }
