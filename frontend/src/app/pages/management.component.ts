@@ -90,6 +90,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   scheduledExpanded = true;
   monthlyLoading = false;
   monthlyError = '';
+  reportDownloading = false;
   monthlyData: any = null;
   dailyCountExpanded = false;
   expandedFranchiseDetails = new Set<string>();
@@ -170,6 +171,26 @@ export class ManagementComponent implements OnChanges, OnDestroy {
 
   get canManage(): boolean {
     return ['admin', 'gestor'].includes(this.user?.role);
+  }
+
+  get canDownloadReport(): boolean {
+    return ['admin', 'supervisor'].includes(this.user?.role);
+  }
+
+  async downloadMonthlyReport(): Promise<void> {
+    if (this.reportDownloading || !this.canDownloadReport) return;
+    this.reportDownloading = true;
+    this.monthlyError = '';
+    this.refresh();
+    try {
+      const result = await this.api.reporteGestionesMes();
+      this.downloadBlob(result.blob, result.fileName);
+    } catch (error: any) {
+      this.monthlyError = error.message;
+    } finally {
+      this.reportDownloading = false;
+      this.refresh();
+    }
   }
 
   get callLaterSelected(): boolean {
