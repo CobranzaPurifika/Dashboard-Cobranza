@@ -5,23 +5,35 @@ import { fileURLToPath } from "node:url";
 
 const SIZE = 128;
 const rgba = Buffer.alloc(SIZE * SIZE * 4);
-const points = [];
-
-// Ionicons' water-outline silhouette, sampled as a polyline and rendered with
-// rounded joins. Keeping the tiny renderer here makes this asset reproducible
-// without a native image dependency.
-for (let i = 0; i <= 80; i += 1) {
-  const t = i / 80;
-  const y = 13 + (96 * t);
-  const halfWidth = 49 * Math.sin(Math.PI * t) * (0.65 + (0.35 * t));
-  points.push([64 - halfWidth, y]);
+// Geometry from ionicons 8 water-outline.svg (MIT, Ionic).
+// Sample the original cubic Béziers and circular arcs; no native rasterizer required.
+const paths = [];
+let points = [[400 / 4, 320 / 4]];
+function cubic(start, c1, c2, end) {
+  for (let i = 1; i <= 100; i++) {
+    const t = i / 100, u = 1 - t;
+    points.push([0, 1].map((axis) => (u ** 3 * start[axis] + 3 * u ** 2 * t * c1[axis] + 3 * u * t ** 2 * c2[axis] + t ** 3 * end[axis]) / 4));
+  }
 }
-for (let i = 80; i >= 0; i -= 1) {
-  const t = i / 80;
-  const y = 13 + (96 * t);
-  const halfWidth = 49 * Math.sin(Math.PI * t) * (0.65 + (0.35 * t));
-  points.push([64 + halfWidth, y]);
+cubic([400,320], [400,408.37], [344.37,464], [256,464]);
+cubic([256,464], [167.63,464], [112,408.37], [112,320]);
+cubic([112,320], [112,225.17], [215.23,97.15], [246.89,60.12]);
+const cx = (246.89 + 265.12) / 2;
+const cy = 60.12 + Math.sqrt(12 ** 2 - ((265.12 - 246.89) / 2) ** 2);
+const startAngle = Math.atan2(60.12 - cy, 246.89 - cx);
+const endAngle = Math.atan2(60.12 - cy, 265.12 - cx);
+for (let i = 1; i <= 32; i++) {
+  const angle = startAngle + (endAngle - startAngle) * i / 32;
+  points.push([(cx + 12 * Math.cos(angle)) / 4, (cy + 12 * Math.sin(angle)) / 4]);
 }
+cubic([265.12,60.12], [296.77,97.15], [400,225.17], [400,320]);
+paths.push(points);
+points = [];
+for (let i = 0; i <= 64; i++) {
+  const angle = Math.PI / 2 * i / 64;
+  points.push([(272 + 72 * Math.cos(angle)) / 4, (328 + 72 * Math.sin(angle)) / 4]);
+}
+paths.push(points);
 
 function distanceToSegment(px, py, [ax, ay], [bx, by]) {
   const dx = bx - ax;
@@ -34,10 +46,10 @@ function distanceToSegment(px, py, [ax, ay], [bx, by]) {
 for (let y = 0; y < SIZE; y += 1) {
   for (let x = 0; x < SIZE; x += 1) {
     let distance = Infinity;
-    for (let i = 1; i < points.length; i += 1) {
-      distance = Math.min(distance, distanceToSegment(x + 0.5, y + 0.5, points[i - 1], points[i]));
+    for (const path of paths) for (let i = 1; i < path.length; i += 1) {
+      distance = Math.min(distance, distanceToSegment(x + 0.5, y + 0.5, path[i - 1], path[i]));
     }
-    const alpha = Math.round(255 * Math.max(0, Math.min(1, 3.5 - distance)));
+    const alpha = Math.round(255 * Math.max(0, Math.min(1, 4.5 - distance)));
     const offset = ((y * SIZE) + x) * 4;
     rgba.set([0x24, 0xc4, 0xcd, alpha], offset);
   }

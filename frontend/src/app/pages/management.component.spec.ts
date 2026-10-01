@@ -141,3 +141,36 @@ describe('ManagementComponent', () => {
     });
   });
 });
+
+describe('menú de reporte mensual', () => {
+  it('respeta roles y cierra con clic exterior o Escape', () => {
+    const component = new ManagementComponent({} as any, cdr);
+    component.user = { role: 'gestor' };
+    component.toggleReportMenu();
+    expect(component.reportMenuOpen).toBe(false);
+    component.user = { role: 'supervisor' };
+    component.toggleReportMenu();
+    expect(component.reportMenuOpen).toBe(true);
+    component.closeReportMenuEscape();
+    expect(component.reportMenuOpen).toBe(false);
+    component.toggleReportMenu();
+    component.closeReportMenuOutside({ target: document.createElement('div') } as unknown as MouseEvent);
+    expect(component.reportMenuOpen).toBe(false);
+  });
+  it('cierra al elegir, envía el mes y bloquea descargas duplicadas', async () => {
+    const response = deferred<any>();
+    const calls: string[] = [];
+    const component = new ManagementComponent({ reporteGestionesMes: (month: string) => { calls.push(month); return response.promise; } } as any, cdr);
+    component.user = { role: 'admin' };
+    component.reportMenuOpen = true;
+    const pending = component.downloadMonthlyReport('2026-09');
+    expect(component.reportMenuOpen).toBe(false);
+    expect(component.reportDownloading).toBe(true);
+    await component.downloadMonthlyReport('2026-08');
+    expect(calls).toEqual(['2026-09']);
+    // A failed response still resets the loading state.
+    response.resolve(null);
+    await pending;
+    expect(component.reportDownloading).toBe(false);
+  });
+});

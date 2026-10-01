@@ -5,51 +5,26 @@ import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { buildMonthlyManagement, parseDailyGoal } from "../domain/monthlyManagement.js";
 import { mexicoTodayISO } from "../domain/dates.js";
 import { buildMonthlyReportData } from "../domain/monthlyReport.js";
-import { renderMonthlyReportPdf } from "../documents/monthlyReport.js";
+import { renderMonthlyWorkbook } from "../documents/monthlyWorkbook.js";
+import { buildMonthSummary } from "../domain/monthSummary.js";
+import { queryMonthSummary } from "../queries/monthSummary.js";
 
 export const monthlyManagementRouter = Router();
 
-monthlyManagementRouter.get("/report.pdf", requireRole("admin", "supervisor"), async (req, res, next) => {
+monthlyManagementRouter.get("/report.xlsx", requireRole("admin", "supervisor"), async (req, res, next) => {
   try {
-    const hasta = mexicoTodayISO();
-    const desde = `${hasta.slice(0, 7)}-01`;
-    const allowed = resolveFranchiseScope(req.user, "todas");
-    const [gestiones, pagos] = await Promise.all([
-      pool.query(
-        `select gt.fecha_iso, gt.created_at, gt.cliente_id, c.name, c.franchise_id,
-                gt.estatus_value, s.label as status_label, gt.descripcion
-         from gestion_timeline gt
-         join clientes c on c.id = gt.cliente_id
-         left join status_gestion s on s.value = gt.estatus_value
-         where c.franchise_id = any($1::text[])
-           and gt.fecha_iso between $2::date and $3::date
-         order by array_position(array['aguascalientes','cancun','merida'], c.franchise_id),
-                  gt.fecha_iso, gt.created_at`,
-        [allowed, desde, hasta]
-      ),
-      pool.query(
-        `select p.fecha_iso, coalesce(c.name, p.grupo_facturacion) as name,
-                coalesce(p.franchise_id, c.franchise_id) as franchise_id,
-                p.folio, p.factura, p.monto
-         from pagos p left join clientes c on c.id = p.cliente_id
-         where coalesce(p.franchise_id, c.franchise_id) = any($1::text[])
-           and p.fecha_iso between $2::date and $3::date
-         order by array_position(array['aguascalientes','cancun','merida'], coalesce(p.franchise_id, c.franchise_id)),
-                  p.fecha_iso`,
-        [allowed, desde, hasta]
-      ),
-    ]);
-    const data = buildMonthlyReportData({ gestiones: gestiones.rows, pagos: pagos.rows, franchiseIds: allowed, desde, hasta });
-    const pdf = await renderMonthlyReportPdf(data);
-    const fileName = `Reporte_Gestiones_${hasta.slice(0, 7)}_al_${hasta}.pdf`;
+    const franchiseIds = resolveFranchiseScope(req.user, "todas");
+    const now = new Date();
+    const source = await queryMonthSummary({ month: req.query.month, franchiseIds, now });
+    const data = { ...buildMonthlyReportData(source), summary: buildMonthSummary(source), generatedAt: now };
+    const buffer = await renderMonthlyWorkbook(data);
+    const fileName = `Reporte_Gestiones_${source.month}${source.isCurrent ? `_al_${source.hasta}` : ""}.xlsx`;
     res.set({
-      "Content-Type": "application/pdf",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${fileName}"`,
-      "Content-Length": pdf.length,
-    }).send(pdf);
-  } catch (error) {
-    next(error);
-  }
+      "Content-Length": buffer.length,
+    }).send(buffer);
+  } catch (error) { next(error); }
 });
 
 monthlyManagementRouter.get("/goals", requireRole("admin", "supervisor"), async (req, res, next) => {
