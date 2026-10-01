@@ -19,13 +19,16 @@ export async function renderMonthlyWorkbook(data) {
   const logo = workbook.addImage({ buffer: await readFile(new URL("./assets/logo-purifika.png", import.meta.url)), extension: "png" });
   const summary = workbook.addWorksheet("Resumen");
   const management = workbook.addWorksheet("Gestiones");
+  const compliance = workbook.addWorksheet("Cumplimiento");
   const recovered = workbook.addWorksheet("Recuperado");
   [32, 22, 22, 22, 24].forEach((width, i) => { summary.getColumn(i + 1).width = width; });
   [12, 38, 12, 20, 70].forEach((width, i) => { management.getColumn(i + 1).width = width; });
+  [32, 22, 22, 22, 40].forEach((width, i) => { compliance.getColumn(i + 1).width = width; });
   [12, 38, 12, 24, 22].forEach((width, i) => { recovered.getColumn(i + 1).width = width; });
   for (const sheet of workbook.worksheets) addHeader(sheet, data, appLogo, logo);
   addSummary(summary, data.summary);
   addManagement(management, data);
+  addCompliance(compliance, data.compliance);
   addRecovered(recovered, data);
   for (const sheet of workbook.worksheets) {
     sheet.eachRow((row) => row.eachCell((cell) => { cell.font = { name: "Arial", size: 10, ...cell.font }; }));
@@ -155,6 +158,51 @@ function addManagement(sheet, data) {
   sheet.getColumn(6).hidden = true;
   data.gestiones.forEach((r, i) => { sheet.getRow(first + i).values = [date(r.fecha), r.cliente, code(r.franchiseId), r.estatus, r.comentario, String(r.clienteId)]; });
   styleTable(sheet, header, last, true);
+}
+
+// Cumplimiento de gestiones diarias, con la misma lógica del panel "Gestiones acumuladas del mes"
+// (buildMonthlyManagement): clientes únicos por día hábil vs. meta; los días con incidencia se
+// muestran como justificados y no cuentan para el promedio.
+function addCompliance(sheet, compliance) {
+  const franchises = compliance?.franchises ?? [];
+  sheet.getRow(6).values = ["Indicador", ...franchises.map((f) => f.label), ...Array(Math.max(0, 4 - franchises.length)).fill(null)];
+  colorHeader(sheet.getRow(6));
+  const summaryRows = [
+    ["Meta diaria (clientes únicos)", (f) => f.goal, "0"],
+    ["Cumplimiento del mes", (f) => f.summary.pct / 100, "0%"],
+    ["Días al 100%", (f) => f.summary.fullDays, "0"],
+    ["Días hábiles evaluados", (f) => f.summary.eligibleDays, "0"],
+    ["Días justificados", (f) => f.summary.justifiedDays, "0"],
+  ];
+  summaryRows.forEach(([label, value, numFmt], i) => {
+    const row = sheet.getRow(7 + i);
+    row.getCell(1).value = label;
+    franchises.forEach((f, j) => {
+      row.getCell(j + 2).value = value(f);
+      row.getCell(j + 2).numFmt = numFmt;
+    });
+  });
+  sheet.getCell("A12").value = "Sábados y domingos no cuentan. El cumplimiento diario se topa en 100%.";
+  sheet.getCell("A12").font = { name: "Arial", italic: true, size: 9, color: { argb: "FF8A969B" } };
+
+  const header = 14, first = 15;
+  sheet.getRow(header).values = ["Fecha", "Franquicia", "Clientes gestionados", "Meta diaria", "Cumplimiento"];
+  const days = franchises
+    .flatMap((f) => f.days.map((day) => ({ ...day, franchiseId: f.id })))
+    .sort((a, b) => a.date.localeCompare(b.date) || IDS.indexOf(a.franchiseId) - IDS.indexOf(b.franchiseId));
+  days.forEach((day, i) => {
+    const r = first + i;
+    const row = sheet.getRow(r);
+    row.values = [date(day.date), code(day.franchiseId), day.count, day.goal,
+      day.incident ? `Justificado: ${day.incident.note}` : formula(`IF(D${r}=0,1,MIN(1,C${r}/D${r}))`, day.rawPct / 100)];
+    if (!day.incident) row.getCell(5).numFmt = "0%";
+  });
+  const last = header + days.length;
+  styleTable(sheet, header, last, false);
+  for (let r = first; r <= last; r++) {
+    [2, 3, 4].forEach((c) => { sheet.getRow(r).getCell(c).alignment = { horizontal: "center", vertical: "top" }; });
+    sheet.getRow(r).getCell(5).alignment = { horizontal: "left", vertical: "top", wrapText: true };
+  }
 }
 
 function addRecovered(sheet, data) {
