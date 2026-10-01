@@ -165,3 +165,14 @@ describe('DashboardComponent segmentation', () => {
     expect(dashboard.expandedSegments.size).toBe(0);
   });
 });
+
+describe('DashboardComponent historical mode', () => {
+  it('fuerza la recuperación mensual al recibir un corte histórico', () => {
+    const dashboard = component([]);
+    dashboard.data.historical = { month: '2026-09', fechaCorte: '2026-09-30' };
+    (dashboard as any).renderCharts = () => undefined;
+    dashboard.ngOnChanges();
+    expect(dashboard.recoveryPeriod).toBe('mes');
+    expect(dashboard.historicalLabel()).toContain('septiembre');
+  });
+});

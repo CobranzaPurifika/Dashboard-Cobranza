@@ -26,6 +26,15 @@
         }
       </nav>
 
+      @if (view === 'dashboard' && canConfigure) {
+        <label class="month-selector">
+          <span>Periodo</span>
+          <select [ngModel]="dashboardMonth" (ngModelChange)="selectDashboardMonth($event)" aria-label="Mes del dashboard">
+            @for (option of dashboardMonths; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+          </select>
+        </label>
+      }
+
       @if (isAnonymous) {
         <div class="lector-search" [class.expanded]="lectorSearchExpanded">
           <button type="button" class="lector-search-toggle" aria-label="Buscar cliente" (click)="toggleLectorSearchExpanded()"><ion-icon name="search-outline"></ion-icon></button>

@@ -15,9 +15,11 @@ export function buildMonthSummary({ franchiseIds, corte = [], gestiones = [], st
   const groups = Object.fromEntries(columns.map((id) => {
     const rows = events.filter((r) => id === "todas" || r.franchise_id === id);
     const source = corte.find((r) => r.franchise_id === id);
+    const saldo = number(source?.saldo_total);
     const portfolio = source && source.available !== false ? {
-      saldo: number(source.saldo_total), total: number(source.total ?? source.saldo_total),
-      corrienteMonto: number(source.al_corriente_monto), vencidaMonto: number(source.vencida_monto),
+      saldo, total: number(source.total ?? source.saldo_total),
+      corrienteMonto: source.al_corriente_monto == null ? saldo * number(source.al_corriente_pct) / 100 : number(source.al_corriente_monto),
+      vencidaMonto: source.vencida_monto == null ? saldo * number(source.cartera_vencida_pct) / 100 : number(source.vencida_monto),
       corriente: isCurrent ? ratio(number(source.al_corriente_monto), number(source.total)) : number(source.al_corriente_pct) / 100,
       vencida: isCurrent ? ratio(number(source.vencida_monto), number(source.total)) : number(source.cartera_vencida_pct) / 100,
       mas60Monto: number(source.tramo_60_mas_monto), mas60: isCurrent ? ratio(number(source.tramo_60_mas_monto), number(source.total)) : (mas60PctFromBaseline(source) ?? 0) / 100,

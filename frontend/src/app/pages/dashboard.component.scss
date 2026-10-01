@@ -3,6 +3,8 @@
 .dashboard.is-loading { opacity: .72; pointer-events: none; }
 .dashboard-skeleton { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .dashboard-skeleton span { min-height: 150px; border-radius: 18px; background: var(--surface); animation: pulse 1.2s ease-in-out infinite alternate; }
+.historical-notice { padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 11px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--ink-soft); font-size: 12px; text-transform: capitalize; }
+.empty-state.compact { min-height: 92px; margin-top: 12px; }
 @keyframes pulse { to { opacity: .48; } }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }

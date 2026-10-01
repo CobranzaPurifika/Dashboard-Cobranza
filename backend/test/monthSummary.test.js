@@ -28,6 +28,8 @@ test("corte ausente, cero denominadores y fila todas como origen histórico", ()
   assert.equal(summary.groups.todas.portfolio.saldo, 900);
   assert.equal(summary.groups.todas.portfolio.mas60, 0.1);
   assert.equal(summary.groups.todas.portfolio.corriente, 0.7);
+  assert.equal(summary.groups.todas.portfolio.corrienteMonto, 630);
+  assert.equal(summary.groups.todas.portfolio.vencidaMonto, 270);
 });
 
 test("distribuye eventos, filtra rango y cartera inactiva; cumplidas independientes de eventos", () => {

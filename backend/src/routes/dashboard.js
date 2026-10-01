@@ -5,6 +5,10 @@ import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
 import { summarizePayments } from "../domain/recoveryPayments.js";
 import { attachSegmentTramos } from "../domain/segmentation.js";
+import { reportMonthRange } from "../domain/reportMonth.js";
+import { buildMonthSummary } from "../domain/monthSummary.js";
+import { buildHistoricalDashboard, canViewHistoricalDashboard, selectDashboardResponse } from "../domain/historicalDashboard.js";
+import { queryMonthActivity, queryMonthPortfolio } from "../queries/monthSummary.js";
 
 export const dashboardRouter = Router();
 
@@ -19,6 +23,16 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
 
   try {
     const allowed = resolveFranchiseScope(req.user, franchise);
+    if (req.query.month) {
+      const range = reportMonthRange(req.query.month);
+      if (!range.isCurrent) {
+        if (!canViewHistoricalDashboard(req.user?.role)) {
+          return res.status(403).json({ error: "No tienes permisos para consultar meses anteriores" });
+        }
+        const response = await historicalDashboard({ franchise, allowed, range });
+        return res.json(response);
+      }
+    }
     const params = [allowed];
     const whereClientes = "where franchise_id = any($1::text[]) and portfolio_status = 'active'";
     const andClientes = "and c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'";
@@ -272,11 +286,54 @@ dashboardRouter.get("/:franchise", async (req, res, next) => {
       recuperadoSemanal: summarizePayments(pagosMes.rows.filter((row) => row.is_weekly)),
       recuperadoMensual: summarizePayments(pagosMes.rows.filter((row) => row.is_monthly)),
     };
-    res.json(sanitizeDashboardForViewer(response, req.user));
+    res.json(sanitizeDashboardForViewer(selectDashboardResponse(response), req.user));
   } catch (err) {
     next(err);
   }
 });
+
+async function historicalDashboard({ franchise, allowed, range }) {
+  const previousEnd = new Date(`${range.desde}T12:00:00Z`);
+  previousEnd.setUTCDate(0);
+  const previousHasta = previousEnd.toISOString().slice(0, 10);
+  const groupId = franchise === "todas" ? "todas" : franchise;
+  const [activity, portfolio, previous, history, overdueHistory, coverage] = await Promise.all([
+    queryMonthActivity({ franchiseIds: allowed, ...range }),
+    queryMonthPortfolio({ franchiseIds: allowed, hasta: range.hasta, isCurrent: false }),
+    queryMonthPortfolio({ franchiseIds: allowed, hasta: previousHasta, isCurrent: false }),
+    pool.query(franchise !== "todas"
+      ? `select month, monto_recuperado, pct_cobertura, weeks from kpi_snapshots
+         where franchise_id = any($1::text[]) order by month`
+      : `select month, sum(monto_recuperado)::float as monto_recuperado,
+         avg(pct_cobertura)::float as pct_cobertura, max(weeks) as weeks from kpi_snapshots
+         where franchise_id = any($1::text[]) group by month order by month`, [allowed]),
+    pool.query(franchise !== "todas"
+      ? `select month, pct, provisional from vencida_snapshots
+         where franchise_id = any($1::text[]) order by month`
+      : `select month, avg(pct)::float as pct, bool_or(provisional) as provisional from vencida_snapshots
+         where franchise_id = any($1::text[]) group by month order by month`, [allowed]),
+    pool.query(`select avg(pct_cobertura)::float as pct_cobertura from kpi_snapshots
+      where franchise_id = any($1::text[]) and month = $2::date`, [allowed, range.desde]),
+  ]);
+  const fulfilledFor = (id) => activity.fulfilled
+    .filter((row) => id === "todas" || row.franchise_id === id)
+    .reduce((sum, row) => sum + Number(row.cumplidas), 0);
+  const corte = portfolio.map((row) => ({ ...row, available: true, cumplidas: fulfilledFor(row.franchise_id) }));
+  if (!corte.some((row) => row.franchise_id === groupId)) {
+    corte.push({ franchise_id: groupId, available: false, cumplidas: fulfilledFor(groupId) });
+  }
+  const summary = buildMonthSummary({ franchiseIds: allowed, corte, ...activity, ...range });
+  summary.month = range.month;
+  summary.pagos = activity.pagos;
+  return buildHistoricalDashboard({
+    summary,
+    groupId,
+    previousPortfolio: previous.find((row) => row.franchise_id === groupId) ?? null,
+    history: history.rows,
+    overdueHistory: overdueHistory.rows,
+    coverage: coverage.rows[0]?.pct_cobertura ?? null,
+  });
+}
 
 function round1(n) {
   return Math.round(n * 10) / 10;

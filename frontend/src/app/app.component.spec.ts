@@ -12,4 +12,19 @@ describe('AppComponent: acceso', () => {
     expect(component.showLoginPassword).toBe(false);
     expect(component.loginVisible).toBe(true);
   });
+
+  it('ofrece el selector histórico únicamente a admin y supervisor', () => {
+    const component = new AppComponent({} as any, {} as any, {} as any);
+    for (const role of ['admin', 'supervisor']) {
+      component.user = { role };
+      expect(component.canConfigure).toBe(true);
+    }
+    for (const role of ['gestor', 'lector']) {
+      component.user = { role };
+      expect(component.canConfigure).toBe(false);
+    }
+    expect(component.dashboardMonths.map((option) => option.label)).toEqual([
+      'Mes en curso', expect.any(String), expect.any(String),
+    ]);
+  });
 });
