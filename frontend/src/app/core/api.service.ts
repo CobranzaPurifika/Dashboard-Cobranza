@@ -132,6 +132,25 @@ export class ApiService {
 
   documentoFacturas = (id: string) => this.request(`/clientes/${encodeURIComponent(id)}/documentos/facturas`);
 
+  // Módulo Campañas (cobranza preventiva y correctiva por envío masivo asistido).
+  campanasLote = (franchise: string, refrescar = false, signal?: AbortSignal) =>
+    this.request(`/campanas/lote?${this.query({ franchise, refrescar: refrescar ? '1' : '' })}`, { signal });
+  campanasRegistrarWhatsApp = (body: { franchiseId: string; groupKey: string; regla: string }) =>
+    this.request('/campanas/envios', { method: 'POST', body: JSON.stringify(body) });
+  campanasDeshacer = (ids: number[]) =>
+    this.request('/campanas/envios', { method: 'DELETE', body: JSON.stringify({ ids }) });
+  campanasEnviarCorreos = (items: { franchiseId: string; groupKey: string; regla: string }[]) =>
+    this.request('/campanas/correo/enviar', { method: 'POST', body: JSON.stringify({ items }) });
+  campanasVistaPrevia = (item: { franchiseId: string; groupKey: string; regla: string }) =>
+    this.request(`/campanas/correo/vista-previa?${this.query(item)}`);
+  campanasHistorial = (franchise: string, dias = 30) =>
+    this.request(`/campanas/envios?${this.query({ franchise, dias: String(dias) })}`);
+  campanasContactos = (franchise: string, refrescar = false) =>
+    this.request(`/campanas/contactos?${this.query({ franchise, refrescar: refrescar ? '1' : '' })}`);
+  campanasGuardarContacto = (body: { franchiseId: string; groupKey: string; nombre: string; telefono: string; correo: string; recibeCorreo: boolean }) =>
+    this.request('/campanas/contactos', { method: 'PUT', body: JSON.stringify(body) });
+  campanasImportarContactos = () => this.request('/campanas/contactos/importar', { method: 'POST' });
+
   // Genera un documento formal (aviso de deuda, aviso de retiro o acuerdo de pagos) y lo
   // regresa como PDF junto con el nombre de archivo estandarizado y los avisos del backend
   // (p. ej. franquicia corregida por prefijo de folio o parcialidades que no suman el adeudo).

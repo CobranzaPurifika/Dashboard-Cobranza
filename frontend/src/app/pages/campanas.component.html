@@ -1,0 +1,245 @@
+<section class="campanas" [class.is-loading]="cargando">
+  @if (error) { <div class="error-banner" role="alert"><span>{{ error }}</span><button type="button" (click)="cargar()">Reintentar</button></div> }
+  @if (aviso) { <div class="info-banner" role="status"><span>{{ aviso }}</span><button type="button" aria-label="Cerrar aviso" (click)="cerrarAviso()"><ion-icon name="close-outline"></ion-icon></button></div> }
+
+  <article class="card">
+    <header class="campanas-header">
+      <div>
+        <span class="eyebrow">CAMPAÑAS</span>
+        <h1>Cobranza preventiva y correctiva</h1>
+        <p>Lote del {{ lote ? shortDate(lote.hoyISO) : '…' }} · BDD leída directamente de Drive · los recordatorios no cuentan como gestión</p>
+      </div>
+      <button type="button" class="ghost-button" [disabled]="cargando" (click)="cargar(true)" title="Vuelve a leer la BDD de Drive">
+        @if (cargando) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon name="refresh-outline"></ion-icon> }
+        <span>Actualizar BDD</span>
+      </button>
+    </header>
+
+    @if (lote) {
+      <div class="rule-strip">
+        <div class="rule"><i class="dot good"></i><span><strong>Preventivo</strong>{{ descripcionVentanas().preventivo }}</span></div>
+        <div class="rule"><i class="dot warning"></i><span><strong>Correctivo 1-30</strong>{{ descripcionVentanas().correctivo }}</span></div>
+        <div class="rule"><i class="dot critical"></i><span><strong>Escalamiento 31+</strong>Gestión puntual con documento</span></div>
+      </div>
+      @for (fuente of fuentesDesactualizadas; track fuente.franchiseId) {
+        <p class="stale-warning"><ion-icon name="warning-outline"></ion-icon>
+          La BDD de {{ franquicia(fuente.franchiseId) }} no se ha modificado desde {{ fuente.modificadoEn ? fechaHora(fuente.modificadoEn) : 'fecha desconocida' }}: revisa que esté al día antes de enviar.</p>
+      }
+      @if (lote.excluidos.length || lote.resumen.yaEnviados || lote.resumen.sinVencimiento) {
+        <div class="meta-line">
+          @if (lote.resumen.yaEnviados) { <span>{{ lote.resumen.yaEnviados }} ya enviados</span> }
+          @if (lote.excluidos.length) { <button type="button" (click)="excluidosVisibles = !excluidosVisibles">{{ lote.excluidos.length }} excluidos <ion-icon [name]="excluidosVisibles ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button> }
+          @if (lote.resumen.sinVencimiento) { <span title="Facturas sin días de crédito en la BDD: se usan sus días vencidos y no entran al preventivo">{{ lote.resumen.sinVencimiento }} facturas sin días de crédito</span> }
+        </div>
+        @if (excluidosVisibles) {
+          <ul class="excluded-list">
+            @for (item of lote.excluidos; track item.franchiseId + item.groupKey) { <li><strong>{{ item.nombre }}</strong><span>{{ item.motivo }}</span></li> }
+          </ul>
+        }
+      }
+    }
+
+    <nav class="tabs" role="tablist" aria-label="Secciones de campañas">
+      <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
+      <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
+    </nav>
+
+    <div class="tab-body">
+      @if (cargando && !lote) {
+        <div class="skeleton" aria-label="Armando el lote"><i></i><i></i><i></i><i></i></div>
+      } @else {
+      @switch (pestana) {
+        @case ('whatsapp') {
+          <p class="tab-hint">Residenciales. <strong>Enviar</strong> abre WhatsApp con el mensaje listo y lo registra; envíalo desde tu WhatsApp. {{ whatsappRegistrados }} de {{ whatsapp.length }} registrados en esta sesión.</p>
+          @for (item of whatsapp; track llave(item)) {
+            <div class="row" [class.done]="registrados.has(llave(item))">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.regla === 'preventivo' ? 'Preventivo' : 'Correctivo' }} · {{ folios(item) }} · {{ telefonoLegible(item.telefono) }}</small>
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                <button type="button" class="icon-button" title="Ver mensaje" aria-label="Ver mensaje" (click)="toggleVistaPrevia(item)"><ion-icon [name]="vistaPrevia.has(llave(item)) ? 'eye-off-outline' : 'eye-outline'"></ion-icon></button>
+                @if (registrados.has(llave(item))) {
+                  <button type="button" class="ghost-button small" [disabled]="enCurso.has(llave(item))" (click)="deshacer(item)">Deshacer</button>
+                } @else {
+                  <button type="button" class="primary-button small" [disabled]="enCurso.has(llave(item))" (click)="enviarWhatsApp(item)">
+                    @if (enCurso.has(llave(item))) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon name="call-outline"></ion-icon> } Enviar
+                  </button>
+                }
+              </span>
+              @if (vistaPrevia.has(llave(item))) {
+                <div class="message-preview"><pre>{{ item.whatsappTexto }}</pre><button type="button" class="ghost-button small" (click)="copiarMensaje(item)">Copiar</button></div>
+              }
+            </div>
+          } @empty { <div class="empty-state">No hay recordatorios de WhatsApp pendientes hoy.</div> }
+        }
+
+        @case ('correo') {
+          @if (!lote?.correoConfigurado) {
+            <p class="stale-warning"><ion-icon name="warning-outline"></ion-icon> El envío de correo no está configurado en el servidor (faltan las credenciales SMTP de la cuenta de cobranza).</p>
+          }
+          <p class="tab-hint">Comerciales autorizados en el Directorio. Selecciona y envía desde {{ lote?.remitente || 'la cuenta de cobranza' }}; las respuestas con comprobante llegan a esa bandeja.</p>
+          @if (correo.length) {
+            <div class="bulk-bar">
+              <label class="check"><input type="checkbox" [checked]="todosSeleccionados" (change)="toggleTodos()" [disabled]="enviandoCorreos" /> Seleccionar todos</label>
+              <span>{{ seleccion.size }} seleccionados</span>
+              <button type="button" class="primary-button" [disabled]="!seleccion.size || enviandoCorreos || !lote?.correoConfigurado" (click)="enviarCorreos()">
+                @if (enviandoCorreos) { <ion-spinner name="crescent"></ion-spinner> {{ progresoCorreo }} } @else { Enviar correos }
+              </button>
+            </div>
+          }
+          @for (item of correo; track llave(item)) {
+            <div class="row" [class.done]="resultadosCorreo.get(llave(item))?.ok">
+              <span class="row-check">
+                @if (resultadosCorreo.get(llave(item))?.ok) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                @else { <input type="checkbox" [checked]="seleccion.has(llave(item))" (change)="toggleSeleccion(item)" [disabled]="enviandoCorreos" [attr.aria-label]="'Seleccionar ' + item.nombre" /> }
+              </span>
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.destino }}</small>
+                <small class="subject">{{ item.correoAsunto }}</small>
+                @if (resultadosCorreo.get(llave(item)); as resultado) { @if (!resultado.ok) { <small class="row-error">{{ resultado.error }}</small> } }
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions"><button type="button" class="ghost-button small" (click)="verCorreo(item)">Vista previa</button></span>
+            </div>
+          } @empty { <div class="empty-state">No hay correos pendientes hoy. Autoriza comerciales en el Directorio.</div> }
+        }
+
+        @case ('sinCanal') {
+          <p class="tab-hint">Clientes con recordatorio pendiente pero sin un canal válido. Captura su contacto o, si es comercial con teléfono, envía por WhatsApp.</p>
+          @for (item of sinCanal; track llave(item)) {
+            <div class="row" [class.done]="registrados.has(llave(item))">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.segment === 'comercial' ? 'Comercial' : 'Residencial' }} · {{ folios(item) }}</small>
+                <small class="row-error">{{ item.motivoSinCanal }}</small>
+              </span>
+              <span class="row-badges"><i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i></span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                @if (item.whatsappUrl) {
+                  @if (registrados.has(llave(item))) {
+                    <button type="button" class="ghost-button small" (click)="deshacer(item)">Deshacer</button>
+                  } @else {
+                    <button type="button" class="ghost-button small" [disabled]="enCurso.has(llave(item))" (click)="enviarWhatsApp(item)">WhatsApp</button>
+                  }
+                }
+                <button type="button" class="ghost-button small" (click)="capturarContacto(item)">Capturar contacto</button>
+              </span>
+            </div>
+          } @empty { <div class="empty-state">Todos los recordatorios pendientes tienen canal.</div> }
+        }
+
+        @case ('escalamiento') {
+          <p class="tab-hint">31 días o más de atraso: sin mensaje masivo. Gestión puntual del gestor o administrador; desde la ficha se emite el documento sugerido.</p>
+          @for (item of escalamiento; track item.franchiseId + item.groupKey) {
+            <div class="row">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ folios(item) }}@if (item.ejecutivos?.length) { · {{ item.ejecutivos.join(', ') }} }</small>
+                <small class="suggestion">Documento sugerido: {{ documentoSugerido(item.tramo) }}</small>
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.atrasoMaximo }} días</i>
+                @if (item.enListaNegra) { <i class="flag-badge">Lista negra</i> }
+                @if (item.promesaVigente) { <i class="flag-badge promise">Promesa vigente</i> }
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                @if (item.clienteId) {
+                  <button type="button" class="primary-button small" (click)="openClient.emit(item.clienteId)"><ion-icon name="document-text-outline"></ion-icon> Abrir ficha</button>
+                } @else {
+                  <span class="muted-note" title="El cliente aún no existe en la app: ejecuta Actualizar en Configuración">Sin ficha</span>
+                }
+              </span>
+            </div>
+          } @empty { <div class="empty-state">No hay clientes con 31 días o más de atraso.</div> }
+        }
+
+        @case ('directorio') {
+          <div class="directory-tools">
+            <label class="search-box"><ion-icon name="search-outline"></ion-icon><input type="search" [(ngModel)]="filtroContacto" placeholder="Buscar cliente…" /></label>
+            <div class="segments">
+              <button type="button" [class.active]="segmentoContacto === ''" (click)="segmentoContacto = ''">Todos</button>
+              <button type="button" [class.active]="segmentoContacto === 'comercial'" (click)="segmentoContacto = 'comercial'">Comercial</button>
+              <button type="button" [class.active]="segmentoContacto === 'residencial'" (click)="segmentoContacto = 'residencial'">Residencial</button>
+            </div>
+            <label class="check"><input type="checkbox" [(ngModel)]="soloSinContacto" /> Sin contacto</label>
+            @if (esAdmin) {
+              <button type="button" class="ghost-button" [disabled]="importando" (click)="importarPortal()" title="Carga el archivo del portal en Drive; no sobrescribe lo editado aquí">
+                @if (importando) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon name="download-outline"></ion-icon> } Cargar desde portal
+              </button>
+            }
+          </div>
+          <p class="tab-hint">{{ contactosFiltrados.length }} de {{ contactos.length }} clientes vigentes · {{ autorizadosCorreo }} comerciales autorizados para correo. Lo que edites aquí ya no lo cambia la carga del portal.</p>
+          @if (cargandoContactos && !contactosCargados) {
+            <div class="skeleton"><i></i><i></i><i></i></div>
+          } @else {
+            @for (contacto of contactosFiltrados; track contacto.franchiseId + contacto.groupKey) {
+              <div class="contact-row" [class.dirty]="modificado(contacto)">
+                <span class="row-main">
+                  <strong>{{ contacto.nombre }}</strong>
+                  <small>{{ franquicia(contacto.franchiseId) }} · {{ contacto.segment === 'comercial' ? 'Comercial' : 'Residencial' }} · {{ money(contacto.saldo) }}@if (contacto.origen) { · {{ contacto.editadoManual ? 'Editado aquí' : 'Del portal' }} }</small>
+                  @if (contacto.error) { <small class="row-error">{{ contacto.error }}</small> }
+                </span>
+                <label class="field"><span>Teléfono</span><input type="tel" inputmode="numeric" maxlength="14" placeholder="10 dígitos" [(ngModel)]="contacto.telefonoEdit" /></label>
+                <label class="field wide"><span>Correo</span><input type="text" placeholder="correo@empresa.mx" [(ngModel)]="contacto.correoEdit" /></label>
+                <label class="check" [class.hidden]="contacto.segment !== 'comercial'" title="Solo comerciales: aparece en el lote de correo">
+                  <input type="checkbox" [(ngModel)]="contacto.recibeCorreoEdit" [disabled]="contacto.segment !== 'comercial'" /> Recibe correo
+                </label>
+                <span class="row-actions">
+                  @if (contacto.guardado && !modificado(contacto)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                  <button type="button" class="primary-button small" [disabled]="!modificado(contacto) || contacto.guardando" (click)="guardarContacto(contacto)">
+                    @if (contacto.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
+                  </button>
+                </span>
+              </div>
+            } @empty { <div class="empty-state">Sin clientes para estos filtros.</div> }
+          }
+        }
+
+        @case ('historial') {
+          <p class="tab-hint">Recordatorios registrados en los últimos 30 días.</p>
+          @if (cargandoHistorial) { <div class="skeleton"><i></i><i></i><i></i></div> }
+          @else {
+            @for (envio of historial; track envio.id) {
+              <div class="row history-row">
+                <span class="row-main">
+                  <strong>{{ envio.cliente_nombre }}</strong>
+                  <small>{{ franquicia(envio.franchise_id) }} · {{ envio.regla === 'preventivo' ? 'Preventivo' : 'Correctivo ' + envio.periodo.slice(-2) }} · {{ envio.folios.join(', ') }}</small>
+                </span>
+                <span class="row-badges"><i class="channel-badge" [class.mail]="envio.canal === 'correo'">{{ envio.canal === 'correo' ? 'Correo' : 'WhatsApp' }}</i></span>
+                <span class="history-meta">{{ fechaHora(envio.enviado_at) }}<small>{{ envio.enviado_por || '—' }}</small></span>
+                <strong class="amount">{{ money(envio.monto) }}</strong>
+              </div>
+            } @empty { <div class="empty-state">Aún no hay recordatorios registrados.</div> }
+          }
+        }
+      }
+      }
+    </div>
+  </article>
+
+  @if (correoPrevio) {
+    <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="correoPrevio = null"></button>
+    <section class="mail-dialog" role="dialog" aria-modal="true" aria-label="Vista previa del correo">
+      <header>
+        <div><span class="eyebrow">VISTA PREVIA</span><h2>{{ correoPrevio.asunto }}</h2><p>Para: {{ correoPrevio.para }}</p></div>
+        <button type="button" class="icon-button" aria-label="Cerrar" (click)="correoPrevio = null"><ion-icon name="close-outline"></ion-icon></button>
+      </header>
+      <pre>{{ correoPrevio.texto }}</pre>
+    </section>
+  }
+</section>

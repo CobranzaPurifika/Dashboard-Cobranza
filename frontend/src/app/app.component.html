@@ -18,6 +18,7 @@
       <nav class="primary-nav" aria-label="Secciones">
         <button type="button" [class.active]="view === 'dashboard'" (click)="setView('dashboard')">Dashboard</button>
         @if (!isAnonymous) { <button type="button" [class.active]="view === 'management'" (click)="setView('management')">Gestión</button> }
+        @if (canRunCampaigns) { <button type="button" [class.active]="view === 'campanas'" (click)="setView('campanas')">Campañas</button> }
       </nav>
 
       <nav class="franchise-tabs" aria-label="Franquicias">
@@ -328,8 +329,10 @@
         <div class="app-loading"><ion-spinner name="crescent"></ion-spinner><span>Cargando cartera…</span></div>
       } @else if (view === 'dashboard') {
         <app-dashboard [data]="dashboardData" [loading]="loading" [isAnonymous]="isAnonymous"></app-dashboard>
+      } @else if (view === 'campanas') {
+        <app-campanas [franchise]="franchise" [user]="user" (openClient)="openClientFromCampaigns($event)"></app-campanas>
       } @else {
-        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [priorityDensity]="preferences.priorityDensity" (refreshRequested)="loadDashboard()"></app-management>
+        <app-management [franchise]="franchise" [user]="user" [statusCatalog]="statusCatalog" [priorityDensity]="preferences.priorityDensity" [focusClient]="focusClient" (refreshRequested)="loadDashboard()"></app-management>
       }
     </main>
 
