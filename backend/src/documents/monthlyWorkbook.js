@@ -5,6 +5,7 @@ import { LOGO_APP_FULL_BASE64 } from "./assets/logoAppFull.js";
 const IDS = ["aguascalientes", "cancun", "merida"];
 const LABELS = ["Aguascalientes", "Cancún", "Mérida"];
 const CODES = ["AGS", "CUN", "MID"];
+const TRAMOS = [["good", "Al corriente"], ["warning", "1-30 días"], ["serious", "31-60 días"], ["critical", "+60 días"]];
 const MONEY = "$#,##0.00";
 const TURQUOISE = "FF24C4CD";
 const formula = (value, result = 0) => ({ formula: value, result });
@@ -111,6 +112,7 @@ function addSummary(sheet, summary) {
       [1, 2, 4].forEach((j) => { sheet.getCell(start + j, col).numFmt = "0.0%"; });
     });
   }
+  addBalances(sheet, groups, ids);
   const metric = (label, key, money = false) => {
     const values = IDS.map((id) => groups[id]?.[key] ?? 0);
     const row = sheet.addRow([label, ...values]);
@@ -141,6 +143,36 @@ function addSummary(sheet, summary) {
   heading(sheet, "Recuperado del mes");
   metric("Monto recuperado", "recuperado", true);
   sheet.views = [{ showGridLines: false, state: "frozen", ySplit: 6 }];
+}
+
+// Representación de saldos: monto por tramo de antigüedad del corte (en vivo en el mes en
+// curso) y su peso sobre el total facturado, por franquicia.
+function addBalances(sheet, groups, ids) {
+  heading(sheet, "Representación de saldos");
+  if (!ids.some((id) => groups[id]?.saldos)) { sheet.addRow(["Detalle no disponible para este corte"]); return; }
+  const start = sheet.rowCount + 1;
+  TRAMOS.forEach(([, label]) => sheet.addRow([label]));
+  const totalRow = sheet.addRow(["Total facturado"]).number;
+  TRAMOS.forEach(([, label]) => sheet.addRow([`% ${label}`]));
+  sheet.getRow(totalRow).font = { name: "Arial", bold: true };
+  ids.forEach((id, i) => {
+    const col = i + 2;
+    const letter = String.fromCharCode(66 + i);
+    const saldos = groups[id]?.saldos;
+    if (!saldos) { sheet.getCell(start, col).value = "No disponible"; return; }
+    const values = TRAMOS.map(([tramo]) => Number(saldos.find((row) => row.tramo === tramo)?.value ?? 0));
+    const total = values.reduce((a, b) => a + b, 0);
+    values.forEach((value, j) => {
+      const cell = sheet.getCell(start + j, col);
+      cell.value = id === "todas" ? formula(`SUM(B${start + j}:D${start + j})`, value) : value;
+      cell.numFmt = MONEY;
+      const pct = sheet.getCell(totalRow + 1 + j, col);
+      pct.value = formula(`IFERROR(${letter}${start + j}/${letter}${totalRow},0)`, total ? value / total : 0);
+      pct.numFmt = "0.0%";
+    });
+    sheet.getCell(totalRow, col).value = formula(`SUM(${letter}${start}:${letter}${start + 3})`, total);
+    sheet.getCell(totalRow, col).numFmt = MONEY;
+  });
 }
 
 function addManagement(sheet, data) {

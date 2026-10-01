@@ -83,7 +83,7 @@
             <i></i><span>{{ includeCurrent ? 'Incluye al corriente' : 'Solo vencida' }}</span>
           </button>
         </div>
-        @if (data.historical) { <div class="empty-state">Disponible solo para el mes en curso</div> } @else {
+        @if (data.historical && !data.saldos?.length) { <div class="empty-state">Detalle no disponible para este corte</div> } @else {
         <div class="donut-layout">
           <div class="donut" [innerHTML]="donut.svg"></div>
         </div>
@@ -174,11 +174,8 @@
       @if (!isAnonymous) {
         <article class="panel-card segmentation-card">
           <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
-          @if (data.historical) {
-            <div class="empty-state">Disponible solo para el mes en curso</div>
-            @if (data.gestion?.pctCobertura != null) {
-              <div class="coverage"><div><span>Cobertura del mes</span><strong>{{ data.gestion.pctCobertura }}%</strong></div><div class="coverage-track"><i [style.width.%]="data.gestion.pctCobertura"></i></div></div>
-            }
+          @if (data.historical && !data.segmentacion?.length) {
+            <div class="empty-state">Detalle no disponible para este corte</div>
           } @else {
           <div class="segment-summary">
             <div class="segment-total"><span>Total cartera</span><strong>{{ money(segmentTotal()) }}</strong></div>
@@ -215,6 +212,12 @@
               </div>
             }
           </div>
+          }
+          @if (data.historical) {
+            @if (data.gestion?.pctCobertura != null) {
+              <div class="coverage"><div><span>Cobertura del mes</span><strong>{{ data.gestion.pctCobertura }}%</strong></div><div class="coverage-track"><i [style.width.%]="data.gestion.pctCobertura"></i></div></div>
+            }
+          } @else {
           <div class="coverage">
             <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
             <div class="coverage-track"><i [style.width.%]="data.gestion.total ? data.gestion.gestionados / data.gestion.total * 100 : 0"></i></div>

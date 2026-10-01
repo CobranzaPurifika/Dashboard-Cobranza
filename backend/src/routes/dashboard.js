@@ -4,11 +4,12 @@ import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { sanitizeDashboardForViewer } from "../domain/publicDashboard.js";
 import { summarizePayments } from "../domain/recoveryPayments.js";
-import { attachSegmentTramos } from "../domain/segmentation.js";
+import { attachSegmentTramos, buildPortfolioDetail } from "../domain/segmentation.js";
 import { reportMonthRange } from "../domain/reportMonth.js";
 import { buildMonthSummary } from "../domain/monthSummary.js";
 import { buildHistoricalDashboard, canViewHistoricalDashboard, selectDashboardResponse } from "../domain/historicalDashboard.js";
 import { queryMonthActivity, queryMonthPortfolio } from "../queries/monthSummary.js";
+import { queryPortfolioDetail } from "../queries/portfolioSnapshotDetail.js";
 
 export const dashboardRouter = Router();
 
@@ -297,7 +298,7 @@ async function historicalDashboard({ franchise, allowed, range }) {
   previousEnd.setUTCDate(0);
   const previousHasta = previousEnd.toISOString().slice(0, 10);
   const groupId = franchise === "todas" ? "todas" : franchise;
-  const [activity, portfolio, previous, history, overdueHistory, coverage] = await Promise.all([
+  const [activity, portfolio, previous, history, overdueHistory, coverage, detail] = await Promise.all([
     queryMonthActivity({ franchiseIds: allowed, ...range }),
     queryMonthPortfolio({ franchiseIds: allowed, hasta: range.hasta, isCurrent: false }),
     queryMonthPortfolio({ franchiseIds: allowed, hasta: previousHasta, isCurrent: false }),
@@ -314,6 +315,7 @@ async function historicalDashboard({ franchise, allowed, range }) {
          where franchise_id = any($1::text[]) group by month order by month`, [allowed]),
     pool.query(`select avg(pct_cobertura)::float as pct_cobertura from kpi_snapshots
       where franchise_id = any($1::text[]) and month = $2::date`, [allowed, range.desde]),
+    queryPortfolioDetail({ franchiseIds: allowed, fechaCorte: range.hasta }),
   ]);
   const fulfilledFor = (id) => activity.fulfilled
     .filter((row) => id === "todas" || row.franchise_id === id)
@@ -332,6 +334,7 @@ async function historicalDashboard({ franchise, allowed, range }) {
     history: history.rows,
     overdueHistory: overdueHistory.rows,
     coverage: coverage.rows[0]?.pct_cobertura ?? null,
+    detail: buildPortfolioDetail(detail, allowed),
   });
 }
 

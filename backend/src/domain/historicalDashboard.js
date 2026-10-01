@@ -21,7 +21,7 @@ function metric(pct, monto, previous, isGood) {
 
 /** Builds the regular dashboard contract from a saved monthly summary. */
 export function buildHistoricalDashboard({ summary, groupId, previousPortfolio = null,
-  history = [], overdueHistory = [], coverage = null }) {
+  history = [], overdueHistory = [], coverage = null, detail = null }) {
   const group = summary.groups[groupId];
   const portfolio = group?.portfolio ?? null;
   const distribution = summary.catalog.map((row) => ({
@@ -42,11 +42,11 @@ export function buildHistoricalDashboard({ summary, groupId, previousPortfolio =
   } : { alCorriente: null, vencidaTotal: null, mas60: null };
 
   return {
-    portfolio: portfolio ? { clientes: null, saldo: portfolio.saldo } : { clientes: null, saldo: null },
+    portfolio: { clientes: detail?.clientes ?? null, saldo: portfolio?.saldo ?? null },
     kpi,
     baseline: { semana: null, mes: previousPortfolio?.fecha_corte ? { fechaCorte: previousPortfolio.fecha_corte } : null },
-    saldos: [],
-    segmentacion: [],
+    saldos: detail?.saldos ?? [],
+    segmentacion: detail?.segmentacion ?? [],
     gestion: coverage == null ? null : { total: null, gestionados: null, pctCobertura: Number(coverage) },
     distribucion: distribution,
     funnel: {

@@ -1,10 +1,11 @@
 import { mas60PctFromBaseline } from "./portfolioMetrics.js";
+import { buildPortfolioDetail } from "./segmentation.js";
 
 const number = (value) => Number(value) || 0;
 const iso = (value) => value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "").slice(0, 10);
 const ratio = (a, b) => b ? a / b : 0;
 
-export function buildMonthSummary({ franchiseIds, corte = [], gestiones = [], statusCatalog = [], pagos = [], desde, hasta, isCurrent }) {
+export function buildMonthSummary({ franchiseIds, corte = [], gestiones = [], statusCatalog = [], pagos = [], desde, hasta, isCurrent, detail = null }) {
   const allowed = new Set(franchiseIds);
   const inRange = (row) => allowed.has(row.franchise_id) && iso(row.fecha_iso) >= desde && iso(row.fecha_iso) <= hasta;
   const events = gestiones.filter(inRange).filter((r) => !r.portfolio_status || r.portfolio_status === "active");
@@ -30,7 +31,9 @@ export function buildMonthSummary({ franchiseIds, corte = [], gestiones = [], st
     // Query supplies fulfilled promises independently of timeline events, including
     // clients whose promise was created in a prior month.
     const cumplidas = number(source?.cumplidas);
-    return [id, { portfolio, total, clientes: new Set(rows.map((r) => r.cliente_id)).size,
+    // Representación de saldos del corte (o en vivo en el mes en curso); null si no se guardó.
+    const saldos = detail ? buildPortfolioDetail(detail, id === "todas" ? franchiseIds : [id])?.saldos ?? null : null;
+    return [id, { portfolio, saldos, total, clientes: new Set(rows.map((r) => r.cliente_id)).size,
       efectivas, acordadas, cumplidas, contactabilidad: ratio(efectivas, total),
       tasaAcuerdo: ratio(acordadas, efectivas), cumplimiento: ratio(cumplidas, acordadas),
       recuperado: payments.filter((r) => id === "todas" || r.franchise_id === id).reduce((sum, r) => sum + number(r.monto), 0),

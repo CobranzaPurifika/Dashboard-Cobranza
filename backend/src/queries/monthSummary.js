@@ -1,4 +1,5 @@
 import { reportMonthRange } from "../domain/reportMonth.js";
+import { queryLivePortfolioDetail, queryPortfolioDetail } from "./portfolioSnapshotDetail.js";
 
 // Explicit date parameters make these queries reusable for historical dashboards.
 export async function queryMonthActivity({ franchiseIds, desde, hasta }, db) {
@@ -58,12 +59,16 @@ export async function queryMonthPortfolio({ franchiseIds, hasta, isCurrent }, db
 export async function queryMonthSummary({ month, franchiseIds, now = new Date() }, db) {
   const range = reportMonthRange(month, now);
   const params = { ...range, franchiseIds };
-  const [activity, portfolio] = await Promise.all([queryMonthActivity(params, db), queryMonthPortfolio(params, db)]);
+  const [activity, portfolio, detail] = await Promise.all([
+    queryMonthActivity(params, db), queryMonthPortfolio(params, db),
+    range.isCurrent ? queryLivePortfolioDetail(params, db)
+      : queryPortfolioDetail({ franchiseIds, fechaCorte: range.hasta }, db),
+  ]);
   const corte = [...franchiseIds, "todas"].map((id) => {
     const source = portfolio.find((r) => r.franchise_id === id);
     return { ...source, franchise_id: id, available: !!source,
       cumplidas: activity.fulfilled.filter((r) => id === "todas" || r.franchise_id === id)
         .reduce((sum, r) => sum + Number(r.cumplidas), 0) };
   });
-  return { ...params, ...activity, corte };
+  return { ...params, ...activity, corte, detail };
 }
