@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { capturePortfolioDetail } from "../queries/portfolioSnapshotDetail.js";
 import { getDriveSources } from "./config.js";
 import { downloadSheetAsCsv } from "./driveCsv.js";
 import { parseBddCsv, parsePaymentsCsv } from "./parsers.js";
@@ -397,6 +398,10 @@ async function captureMonthlyPortfolioBaseline(db) {
      from snapshots
      on conflict do nothing`
   );
+  const corte = await db.query(
+    "select (date_trunc('month', now() at time zone 'America/Mexico_City')::date - 1)::text as fecha"
+  );
+  await capturePortfolioDetail(db, corte.rows[0].fecha, "Mensual");
 }
 
 async function loadFranchiseContext(db, franchiseId) {

@@ -17,6 +17,18 @@ test("consultas históricas acotan el rango, consultan todas y conservan cumplid
     assert.deepEqual(call.params.slice(1), ["2026-09-01", "2026-09-30"]);
   }
   assert.match(calls.find((c) => c.sql.includes('payment_promises')).sql, /pp.fulfilled_at between/);
+  const detail = calls.find((c) => c.sql.includes('portfolio_snapshot_tramos'));
+  assert.deepEqual(detail.params, [["aguascalientes", "cancun", "merida"], "2026-09-30", "Mensual"]);
+  assert.deepEqual(source.detail, { tramos: [], segments: [] });
+});
+
+test("el mes en curso toma la representación de saldos en vivo", async () => {
+  const calls = [];
+  await queryMonthSummary({ month: "2026-10", franchiseIds: ["cancun"], now: new Date("2026-10-10T12:00:00Z") }, {
+    query: async (sql, params) => { calls.push({ sql, params }); return { rows: [] }; },
+  });
+  assert.equal(calls.some((c) => c.sql.includes('portfolio_snapshot_tramos')), false);
+  assert.ok(calls.some((c) => c.sql.includes('from facturas f') && c.sql.includes('c.segment')));
 });
 
 test("el corte global no expone franquicias fuera del alcance", async () => {

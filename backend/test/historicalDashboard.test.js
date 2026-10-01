@@ -46,3 +46,12 @@ test("representa un mes sin corte sin inventar KPIs", () => {
   assert.equal(response.kpi.alCorriente, null);
   assert.equal(response.portfolio.saldo, null);
 });
+
+test("usa el detalle guardado del corte para saldos, segmentación y clientes", () => {
+  const detail = { saldos: [{ tramo: "good", label: "Al corriente", value: 700, clientes: 4 }],
+    segmentacion: [{ segment: "comercial", label: "Comercial", clientes: 5, monto: 700, tramos: [] }], clientes: 5 };
+  const response = buildHistoricalDashboard({ summary, groupId: "cancun", detail });
+  assert.deepEqual(response.saldos, detail.saldos);
+  assert.deepEqual(response.segmentacion, detail.segmentacion);
+  assert.equal(response.portfolio.clientes, 5);
+});

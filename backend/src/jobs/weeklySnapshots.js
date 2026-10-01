@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { capturePortfolioDetail } from "../queries/portfolioSnapshotDetail.js";
 import { mexicoTodayISO, addCalendarDays } from "../domain/dates.js";
 
 // Corte semanal para "vs semana anterior" en las tarjetas de KPI del dashboard (cartera al
@@ -58,4 +59,5 @@ export async function captureWeeklyPortfolioBaseline() {
      on conflict do nothing`,
     [fechaCorte]
   );
+  await capturePortfolioDetail(pool, fechaCorte, "Semanal");
 }
