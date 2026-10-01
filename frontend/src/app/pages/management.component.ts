@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
+import { reportMonthOptions } from '../core/report-months';
 import { ApiService } from '../core/api.service';
 import { DatePickerComponent } from './date-picker.component';
 import { money as formatMoney, moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
@@ -90,6 +91,9 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   scheduledExpanded = true;
   monthlyLoading = false;
   monthlyError = '';
+  reportDownloading = false;
+  reportMenuOpen = false;
+  reportMonths = reportMonthOptions();
   monthlyData: any = null;
   dailyCountExpanded = false;
   expandedFranchiseDetails = new Set<string>();
@@ -170,6 +174,48 @@ export class ManagementComponent implements OnChanges, OnDestroy {
 
   get canManage(): boolean {
     return ['admin', 'gestor'].includes(this.user?.role);
+  }
+
+  get canDownloadReport(): boolean {
+    return ['admin', 'supervisor'].includes(this.user?.role);
+  }
+
+  toggleReportMenu(): void {
+    if (!this.canDownloadReport || this.reportDownloading) return;
+    this.reportMonths = reportMonthOptions();
+    this.reportMenuOpen = !this.reportMenuOpen;
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeReportMenuOutside(event: MouseEvent): void {
+    if (this.reportMenuOpen && !(event.target as Element)?.closest('.report-month-selector')) {
+      this.reportMenuOpen = false;
+      this.refresh();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeReportMenuEscape(): void {
+    if (!this.reportMenuOpen) return;
+    this.reportMenuOpen = false;
+    this.refresh();
+  }
+
+  async downloadMonthlyReport(month: string): Promise<void> {
+    if (this.reportDownloading || !this.canDownloadReport) return;
+    this.reportMenuOpen = false;
+    this.reportDownloading = true;
+    this.monthlyError = '';
+    this.refresh();
+    try {
+      const result = await this.api.reporteGestionesMes(month);
+      this.downloadBlob(result.blob, result.fileName);
+    } catch (error: any) {
+      this.monthlyError = error.message;
+    } finally {
+      this.reportDownloading = false;
+      this.refresh();
+    }
   }
 
   get callLaterSelected(): boolean {

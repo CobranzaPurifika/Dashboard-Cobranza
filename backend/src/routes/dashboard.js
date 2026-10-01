@@ -1,3 +1,4 @@
+import { mas60PctFromBaseline } from "../domain/portfolioMetrics.js";
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
@@ -297,12 +298,6 @@ function metricWithDelta(pct, monto, baselineSemanaPct, baselineMesPct, isGood) 
 function computeDelta(pct, baselinePct) {
   const hasBaseline = baselinePct !== null && baselinePct !== undefined && Number.isFinite(Number(baselinePct));
   return hasBaseline ? round1(pct - Number(baselinePct)) : null;
-}
-
-function mas60PctFromBaseline(row) {
-  return row && row.tramo_60_mas_monto != null && Number(row.saldo_total) > 0
-    ? Number(row.tramo_60_mas_monto) / Number(row.saldo_total) * 100
-    : null;
 }
 
 // Corte más reciente (por franquicia, ponderado por saldo; "todas" ya viene pre-agregado en su

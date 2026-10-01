@@ -16,3 +16,15 @@ describe('ApiService', () => {
     await expect(api.dashboard('todas')).rejects.toThrow('La API de cartera no está conectada');
   });
 });
+
+it('descarga XLSX con el mes y el nombre de Content-Disposition', async () => {
+  const fetchMock = vi.fn(async (_url: string, _options?: RequestInit) => new Response('xlsx', { headers: { 'Content-Disposition': 'attachment; filename="Reporte_Gestiones_2026-09.xlsx"' } }));
+  vi.stubGlobal('fetch', fetchMock);
+  try {
+    const api = new ApiService({ getValidAccessToken: async () => 'token' } as any);
+    const result = await api.reporteGestionesMes('2026-09');
+    expect(fetchMock.mock.calls[0][0]).toContain('/gestiones-mes/report.xlsx?month=2026-09');
+    expect(result.fileName).toBe('Reporte_Gestiones_2026-09.xlsx');
+    expect(result.blob.size).toBe(4);
+  } finally { vi.unstubAllGlobals(); }
+});

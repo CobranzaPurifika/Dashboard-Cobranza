@@ -478,7 +478,23 @@
           }
         </section>
 
-        @if (canManage) { <button class="incident-bulk-action incident-bulk-action-top" type="button" (click)="openBulkIncidentModal()"><ion-icon name="add-circle-outline"></ion-icon>Marcar incidencia en lote</button> }
+        @if (canManage || canDownloadReport) {
+          <div class="monthly-actions">
+            @if (canManage) { <button class="incident-bulk-action" type="button" (click)="openBulkIncidentModal()"><ion-icon name="add-circle-outline"></ion-icon>Marcar incidencia en lote</button> }
+            @if (canDownloadReport) {
+              <div class="report-month-selector">
+                <button class="incident-bulk-action" type="button" (click)="toggleReportMenu()" [disabled]="reportDownloading" [attr.aria-expanded]="reportMenuOpen" aria-controls="report-month-options"><ion-icon name="download-outline"></ion-icon>{{ reportDownloading ? 'Generando…' : 'Descargar reporte' }}</button>
+                @if (reportMenuOpen) {
+                  <div class="report-month-menu" id="report-month-options" aria-label="Mes del reporte">
+                    @for (option of reportMonths; track option.value) {
+                      <button type="button" (click)="downloadMonthlyReport(option.value)">{{ option.label }}</button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
 
         <section class="monthly-section compact-counts">
           <h3>Recuento diario — clientes únicos gestionados</h3>

@@ -56,6 +56,27 @@ export class ApiService {
   gestionesMes = (month = '', signal?: AbortSignal) =>
     this.request(`/gestiones-mes${month ? `?month=${encodeURIComponent(month)}` : ''}`, { signal });
 
+  async reporteGestionesMes(month: string): Promise<{ blob: Blob; fileName: string }> {
+    const token = await this.auth.getValidAccessToken();
+    const response = await fetch(`${this.apiBase}/gestiones-mes/report.xlsx?month=${encodeURIComponent(month)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        this.auth.clearSession();
+        window.dispatchEvent(new CustomEvent('auth-required'));
+      }
+      throw new Error(payload.error ?? `Error ${response.status}`);
+    }
+    const disposition = response.headers.get('content-disposition') ?? '';
+    const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    let fileName = plain || 'Reporte_Gestiones.xlsx';
+    if (encoded) try { fileName = decodeURIComponent(encoded); } catch { fileName = encoded; }
+    return { blob: await response.blob(), fileName };
+  }
+
   guardarNota(id: string, nota: string) {
     return this.request(`/clientes/${id}/notas`, {
       method: 'PUT', body: JSON.stringify({ nota }),

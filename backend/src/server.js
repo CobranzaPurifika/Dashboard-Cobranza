@@ -25,7 +25,7 @@ const frontendDirectory = fileURLToPath(new URL("../../frontend", import.meta.ur
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
   // Nombre del archivo y avisos de los documentos PDF generados (ver routes/documentos.js).
-  exposedHeaders: ["X-Documento-Nombre", "X-Documento-Avisos"],
+  exposedHeaders: ["X-Documento-Nombre", "X-Documento-Avisos", "Content-Disposition"],
 }));
 app.use(express.json());
 

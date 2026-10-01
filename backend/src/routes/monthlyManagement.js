@@ -2,10 +2,32 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireRole } from "../auth/authorization.js";
 import { resolveFranchiseScope } from "../auth/franchiseScope.js";
-import { buildMonthlyManagement, parseDailyGoal } from "../domain/monthlyManagement.js";
+import { parseDailyGoal } from "../domain/monthlyManagement.js";
 import { mexicoTodayISO } from "../domain/dates.js";
+import { buildMonthlyReportData } from "../domain/monthlyReport.js";
+import { renderMonthlyWorkbook } from "../documents/monthlyWorkbook.js";
+import { buildMonthSummary } from "../domain/monthSummary.js";
+import { queryMonthSummary } from "../queries/monthSummary.js";
+import { queryMonthlyManagement } from "../queries/monthlyManagement.js";
 
 export const monthlyManagementRouter = Router();
+
+monthlyManagementRouter.get("/report.xlsx", requireRole("admin", "supervisor"), async (req, res, next) => {
+  try {
+    const franchiseIds = resolveFranchiseScope(req.user, "todas");
+    const now = new Date();
+    const source = await queryMonthSummary({ month: req.query.month, franchiseIds, now });
+    const compliance = await queryMonthlyManagement({ month: source.month, throughDate: source.hasta, franchiseIds });
+    const data = { ...buildMonthlyReportData(source), summary: buildMonthSummary(source), compliance, generatedAt: now };
+    const buffer = await renderMonthlyWorkbook(data);
+    const fileName = `Reporte_Gestiones_${source.month}${source.isCurrent ? `_al_${source.hasta}` : ""}.xlsx`;
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Content-Length": buffer.length,
+    }).send(buffer);
+  } catch (error) { next(error); }
+});
 
 monthlyManagementRouter.get("/goals", requireRole("admin", "supervisor"), async (req, res, next) => {
   try {
@@ -54,44 +76,7 @@ monthlyManagementRouter.get("/", async (req, res, next) => {
     }
     const allowed = resolveFranchiseScope(req.user, "todas");
     const throughDate = month === today.slice(0, 7) ? today : monthEnd(month);
-    const [franchises, goals, counts, incidents] = await Promise.all([
-      pool.query(
-        `select id, label from franquicias
-         where id = any($1::text[])
-         order by array_position(array['aguascalientes','cancun','merida'], id)`,
-        [allowed]
-      ),
-      pool.query(
-        `select franchise_id, daily_goal from management_daily_goals
-         where franchise_id = any($1::text[])`,
-        [allowed]
-      ),
-      pool.query(
-        `select c.franchise_id, gt.fecha_iso as fecha, count(distinct gt.cliente_id)::int as count
-         from gestion_timeline gt
-         join clientes c on c.id = gt.cliente_id
-         where c.franchise_id = any($1::text[])
-           and gt.fecha_iso between $2::date and $3::date
-           and coalesce(gt.descripcion, '') !~* '^(Pago aplicado|Enviado a lista negra|Nota actualizada)(\\s+—.*)?$'
-         group by c.franchise_id, gt.fecha_iso`,
-        [allowed, `${month}-01`, throughDate]
-      ),
-      pool.query(
-        `select franchise_id, fecha, note
-         from management_day_incidents
-         where franchise_id = any($1::text[]) and fecha between $2::date and $3::date`,
-        [allowed, `${month}-01`, throughDate]
-      ),
-    ]);
-
-    res.json(buildMonthlyManagement({
-      month,
-      throughDate,
-      franchises: franchises.rows,
-      goals: goals.rows,
-      counts: counts.rows,
-      incidents: incidents.rows,
-    }));
+    res.json(await queryMonthlyManagement({ month, throughDate, franchiseIds: allowed }));
   } catch (error) {
     next(error);
   }

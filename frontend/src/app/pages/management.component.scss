@@ -323,7 +323,8 @@ button, input, select, textarea { font: inherit; }
 .monthly-expand-toggle { display: block; width: 100%; margin-top: 8px; padding: 7px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--accent-strong); font-size: 10px; font-weight: 700; cursor: pointer; }
 .incident-bulk-action { display: flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft)); color: var(--accent-strong); font-size: 10px; font-weight: 750; cursor: pointer; }
 .incident-bulk-action ion-icon { font-size: 13px; }
-.incident-bulk-action-top { margin-top: 34px; }
+.monthly-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 34px; }
+.monthly-actions .incident-bulk-action:disabled { opacity: .6; cursor: wait; }
 
 .bulk-incident-dialog { width: min(560px, calc(100vw - 28px)); }
 .bulk-incident-fields { display: grid; gap: 16px; }
@@ -371,3 +372,8 @@ button, input, select, textarea { font: inherit; }
   // diferencia de "Pendientes", arriba) y nunca activaba su propio scroll interno.
   .blacklist-card { max-height: 34vh; }
 }
+
+.report-month-selector { position: relative; }
+.report-month-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.report-month-menu button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.report-month-menu button:hover, .report-month-menu button:focus-visible { background: var(--surface-hover); }
