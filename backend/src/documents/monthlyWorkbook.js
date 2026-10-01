@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
-import { LOGO_APP_DROP_BASE64 } from "./assets/logoAppDrop.js";
+import { LOGO_APP_FULL_BASE64 } from "./assets/logoAppFull.js";
 
 const IDS = ["aguascalientes", "cancun", "merida"];
 const LABELS = ["Aguascalientes", "Cancún", "Mérida"];
@@ -15,7 +15,7 @@ export async function renderMonthlyWorkbook(data) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Purifika Cobranza";
   workbook.calcProperties.fullCalcOnLoad = true;
-  const drop = workbook.addImage({ base64: LOGO_APP_DROP_BASE64, extension: "png" });
+  const appLogo = workbook.addImage({ base64: LOGO_APP_FULL_BASE64, extension: "png" });
   const logo = workbook.addImage({ buffer: await readFile(new URL("./assets/logo-purifika.png", import.meta.url)), extension: "png" });
   const summary = workbook.addWorksheet("Resumen");
   const management = workbook.addWorksheet("Gestiones");
@@ -23,7 +23,7 @@ export async function renderMonthlyWorkbook(data) {
   [32, 22, 22, 22, 24].forEach((width, i) => { summary.getColumn(i + 1).width = width; });
   [12, 38, 12, 20, 70].forEach((width, i) => { management.getColumn(i + 1).width = width; });
   [12, 38, 12, 24, 22].forEach((width, i) => { recovered.getColumn(i + 1).width = width; });
-  for (const sheet of workbook.worksheets) addHeader(sheet, data, drop, logo);
+  for (const sheet of workbook.worksheets) addHeader(sheet, data, appLogo, logo);
   addSummary(summary, data.summary);
   addManagement(management, data);
   addRecovered(recovered, data);
@@ -35,28 +35,31 @@ export async function renderMonthlyWorkbook(data) {
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
-function addHeader(sheet, data, drop, logo) {
+// Mismo encabezado que la maqueta aprobada: logo de la app a la izquierda, logo Purifika a la
+// derecha, título del mes centrado en las filas 1-2, nombre de la hoja y periodo debajo.
+function addHeader(sheet, data, appLogo, logo) {
   sheet.views = [{ showGridLines: false }];
   sheet.pageSetup = { orientation: "landscape", paperSize: 1, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
   sheet.properties.defaultRowHeight = 20;
-  sheet.addImage(drop, { tl: { col: 0, row: 0 }, ext: { width: 48, height: 48 } });
-  sheet.addImage(logo, { tl: { col: 4, row: 0 }, ext: { width: 130, height: 46 } });
-  sheet.getCell("B1").value = "PURIFIKA";
-  sheet.getCell("B1").font = { name: "Arial", bold: true, color: { argb: "FF3D4548" }, size: 14 };
-  sheet.getCell("B2").value = "C O B R A N Z A";
-  sheet.getCell("B2").font = { name: "Arial", color: { argb: TURQUOISE }, size: 9 };
+  [22, 20, 16, 16, 8].forEach((height, i) => { sheet.getRow(i + 1).height = height; });
+  sheet.addImage(appLogo, { tl: { col: 0.1, row: 0.15 }, ext: { width: 131, height: 48 } });
+  sheet.addImage(logo, { tl: { col: 4.15, row: 0 }, ext: { width: 97, height: 54 } });
   const month = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric", timeZone: "UTC" }).format(date(data.desde)).replace(" de ", " ");
   const longDate = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date(data.hasta));
   const generated = new Intl.DateTimeFormat("es-MX", { dateStyle: "short", timeStyle: "short", timeZone: "America/Mexico_City" }).format(data.generatedAt ?? new Date());
-  const lines = [`Reporte de gestiones — ${month[0].toUpperCase()}${month.slice(1)}`, `Del 1 al ${longDate}`, `Generado: ${generated} (CDMX)`];
-  lines.forEach((value, i) => {
-    const row = i + 3;
-    sheet.mergeCells(`B${row}:D${row}`);
-    sheet.getCell(`B${row}`).value = value;
-    sheet.getCell(`B${row}`).alignment = { horizontal: "center", vertical: "middle", shrinkToFit: true };
-  });
-  sheet.getCell("B3").font = { name: "Arial", bold: true, size: 14 };
-  for (let col = 1; col <= 5; col++) sheet.getCell(5, col).border = { bottom: { style: "medium", color: { argb: TURQUOISE } } };
+  sheet.mergeCells("B1:D2");
+  sheet.getCell("B1").value = `Reporte de gestiones — ${month[0].toUpperCase()}${month.slice(1)}`;
+  sheet.getCell("B1").font = { name: "Arial", bold: true, size: 16, color: { argb: "FF3A4A50" } };
+  sheet.getCell("B1").alignment = { horizontal: "center", vertical: "middle" };
+  sheet.mergeCells("B3:D3");
+  sheet.getCell("B3").value = sheet.name;
+  sheet.getCell("B3").font = { name: "Arial", size: 10, color: { argb: "FF8A969B" } };
+  sheet.getCell("B3").alignment = { horizontal: "center", vertical: "middle" };
+  sheet.mergeCells("B4:D4");
+  sheet.getCell("B4").value = `Del 1 al ${longDate} · Generado: ${generated} (CDMX)`;
+  sheet.getCell("B4").font = { name: "Arial", size: 9, color: { argb: "FF8A969B" } };
+  sheet.getCell("B4").alignment = { horizontal: "center", vertical: "middle", shrinkToFit: true };
+  for (let col = 1; col <= 5; col++) sheet.getCell(5, col).border = { bottom: { style: "thin", color: { argb: TURQUOISE } } };
 }
 
 function heading(sheet, label) {

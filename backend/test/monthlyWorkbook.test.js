@@ -4,7 +4,7 @@ import ExcelJS from "exceljs";
 import { buildMonthlyReportData } from "../src/domain/monthlyReport.js";
 import { buildMonthSummary } from "../src/domain/monthSummary.js";
 import { renderMonthlyWorkbook } from "../src/documents/monthlyWorkbook.js";
-import { LOGO_APP_DROP_BASE64 } from "../src/documents/assets/logoAppDrop.js";
+import { LOGO_APP_FULL_BASE64 } from "../src/documents/assets/logoAppFull.js";
 const base = { franchiseIds: ["aguascalientes", "cancun", "merida"], desde: "2026-09-01", hasta: "2026-09-30", isCurrent: false };
 
 for (const populated of [false, true]) test(`libro con fórmulas, dos imágenes y tres hojas; datos=${populated}`, async () => {
@@ -19,12 +19,12 @@ for (const populated of [false, true]) test(`libro con fórmulas, dos imágenes 
   await workbook.xlsx.load(await renderMonthlyWorkbook(data));
   assert.deepEqual(workbook.worksheets.map((s) => s.name), ["Resumen", "Gestiones", "Recuperado"]);
   assert.equal(workbook.model.media.length, 2);
-  assert.equal(Buffer.from(LOGO_APP_DROP_BASE64, "base64").subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(Buffer.from(LOGO_APP_FULL_BASE64, "base64").subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   for (const sheet of workbook.worksheets) {
     assert.equal(sheet.getImages().length, 2);
-    assert.equal(sheet.getCell("B3").value, "Reporte de gestiones — Septiembre 2026");
-    assert.equal(sheet.getCell("B4").value, "Del 1 al 30 de septiembre de 2026");
-    assert.match(sheet.getCell("B5").value, /Generado:.*CDMX/);
+    assert.equal(sheet.getCell("B1").value, "Reporte de gestiones — Septiembre 2026");
+    assert.equal(sheet.getCell("B3").value, sheet.name);
+    assert.match(sheet.getCell("B4").value, /^Del 1 al 30 de septiembre de 2026 · Generado:.*CDMX/);
     assert.equal(sheet.pageSetup.orientation, "landscape");
     assert.equal(sheet.pageSetup.fitToWidth, 1);
     assert.equal(sheet.views[0].showGridLines, false);
