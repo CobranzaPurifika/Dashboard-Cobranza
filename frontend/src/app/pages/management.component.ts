@@ -5,7 +5,7 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { reportMonthOptions } from '../core/report-months';
 import { ApiService } from '../core/api.service';
 import { DatePickerComponent } from './date-picker.component';
-import { money as formatMoney, moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
+import { invoiceDate as formatInvoiceDate, money as formatMoney, moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
 
 type DocumentType = 'aviso_deuda' | 'aviso_retiro' | 'acuerdo_pagos';
 
@@ -882,6 +882,10 @@ export class ManagementComponent implements OnChanges, OnDestroy {
 
   shortDate(value: string): string {
     return formatShortDate(value);
+  }
+
+  invoiceDate(value: string): string {
+    return formatInvoiceDate(value);
   }
 
   compactDaily(day: any): string {

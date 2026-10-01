@@ -5,7 +5,7 @@ import { IonApp, IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from './core/api.service';
 import { AuthService } from './core/auth.service';
 import { AppPreferences, DEFAULT_PREFERENCES, loadPreferences, savePreferences } from './core/preferences';
-import { money as formatMoney, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from './core/format';
+import { invoiceDate as formatInvoiceDate, money as formatMoney, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from './core/format';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
 import { PresentationComponent } from './pages/presentation.component';
@@ -405,6 +405,10 @@ export class AppComponent implements OnInit {
 
   shortDate(value: string): string {
     return formatShortDate(value);
+  }
+
+  invoiceDate(value: string): string {
+    return formatInvoiceDate(value);
   }
 
   tramoLabel(tramo: string): string {

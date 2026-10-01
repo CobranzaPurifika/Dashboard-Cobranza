@@ -28,3 +28,10 @@ export function shortDate(value: string): string {
     .replace('.', '')
     .replace(/[-/]/g, ' ');
 }
+
+// Fecha de factura con año ("05 sep 2025"): las facturas vencidas pueden venir de años anteriores.
+export function invoiceDate(value: string): string {
+  if (!value) return '';
+  const year = String(value).slice(0, 4);
+  return `${shortDate(value)} ${year}`;
+}
