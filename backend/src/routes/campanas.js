@@ -286,3 +286,19 @@ campanasRouter.post("/contactos/importar", requireRole("admin"), async (_req, re
     client.release();
   }
 });
+
+// Errores conocidos del módulo con un mensaje que diga qué hacer, en lugar del genérico
+// "Error interno del servidor": tablas sin migrar y fallas al leer Drive.
+campanasRouter.use((err, _req, _res, next) => {
+  if (err?.code === "42P01" && /campana_/.test(String(err.message))) {
+    err.statusCode = 503;
+    err.expose = true;
+    err.message = "Falta aplicar en la base de datos la migración del módulo Campañas (20261002090000_campanas_cobranza.sql)";
+  } else if (/^Drive respondió|credenciales de Google Drive/.test(String(err?.message))) {
+    console.error("[campanas] drive", err);
+    err.statusCode = 502;
+    err.expose = true;
+    err.message = `No se pudo leer la BDD de Drive: ${err.message.slice(0, 160)}`;
+  }
+  next(err);
+});

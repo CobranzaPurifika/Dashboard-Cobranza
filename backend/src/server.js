@@ -75,7 +75,8 @@ app.use((err, _req, res, _next) => {
   const statusCode = err.statusCode ?? 500;
   if (statusCode >= 500) console.error(err);
   res.status(statusCode).json({
-    error: statusCode >= 500 ? "Error interno del servidor" : err.message,
+    // `expose` marca mensajes 5xx pensados para el usuario (p. ej. migración pendiente).
+    error: statusCode >= 500 && !err.expose ? "Error interno del servidor" : err.message,
   });
 });
 
