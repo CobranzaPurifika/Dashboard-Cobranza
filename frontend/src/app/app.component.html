@@ -399,7 +399,7 @@
               <div class="section-heading"><h3>Facturas activas</h3><span>{{ lectorDetail.invoices.length }}</span></div>
               <div class="compact-list">
                 @for (invoice of lectorDetail.invoices; track invoice.id) {
-                  <div><span><strong>{{ invoice.folio }}</strong><small>{{ shortDate(invoice.fecha_facturacion) }}</small></span><b>{{ money(invoice.monto) }}</b></div>
+                  <div><span><strong>{{ invoice.folio }}</strong><small>{{ invoiceDate(invoice.fecha_facturacion) }}</small></span><b>{{ money(invoice.monto) }}</b></div>
                 } @empty { <p class="empty-line">Sin facturas activas.</p> }
               </div>
             </section>
