@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMonthlyReportData } from "../src/domain/monthlyReport.js";
-import { renderMonthlyReportPdf } from "../src/documents/monthlyReport.js";
+import ExcelJS from "exceljs";
+import { renderMonthlyWorkbook } from "../src/documents/monthlyWorkbook.js";
 
 const base = {
   franchiseIds: ["aguascalientes", "cancun", "merida"],
@@ -40,7 +41,7 @@ test("calcula el recuperado por franquicia y el total general", () => {
   assert.equal(data.totalRecuperado, 150.25);
 });
 
-test("renderiza un PDF multipágina con una lista extensa", async () => {
+test("renderiza el libro con sus hojas, fórmulas y logos", async () => {
   const gestiones = Array.from({ length: 65 }, (_, index) => ({
     fecha_iso: `2026-09-${String((index % 30) + 1).padStart(2, "0")}`,
     created_at: String(index), cliente_id: index, name: `Cliente ${index}`,
@@ -48,8 +49,10 @@ test("renderiza un PDF multipágina con una lista extensa", async () => {
     descripcion: `Comentario de seguimiento ${index} con suficiente contenido para validar el ajuste de línea.`,
   }));
   const data = buildMonthlyReportData({ ...base, gestiones, pagos: [] });
-  const buffer = await renderMonthlyReportPdf(data, { generatedAt: new Date("2026-09-30T18:00:00Z") });
-  assert.equal(buffer.subarray(0, 4).toString(), "%PDF");
-  const pageObjects = buffer.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? [];
-  assert.ok(pageObjects.length > 1, `se esperaban varias páginas, se obtuvieron ${pageObjects.length}`);
+  const buffer = await renderMonthlyWorkbook(data);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  assert.deepEqual(workbook.worksheets.map((sheet) => sheet.name), ["Resumen", "Gestiones", "Recuperado"]);
+  assert.equal(workbook.getWorksheet("Resumen").getCell("E7").value.formula, "SUM(B7:D7)");
+  assert.equal(workbook.model.media.length, 2);
 });
