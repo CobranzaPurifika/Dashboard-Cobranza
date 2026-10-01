@@ -17,7 +17,7 @@ describe('ApiService', () => {
   });
 
   it('agrega el mes al dashboard solo cuando se selecciona un histórico', async () => {
-    const fetchMock = vi.fn(async () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.fn(async (_url: string, _options?: RequestInit) => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
     const api = new ApiService({ getValidAccessToken: async () => null } as any);
     await api.dashboard('todas', undefined, '2026-09');

@@ -25,7 +25,7 @@
           </div>
         </div>
         <p>{{ money(data.kpi.alCorriente.monto) }}</p>
-        <div class="goal-row"><span>Meta 75%</span><span>{{ countLabel(data.portfolio.clientes) }}</span></div>
+        <div class="goal-row"><span>Meta 75%</span><span>{{ data.portfolio.clientes == null ? '' : countLabel(data.portfolio.clientes) }}</span></div>
         <div class="goal-track"><i [style.width.%]="data.kpi.alCorriente.pct"></i></div>
         } @else { <div class="empty-state compact">Corte no disponible</div> }
       </article>
