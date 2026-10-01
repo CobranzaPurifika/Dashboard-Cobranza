@@ -18,6 +18,9 @@
 .franchise-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--surface-soft); }
 .franchise-tabs button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 10px; cursor: pointer; }
 .franchise-tabs button.active { background: var(--accent); color: #07373a; font-weight: 800; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 24%, transparent); }
+.month-selector { display: flex; align-items: center; gap: 6px; margin-left: 8px; padding: 4px 8px; border-radius: 10px; background: var(--surface-soft); }
+.month-selector span { color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
+.month-selector select { padding: 5px 7px; border: 0; border-radius: 7px; outline: 0; background: var(--input); color: var(--ink-soft); font: inherit; font-size: 10px; font-weight: 700; }
 .topbar-spacer { flex: 1; }
 .portfolio-summary { display: grid; margin: 0 14px; padding-right: 15px; border-right: 1px solid var(--line); text-align: right; }
 .portfolio-summary small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
@@ -224,6 +227,7 @@
   // Límite de ancho + centrado: sin esto la fila ocupa todo el ancho del dispositivo y se ve
   // pegada a lo que sigue debajo (franquicias contra buscador, una encima de la otra).
   .franchise-tabs { order: 5; width: 100%; max-width: 420px; margin: 0 auto; justify-content: center; overflow: auto; }
+  .month-selector { order: 6; margin: 0 auto; }
   .lector-search { order: 5; width: 100%; max-width: 420px; margin: 0 auto; }
 }
 @media (max-width: 700px) {

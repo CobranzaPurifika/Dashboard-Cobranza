@@ -4,12 +4,16 @@
       <span></span><span></span><span></span>
     </div>
   } @else {
+    @if (data.historical) {
+      <div class="historical-notice">Viendo {{ historicalLabel() }} · {{ data.historical.fechaCorte ? ('corte del ' + (data.historical.fechaCorte | date:'dd/MM/yyyy':'UTC')) : 'sin corte guardado' }}</div>
+    }
     <section class="kpi-grid" aria-label="Indicadores principales">
       <article class="kpi-card current">
         <div class="kpi-heading">
           <span>Cartera al corriente</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
+        @if (data.kpi.alCorriente) {
         <div class="kpi-value">
           <strong>{{ data.kpi.alCorriente.pct }}%</strong>
           <div class="kpi-deltas">
@@ -21,8 +25,9 @@
           </div>
         </div>
         <p>{{ money(data.kpi.alCorriente.monto) }}</p>
-        <div class="goal-row"><span>Meta 75%</span><span>{{ countLabel(data.portfolio.clientes) }}</span></div>
+        <div class="goal-row"><span>Meta 75%</span><span>{{ data.portfolio.clientes == null ? '' : countLabel(data.portfolio.clientes) }}</span></div>
         <div class="goal-track"><i [style.width.%]="data.kpi.alCorriente.pct"></i></div>
+        } @else { <div class="empty-state compact">Corte no disponible</div> }
       </article>
 
       <article class="kpi-card overdue">
@@ -30,6 +35,7 @@
           <span>Cartera vencida total</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
+        @if (data.kpi.vencidaTotal) {
         <div class="kpi-value">
           <strong>{{ data.kpi.vencidaTotal.pct }}%</strong>
           <div class="kpi-deltas">
@@ -43,6 +49,7 @@
         <p>{{ money(data.kpi.vencidaTotal.monto) }}</p>
         <div class="goal-row"><span>Objetivo &lt;25%</span><span>de {{ money(data.portfolio.saldo) }}</span></div>
         <div class="goal-track"><i [style.width.%]="data.kpi.vencidaTotal.pct"></i></div>
+        } @else { <div class="empty-state compact">Corte no disponible</div> }
       </article>
 
       <article class="kpi-card critical">
@@ -50,6 +57,7 @@
           <span>Cartera +60 días</span>
           <ion-icon name="analytics-outline"></ion-icon>
         </div>
+        @if (data.kpi.mas60) {
         <div class="kpi-value">
           <strong>{{ data.kpi.mas60.pct }}%</strong>
           <div class="kpi-deltas">
@@ -63,6 +71,7 @@
         <p>{{ money(data.kpi.mas60.monto) }}</p>
         <div class="goal-row"><span>Tramo crítico</span><span>Objetivo &lt;8%</span></div>
         <div class="goal-track"><i [style.width.%]="data.kpi.mas60.pct"></i></div>
+        } @else { <div class="empty-state compact">Corte no disponible</div> }
       </article>
     </section>
 
@@ -74,10 +83,12 @@
             <i></i><span>{{ includeCurrent ? 'Incluye al corriente' : 'Solo vencida' }}</span>
           </button>
         </div>
+        @if (data.historical) { <div class="empty-state">Disponible solo para el mes en curso</div> } @else {
         <div class="donut-layout">
           <div class="donut" [innerHTML]="donut.svg"></div>
         </div>
         <div class="legend balance-legend" [innerHTML]="donut.legend"></div>
+        }
       </article>
 
       <article class="panel-card funnel-card">
@@ -124,7 +135,7 @@
                 </svg>
               </button>
             </div>
-            <div class="period-toggle" aria-label="Periodo"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" title="Últimos 7 días" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div>
+            @if (!data.historical) { <div class="period-toggle" aria-label="Periodo"><button type="button" [class.active]="recoveryPeriod === 'mes'" (click)="setRecoveryPeriod('mes')">Mes</button><button type="button" title="Últimos 7 días" [class.active]="recoveryPeriod === 'semana'" (click)="setRecoveryPeriod('semana')">Semana</button></div> }
           </div>
         </div>
         <div class="recovered-summary">
@@ -163,6 +174,12 @@
       @if (!isAnonymous) {
         <article class="panel-card segmentation-card">
           <div class="panel-title"><div><span class="eyebrow">PORTAFOLIO</span><h2>Segmentación</h2></div></div>
+          @if (data.historical) {
+            <div class="empty-state">Disponible solo para el mes en curso</div>
+            @if (data.gestion?.pctCobertura != null) {
+              <div class="coverage"><div><span>Cobertura del mes</span><strong>{{ data.gestion.pctCobertura }}%</strong></div><div class="coverage-track"><i [style.width.%]="data.gestion.pctCobertura"></i></div></div>
+            }
+          } @else {
           <div class="segment-summary">
             <div class="segment-total"><span>Total cartera</span><strong>{{ money(segmentTotal()) }}</strong></div>
             <div class="segment-bar" role="img" [attr.aria-label]="segmentBarLabel()">
@@ -202,6 +219,7 @@
             <div><span>Cobertura del mes</span><strong>{{ data.gestion.gestionados }}/{{ data.gestion.total }}</strong></div>
             <div class="coverage-track"><i [style.width.%]="data.gestion.total ? data.gestion.gestionados / data.gestion.total * 100 : 0"></i></div>
           </div>
+          }
         </article>
 
         <article class="panel-card history-card recovery-history-card">

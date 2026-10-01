@@ -9,6 +9,7 @@ import { money as formatMoney, shortDate as formatShortDate, tramoLabel as forma
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
 import { PresentationComponent } from './pages/presentation.component';
+import { reportMonthOptions } from './core/report-months';
 
 interface FranchiseOption { id: string; label: string }
 
@@ -33,6 +34,10 @@ export class AppComponent implements OnInit {
   user: any = null;
   franchises: FranchiseOption[] = [];
   franchise = 'todas';
+  readonly dashboardMonths = reportMonthOptions().map((option, index) => ({
+    ...option, label: index === 0 ? 'Mes en curso' : option.label.replace(/ \d{4}$/, ''),
+  }));
+  dashboardMonth = this.dashboardMonths[0].value;
   view: 'dashboard' | 'management' = 'dashboard';
   dashboardData: any = null;
   statusCatalog: any[] = [];
@@ -270,6 +275,12 @@ export class AppComponent implements OnInit {
     void this.loadDashboard();
   }
 
+  selectDashboardMonth(month: string): void {
+    if (this.dashboardMonth === month) return;
+    this.dashboardMonth = month;
+    void this.loadDashboard();
+  }
+
   async loadDashboard(): Promise<void> {
     const requestId = ++this.dashboardRequest;
     this.dashboardAbort?.abort();
@@ -278,7 +289,9 @@ export class AppComponent implements OnInit {
     this.loading = true;
     this.appError = '';
     try {
-      const data = await this.api.dashboard(this.franchise, controller.signal);
+      const currentMonth = this.dashboardMonths[0].value;
+      const data = await this.api.dashboard(this.franchise, controller.signal,
+        this.dashboardMonth === currentMonth ? '' : this.dashboardMonth);
       if (requestId === this.dashboardRequest) {
         this.dashboardData = data;
       }

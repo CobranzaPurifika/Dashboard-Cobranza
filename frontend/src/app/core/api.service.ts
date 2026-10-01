@@ -8,8 +8,8 @@ export class ApiService {
   constructor(private readonly auth: AuthService) {}
 
   me = () => this.request('/me');
-  dashboard = (franchise: string, signal?: AbortSignal) =>
-    this.request(`/dashboard/${franchise}`, { signal });
+  dashboard = (franchise: string, signal?: AbortSignal, month = '') =>
+    this.request(`/dashboard/${franchise}${month ? `?month=${encodeURIComponent(month)}` : ''}`, { signal });
   statusGestion = () => this.request('/status-gestion');
 
   // Buscador del Lector (sin sesión): mismo /request (sin token, ya que no hay sesión), pero

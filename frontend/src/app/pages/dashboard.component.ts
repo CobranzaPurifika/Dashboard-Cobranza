@@ -39,6 +39,7 @@ export class DashboardComponent implements OnChanges {
 
   ngOnChanges(): void {
     if (!this.data) return;
+    if (this.data.historical) this.recoveryPeriod = 'mes';
     this.expandedRecoveryClients = new Set();
     this.expandedSegments = new Set();
     this.renderCharts();
@@ -219,6 +220,12 @@ export class DashboardComponent implements OnChanges {
 
   countLabel(count: number): string {
     return `${Number(count ?? 0).toLocaleString('es-MX')} ${Number(count) === 1 ? 'cliente' : 'clientes'}`;
+  }
+
+  historicalLabel(): string {
+    if (!this.data?.historical) return '';
+    const date = new Date(`${this.data.historical.month}-01T12:00:00Z`);
+    return new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
   private safe(html: string): SafeHtml {

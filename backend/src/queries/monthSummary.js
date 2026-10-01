@@ -14,7 +14,7 @@ export async function queryMonthActivity({ franchiseIds, desde, hasta }, db) {
       from pagos p left join clientes c on c.id = p.cliente_id
       where coalesce(p.franchise_id, c.franchise_id) = any($1::text[])
       and p.fecha_iso between $2::date and $3::date`, params),
-    db.query("select value, label, efectiva, sort_order from status_gestion order by sort_order"),
+    db.query("select value, label, bg, efectiva, sort_order from status_gestion order by sort_order"),
     db.query(`select c.franchise_id, count(distinct pp.cliente_id)::int as cumplidas
       from payment_promises pp join clientes c on c.id = pp.cliente_id
       where c.franchise_id = any($1::text[]) and c.portfolio_status = 'active'

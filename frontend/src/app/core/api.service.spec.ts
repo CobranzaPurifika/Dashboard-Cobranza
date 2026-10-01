@@ -15,6 +15,14 @@ describe('ApiService', () => {
 
     await expect(api.dashboard('todas')).rejects.toThrow('La API de cartera no está conectada');
   });
+
+  it('agrega el mes al dashboard solo cuando se selecciona un histórico', async () => {
+    const fetchMock = vi.fn(async (_url: string, _options?: RequestInit) => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = new ApiService({ getValidAccessToken: async () => null } as any);
+    await api.dashboard('todas', undefined, '2026-09');
+    expect(fetchMock.mock.calls[0][0]).toContain('/dashboard/todas?month=2026-09');
+  });
 });
 
 it('descarga XLSX con el mes y el nombre de Content-Disposition', async () => {
