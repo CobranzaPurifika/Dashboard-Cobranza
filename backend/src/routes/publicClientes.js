@@ -16,7 +16,7 @@ publicClientesRouter.get("/", async (req, res, next) => {
     if (q.length < 2) return res.json({ rows: [] });
     const allowed = resolveFranchiseScope(req.user, req.query.franchise || "todas");
     const { rows } = await pool.query(
-      `select distinct c.id, c.name, c.franchise_id, c.saldo::float, c.tramo, c.tramo_label
+      `select distinct c.id, c.name, c.franchise_id, c.saldo::float, c.tramo, c.tramo_label, c.portfolio_status
        from clientes c
        where c.franchise_id = any($1::text[])
          and (

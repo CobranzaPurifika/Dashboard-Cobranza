@@ -12,6 +12,7 @@ import {
   normalizeBusinessKey,
   normalizeInvoiceKey,
 } from "./consolidation.js";
+import { hasFullPaymentEvidence as invoicesFullyPaid } from "../domain/paymentEvidence.js";
 
 const parsers = { bdd: parseBddCsv, pagos: parsePaymentsCsv };
 
@@ -296,6 +297,12 @@ async function applyBddBatch(db, downloaded, { force = false } = {}) {
     const settled = absent.filter((client) => hasFullPaymentEvidence(client, context));
     const settledIds = new Set(settled.map((client) => client.id));
     const fueraDeCartera = absent.filter((client) => !settledIds.has(client.id));
+    // Clientes que ya estaban "Fuera de cartera" y cuya evidencia de pago llegó después: se
+    // liquidan en esta corrida. No entran al cálculo de caída porque ya no eran cartera activa.
+    const recovered = context.clients.filter((client) =>
+      client.portfolio_status === "fuera_de_cartera" && !presentIds.has(client.id)
+      && hasFullPaymentEvidence(client, context)
+    );
     const check = evaluateSnapshotDrop({
       previousCount: context.clients.filter((client) => client.portfolio_status === "active").length,
       previousBalance: context.clients
@@ -310,9 +317,10 @@ async function applyBddBatch(db, downloaded, { force = false } = {}) {
     details.franchises[snapshot.franchiseId] = {
       clients: snapshot.clientCount, invoices: snapshot.invoiceCount, balance: snapshot.balance,
       settled: settled.length, fueraDeCartera: fueraDeCartera.length,
+      settledFromFueraDeCartera: recovered.length,
       clientDrop: check.clientDrop, balanceDrop: check.balanceDrop,
     };
-    prepared.push({ snapshot, settled, fueraDeCartera, check });
+    prepared.push({ snapshot, settled, recovered, fueraDeCartera, check });
   }
 
   const anomalies = prepared.filter(({ check }) => check.anomalous);
@@ -411,7 +419,7 @@ async function loadFranchiseContext(db, franchiseId) {
        from clientes where franchise_id = $1`, [franchiseId]
     ),
     db.query(
-      `select f.id, f.cliente_id, f.folio, f.monto::float
+      `select f.id, f.cliente_id, f.folio, f.monto::float, f.fecha_facturacion::text
        from facturas f join clientes c on c.id = f.cliente_id
        where c.franchise_id = $1`, [franchiseId]
     ),
@@ -478,19 +486,14 @@ export function resolveSnapshotClients(snapshot, context) {
   }
 }
 
+// Ver domain/paymentEvidence.js: cuenta todo pago al folio con fecha >= fecha de facturación.
+// Ya no se limita a pagos posteriores a last_bdd_seen_at -- la BDD refleja los pagos con
+// días de retraso, así que ese filtro descartaba casi todos los pagos reales.
 function hasFullPaymentEvidence(client, context) {
-  if (client.invoices.length === 0) return false;
-  const seenDate = dateOnly(client.last_bdd_seen_at);
-  return client.invoices.every((invoice) => {
-    const payments = context.paymentsByInvoice.get(normalizeInvoiceKey(invoice.folio)) ?? [];
-    const paid = payments
-      .filter((payment) => !seenDate || dateOnly(payment.fecha_iso) >= seenDate)
-      .reduce((sum, payment) => sum + Number(payment.monto), 0);
-    return paid + 0.005 >= Number(invoice.monto);
-  });
+  return invoicesFullyPaid(client.invoices, context.paymentsByInvoice);
 }
 
-async function persistBddSnapshot(db, { snapshot, settled, fueraDeCartera }) {
+async function persistBddSnapshot(db, { snapshot, settled, recovered = [], fueraDeCartera }) {
   const clientRows = snapshot.clients.map((client) => ({
     id: client.id, name: client.persistedName, rfc: client.rfc || null,
     segment: client.segment, segment_label: client.segmentLabel, saldo: client.balance,
@@ -543,8 +546,9 @@ async function persistBddSnapshot(db, { snapshot, settled, fueraDeCartera }) {
   );
 
   if (fueraDeCartera.length > 0) await markFueraDeCartera(db, fueraDeCartera.map((client) => client.id));
-  if (settled.length > 0) await settleClients(db, settled.map((client) => client.id));
-  return snapshot.clients.length + invoiceRows.length + fueraDeCartera.length + settled.length;
+  const toSettle = [...settled, ...recovered].map((client) => client.id);
+  if (toSettle.length > 0) await settleClients(db, toSettle);
+  return snapshot.clients.length + invoiceRows.length + fueraDeCartera.length + toSettle.length;
 }
 
 async function applyPayments(db, payments) {
@@ -586,10 +590,29 @@ async function applyPayments(db, payments) {
   const matched = result.rows.filter((row) => row.cliente_id).length;
   await attachUnmatchedPaymentsByInvoice(db);
   const promisesFulfilled = await reconcilePromises(db);
+  const settledFromFueraDeCartera = await settleFueraDeCarteraWithEvidence(db);
   return {
     status: "applied", rowsApplied: inserted,
-    details: { validPayments: payments.length, inserted, matched, promisesFulfilled },
+    details: { validPayments: payments.length, inserted, matched, promisesFulfilled, settledFromFueraDeCartera },
   };
+}
+
+// Un pago que llega después de que el cliente salió de la BDD (y quedó "Fuera de cartera")
+// completa su evidencia: se liquida en esta misma corrida de Pagos, sin esperar otra BDD.
+async function settleFueraDeCarteraWithEvidence(db) {
+  const franchises = await db.query(
+    `select distinct franchise_id from clientes where portfolio_status = 'fuera_de_cartera'`
+  );
+  let settled = 0;
+  for (const { franchise_id: franchiseId } of franchises.rows) {
+    const context = await loadFranchiseContext(db, franchiseId);
+    const ids = context.clients
+      .filter((client) => client.portfolio_status === "fuera_de_cartera" && hasFullPaymentEvidence(client, context))
+      .map((client) => client.id);
+    if (ids.length > 0) await settleClients(db, ids);
+    settled += ids.length;
+  }
+  return settled;
 }
 
 async function attachUnmatchedPaymentsByInvoice(db) {

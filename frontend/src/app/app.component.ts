@@ -389,8 +389,29 @@ export class AppComponent implements OnInit {
     }
   }
 
+  // Estado de cartera: los clientes que salieron de la BDD siguen siendo consultables desde el
+  // buscador del Lector, pero no deben presentarse como cartera activa.
+  portfolioStatusLabel(status: string | null | undefined): string {
+    if (status === 'fuera_de_cartera') return 'Fuera de cartera';
+    if (status === 'settled') return 'Liquidado';
+    return '';
+  }
+
+  lectorCoveredTotal(): number {
+    return (this.lectorDetail?.invoices ?? [])
+      .filter((invoice: any) => invoice.cubierta)
+      .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
+  }
+
+  lectorUncoveredTotal(): number {
+    return (this.lectorDetail?.invoices ?? [])
+      .filter((invoice: any) => !invoice.cubierta)
+      .reduce((sum: number, invoice: any) => sum + Number(invoice.monto ?? 0), 0);
+  }
+
   lectorMaxDiasVencida(): number {
-    const invoices = this.lectorDetail?.invoices ?? [];
+    // Una factura ya cubierta por un pago no cuenta para los días de atraso.
+    const invoices = (this.lectorDetail?.invoices ?? []).filter((invoice: any) => !invoice.cubierta);
     return invoices.reduce((max: number, invoice: any) => Math.max(max, Number(invoice.dias_vencida ?? 0)), 0);
   }
 

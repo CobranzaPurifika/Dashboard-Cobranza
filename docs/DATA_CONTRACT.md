@@ -42,7 +42,13 @@ dominio.
 19. Antes del primer BDD aplicado de cada mes se conserva en `portfolio_snapshots` el estado
     todavía vigente del cierre anterior. Si ya hubo una importación del mes, no se reconstruye el
     pasado con datos actuales.
-20. Gestiones del mes cuenta una sola vez a cada cliente por fecha, excluye eventos de pago/lista
+20. Evidencia de pago de una factura: suma de pagos cuyo `factura` coincide con el folio y cuya
+    fecha es igual o posterior a la fecha de facturación. No se limita a pagos posteriores a la
+    última aparición en BDD, porque la BDD refleja los pagos con días de retraso. La ficha marca
+    cada factura cubierta ("Pagada") sin cambiar saldo ni facturas (invariante 1).
+21. Un cliente `Fuera de cartera` se reevalúa en cada corrida de BDD y de Pagos: si su evidencia
+    queda completa, pasa a liquidado en esa misma corrida.
+22. Gestiones del mes cuenta una sola vez a cada cliente por fecha, excluye eventos de pago/lista
     negra/notas, omite fines de semana y elimina del promedio los días con incidencia justificada.
 
 ## Perfiles y permisos

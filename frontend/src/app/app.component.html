@@ -56,7 +56,7 @@
               @for (row of lectorSearchResults; track row.id) {
                 <li role="option" (click)="openLectorDetail(row.id)">
                   <span class="lector-result-main"><strong>{{ row.name }}</strong><small>{{ row.franchise_id }}</small></span>
-                  <span class="lector-result-end"><b>{{ money(row.saldo) }}</b><i class="badge" [class]="'badge ' + row.tramo">{{ tramoLabel(row.tramo) }}</i></span>
+                  <span class="lector-result-end"><b>{{ money(row.saldo) }}</b>@if (portfolioStatusLabel(row.portfolio_status); as statusLabel) {<i class="badge out">{{ statusLabel }}</i>} @else {<i class="badge" [class]="'badge ' + row.tramo">{{ tramoLabel(row.tramo) }}</i>}</span>
                 </li>
               } @empty {
                 <li class="lector-search-empty">Sin resultados para "{{ lectorSearchQuery }}"</li>
@@ -354,11 +354,26 @@
           } @else if (lectorDetailError) {
             <div class="error-banner">{{ lectorDetailError }}</div>
           } @else if (lectorDetail) {
+            @if (portfolioStatusLabel(lectorDetail.portfolio_status); as statusLabel) {
+              <div class="portfolio-status-banner">
+                <strong>{{ statusLabel }}</strong>
+                <span>{{ lectorDetail.portfolio_status === 'settled'
+                  ? 'El cliente salió de la BDD con todas sus facturas pagadas.'
+                  : 'El cliente ya no aparece en la BDD y no todas sus facturas tienen pago registrado. Saldo y facturas corresponden a su última aparición en BDD.' }}</span>
+              </div>
+            }
             <section class="balance-summary">
               <div class="balance-summary-top">
-                <div><span>Saldo pendiente</span><strong>{{ money(lectorDetail.saldo) }}</strong></div>
-                <i class="badge" [class]="'badge ' + lectorDetail.tramo">{{ tramoLabel(lectorDetail.tramo) }}</i>
+                <div><span>{{ lectorDetail.portfolio_status === 'active' ? 'Saldo pendiente' : 'Saldo al salir de BDD' }}</span><strong>{{ money(lectorDetail.saldo) }}</strong></div>
+                @if (lectorDetail.portfolio_status === 'active') {
+                  <i class="badge" [class]="'badge ' + lectorDetail.tramo">{{ tramoLabel(lectorDetail.tramo) }}</i>
+                } @else {
+                  <i class="badge out">{{ portfolioStatusLabel(lectorDetail.portfolio_status) }}</i>
+                }
               </div>
+              @if (lectorCoveredTotal() > 0) {
+                <p class="balance-meta covered">Con pago registrado: <strong>{{ money(lectorCoveredTotal()) }}</strong> · Sin evidencia de pago: <strong>{{ money(lectorUncoveredTotal()) }}</strong></p>
+              }
               <p class="balance-meta">{{ lectorMaxDiasVencida() }} días de atraso</p>
               <p class="last-status">Último estatus registrado: <strong>{{ lectorDetail.estatus_label || 'Sin estatus registrado' }}</strong></p>
             </section>
@@ -396,10 +411,10 @@
             }
 
             <section class="drawer-section">
-              <div class="section-heading"><h3>Facturas activas</h3><span>{{ lectorDetail.invoices.length }}</span></div>
+              <div class="section-heading"><h3>{{ lectorDetail.portfolio_status === 'active' ? 'Facturas activas' : 'Facturas en última BDD' }}</h3><span>{{ lectorDetail.invoices.length }}</span></div>
               <div class="compact-list">
                 @for (invoice of lectorDetail.invoices; track invoice.id) {
-                  <div><span><strong>{{ invoice.folio }}</strong><small>{{ invoiceDate(invoice.fecha_facturacion) }}</small></span><b>{{ money(invoice.monto) }}</b></div>
+                  <div [class.invoice-covered]="invoice.cubierta"><span><strong>{{ invoice.folio }}</strong><small>{{ invoiceDate(invoice.fecha_facturacion) }}@if (invoice.cubierta) { · <em class="paid-chip">Pagada {{ shortDate(invoice.ultimo_pago_iso) }}</em> } @else if (invoice.pagado > 0) { · <em class="partial-chip">Abono {{ money(invoice.pagado) }}</em> }</small></span><b>{{ money(invoice.monto) }}</b></div>
                 } @empty { <p class="empty-line">Sin facturas activas.</p> }
               </div>
             </section>
