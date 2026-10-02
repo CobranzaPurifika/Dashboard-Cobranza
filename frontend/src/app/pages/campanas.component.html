@@ -55,7 +55,7 @@
             <div class="row" [class.done]="registrados.has(llave(item))">
               <span class="row-main">
                 <strong>{{ item.nombre }}</strong>
-                <small>{{ franquicia(item.franchiseId) }} · {{ item.regla === 'preventivo' ? 'Preventivo' : 'Correctivo' }} · {{ folios(item) }} · {{ telefonoLegible(item.telefono) }}</small>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.regla === 'preventivo' ? 'Preventivo' : 'Correctivo' }} · {{ folios(item) }} · {{ item.telefonoLegible }}</small>
               </span>
               <span class="row-badges">
                 <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
@@ -189,14 +189,14 @@
                   <div class="sheet-sample" aria-hidden="true">
                     <div class="sheet-row letters"><i></i><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span></div>
                     <div class="sheet-row header"><i>1</i><span>Franquicia</span><span>Grupo De Facturación</span><span>Teléfono</span><span>Correo</span><span>Recibe Correo</span></div>
-                    <div class="sheet-row"><i>2</i><span>AGS</span><span>Juan Pérez López</span><span>4491234567</span><span></span><span></span></div>
-                    <div class="sheet-row"><i>3</i><span>CUN</span><span>Hotel Sol SA de CV</span><span>9981234567</span><span>pagos&#64;hotelsol.mx; admin&#64;hotelsol.mx</span><span>Sí</span></div>
+                    <div class="sheet-row"><i>2</i><span>AGS</span><span>Juan Pérez López</span><span>+52 449 123 4567</span><span></span><span></span></div>
+                    <div class="sheet-row"><i>3</i><span>CUN</span><span>Hotel Sol SA de CV</span><span>+1 415 555 2671</span><span>pagos&#64;hotelsol.mx; admin&#64;hotelsol.mx</span><span>Sí</span></div>
                     <div class="sheet-row"><i>4</i><span>MID</span><span>Consultorio Peña SC</span><span></span><span>citas&#64;pena.mx</span><span>No</span></div>
                   </div>
                   <ul>
                     <li><b>Franquicia:</b> AGS, CUN o MID (también acepta el nombre de la ciudad).</li>
                     <li><b>Grupo De Facturación:</b> escrito igual que en la BDD; la plantilla ya lo trae.</li>
-                    <li><b>Teléfono:</b> 10 dígitos, sin lada internacional.</li>
+                    <li><b>Teléfono:</b> con código de país (<b>+52</b> México, <b>+1</b> EE. UU. y Canadá, etc.). Sin código de país se asume México.</li>
                     <li><b>Correo:</b> uno o varios, separados por punto y coma.</li>
                     <li><b>Recibe Correo:</b> Sí / No, solo comerciales. Opcional.</li>
                     <li>Lo editado aquí en el Directorio no se sobrescribe, y una celda vacía no borra un dato ya guardado.</li>
@@ -250,7 +250,7 @@
                   <small>{{ franquicia(contacto.franchiseId) }} · {{ contacto.segment === 'comercial' ? 'Comercial' : 'Residencial' }} · {{ money(contacto.saldo) }}@if (contacto.origen) { · {{ contacto.editadoManual ? 'Editado aquí' : 'Del archivo' }} }</small>
                   @if (contacto.error) { <small class="row-error">{{ contacto.error }}</small> }
                 </span>
-                <label class="field"><span>Teléfono</span><input type="tel" inputmode="numeric" maxlength="14" placeholder="10 dígitos" [(ngModel)]="contacto.telefonoEdit" /></label>
+                <label class="field"><span>Teléfono</span><input type="tel" inputmode="tel" maxlength="24" placeholder="+52 449 123 4567" [(ngModel)]="contacto.telefonoEdit" /></label>
                 <label class="field wide"><span>Correo</span><input type="text" placeholder="correo@empresa.mx" [(ngModel)]="contacto.correoEdit" /></label>
                 <label class="check" [class.hidden]="contacto.segment !== 'comercial'" title="Solo comerciales: aparece en el lote de correo">
                   <input type="checkbox" [(ngModel)]="contacto.recibeCorreoEdit" [disabled]="contacto.segment !== 'comercial'" /> Recibe correo

@@ -15,7 +15,7 @@
 import { addCalendarDays } from "../domain/dates.js";
 import { normalizeInvoiceKey } from "../imports/consolidation.js";
 import { REGLAS } from "./config.js";
-import { normalizarCorreos, properCase } from "./contactos.js";
+import { normalizarCorreos, properCase, telefonoLegible } from "./contactos.js";
 import { asuntoCorreo, correoHtml, correoTexto, enlaceWhatsApp, mensajeWhatsApp } from "./mensajes.js";
 
 function diaSemana(iso) {
@@ -218,6 +218,7 @@ export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new M
       canal: canal.canal,
       destino: canal.destino ?? null,
       telefono: canal.telefono,
+      telefonoLegible: telefonoLegible(canal.telefono),
       motivoSinCanal: canal.motivo ?? null,
     };
     pendientes.push({ ...item, ...construirMensajes(item, canal.telefono) });

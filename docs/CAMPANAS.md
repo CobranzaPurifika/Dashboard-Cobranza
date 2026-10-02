@@ -58,11 +58,16 @@ clientes vigentes ya listados, con su contacto actual si existe.
 
 | Franquicia | Grupo De Facturación | Teléfono | Correo | Recibe Correo |
 | --- | --- | --- | --- | --- |
-| AGS / CUN / MID (o el nombre de la ciudad) | Igual que en la BDD | 10 dígitos | uno o varios, separados por `;` | Sí / No (opcional, solo comerciales) |
+| AGS / CUN / MID (o el nombre de la ciudad) | Igual que en la BDD | Con código de país: `+52 449 123 4567`, `+1 415 555 2671` | uno o varios, separados por `;` | Sí / No (opcional, solo comerciales) |
 
 - Se lee la primera hoja; los encabezados van en la fila 1, en cualquier orden, sin importar
   acentos ni mayúsculas. Columnas adicionales (como *Segmento (referencia)* de la plantilla)
   se ignoran.
+- **Teléfono con código de país**, para incluir clientes con número extranjero. Acepta `+52 …`,
+  `0052 …` o los dígitos con el código sin `+`; un número de 10 dígitos sin código se asume de
+  México (+52), y el formato antiguo de celular `+52 1 …` se corrige solo. Cada número se valida
+  con la longitud de su país (libphonenumber) y se guarda en formato internacional, que es el que
+  usa WhatsApp.
 - CSV con coma o punto y coma, en UTF-8 o ANSI (como lo guarda Excel en español). El formato
   `.xls` antiguo no es compatible.
 - Agrega clientes nuevos y actualiza los que vinieron de un archivo. **Nunca sobrescribe un

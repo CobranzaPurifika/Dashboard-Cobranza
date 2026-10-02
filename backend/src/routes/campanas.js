@@ -10,7 +10,7 @@ import { normalizeBusinessKey } from "../imports/consolidation.js";
 import { contactosPorGrupo, leerBdd, obtenerLote, registrarEnvio } from "../campanas/service.js";
 import { correoDeItem } from "../campanas/reglas.js";
 import { correoConfigurado, enviarCorreo, remitente } from "../campanas/correo.js";
-import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase } from "../campanas/contactos.js";
+import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase, telefonoLegible } from "../campanas/contactos.js";
 
 export const campanasRouter = Router();
 campanasRouter.use(requireRole("admin", "gestor"));
@@ -189,6 +189,7 @@ campanasRouter.get("/contactos", async (req, res, next) => {
           segment: cliente.segment,
           saldo: Math.round(cliente.facturas.reduce((suma, factura) => suma + factura.saldo, 0) * 100) / 100,
           telefono: contacto?.telefono ?? null,
+          telefonoLegible: telefonoLegible(contacto?.telefono),
           correo: contacto?.correo ?? null,
           recibeCorreo: contacto?.recibe_correo ?? false,
           origen: contacto?.origen ?? null,
@@ -216,7 +217,7 @@ campanasRouter.put("/contactos", async (req, res, next) => {
     const telefonoTexto = String(telefono ?? "").trim();
     const telefonoNormalizado = telefonoTexto ? normalizarTelefono(telefonoTexto) : null;
     if (telefonoTexto && !telefonoNormalizado) {
-      return res.status(400).json({ error: "El teléfono debe tener 10 dígitos (México)" });
+      return res.status(400).json({ error: "Teléfono inválido: incluye el código de país, por ejemplo +52 449 123 4567 o +1 415 555 2671" });
     }
     const correoTexto = String(correo ?? "").trim();
     const correos = normalizarCorreos(correoTexto);
@@ -240,7 +241,7 @@ campanasRouter.put("/contactos", async (req, res, next) => {
       [franquicia, llave, String(nombre ?? groupKey).trim() || llave, telefonoNormalizado,
         correos.join(", ") || null, recibeCorreo === true, req.user.id]
     );
-    res.json(rows[0]);
+    res.json({ ...rows[0], telefono_legible: telefonoLegible(rows[0].telefono) });
   } catch (err) {
     next(err);
   }
@@ -338,7 +339,7 @@ campanasRouter.get("/contactos/plantilla", async (req, res, next) => {
         filas.push({
           franquicia: PREFIJO_FRANQUICIA[franchiseId],
           grupo: cliente.grupo,
-          telefono: contacto?.telefono ? contacto.telefono.slice(2) : "",
+          telefono: telefonoLegible(contacto?.telefono),
           correo: contacto?.correo ? contacto.correo.replace(/, /g, "; ") : "",
           recibeCorreo: cliente.segment === "comercial" ? (contacto?.recibe_correo ? "Sí" : "No") : "",
           segmento: cliente.segment === "comercial" ? "Comercial" : "Residencial",
@@ -352,7 +353,7 @@ campanasRouter.get("/contactos/plantilla", async (req, res, next) => {
     hoja.columns = [
       { header: "Franquicia", key: "franquicia", width: 12 },
       { header: "Grupo De Facturación", key: "grupo", width: 44 },
-      { header: "Teléfono", key: "telefono", width: 16, style: { numFmt: "@" } },
+      { header: "Teléfono", key: "telefono", width: 20, style: { numFmt: "@" } },
       { header: "Correo", key: "correo", width: 38 },
       { header: "Recibe Correo", key: "recibeCorreo", width: 15 },
       { header: "Segmento (referencia)", key: "segmento", width: 22 },

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { agruparClientes, extraerFacturas } from "../src/campanas/bdd.js";
 import ExcelJS from "exceljs";
-import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase } from "../src/campanas/contactos.js";
+import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase, telefonoLegible } from "../src/campanas/contactos.js";
 import { correoDeItem } from "../src/campanas/reglas.js";
 import {
   calendarioFactura,
@@ -195,12 +195,34 @@ test("usa los datos bancarios de la franquicia correcta", () => {
   assert.match(lote.pendientes[0].whatsappTexto, /Águila Maya/);
 });
 
-test("normaliza teléfonos de México para wa.me", () => {
+test("normaliza teléfonos con código de país (México y extranjeros) para wa.me", () => {
+  // México: con o sin código de país, y el formato antiguo de celular (+52 1).
   assert.equal(normalizarTelefono("449 123 4567"), "524491234567");
+  assert.equal(normalizarTelefono("+52 449 123 4567"), "524491234567");
+  assert.equal(normalizarTelefono("52 449 123 4567"), "524491234567");
   assert.equal(normalizarTelefono("+52 1 449 123 4567"), "524491234567");
+  // Extranjeros: con "+", con "00" o con el código de país sin "+".
+  assert.equal(normalizarTelefono("+1 (415) 555-2671"), "14155552671");
+  assert.equal(normalizarTelefono("1 415 555 2671"), "14155552671");
+  assert.equal(normalizarTelefono("+34 612 345 678"), "34612345678");
+  assert.equal(normalizarTelefono("0034 612 345 678"), "34612345678");
+  assert.equal(normalizarTelefono("+57 300 123 4567"), "573001234567");
+  assert.equal(normalizarTelefono("+44 7911 123456"), "447911123456");
+  // Varios en una celda: toma el primero válido.
   assert.equal(normalizarTelefono("(449) 12-345 / 449 765 4321"), "524497654321");
   assert.equal(normalizarTelefono("4491234567 / 4497654321"), "524491234567");
+  // Inválidos: muy corto, longitud imposible para el país o demasiados dígitos.
   assert.equal(normalizarTelefono("123"), null);
+  assert.equal(normalizarTelefono("+52 449 123"), null);
+  assert.equal(normalizarTelefono("+52 449 123 45678"), null);
+  assert.equal(normalizarTelefono("+1234567890123456"), null);
+});
+
+test("muestra el teléfono en formato internacional", () => {
+  assert.equal(telefonoLegible("524491234567"), "+52 449 123 4567");
+  assert.equal(telefonoLegible("14155552671"), "+1 415 555 2671");
+  assert.equal(telefonoLegible("34612345678"), "+34 612 34 56 78");
+  assert.equal(telefonoLegible(null), "");
 });
 
 test("normaliza correos y Proper Case", () => {
@@ -217,10 +239,12 @@ test("lee el archivo del portal y reporta filas omitidas", () => {
     "Monterrey,Otro,4491234567,,",
     "MID,Sin Datos,,,",
     "AGS,Tel Malo,123,ok@correo.mx,",
+    "CUN,Cliente Extranjero,+1 415 555 2671,,",
     "AGS,Todo Malo,123,no-es-correo,",
   ].join("\n");
   const { contactos, omitidas, advertencias, sinDatos } = parseContactosCsv(csv);
-  assert.equal(contactos.length, 3);
+  assert.equal(contactos.length, 4);
+  assert.equal(contactos.find((c) => c.groupKey === "cliente extranjero").telefono, "14155552671");
   assert.equal(sinDatos, 1);
   assert.deepEqual(advertencias.map((fila) => fila.motivo), ['Teléfono inválido "123"; se guardó el resto']);
   assert.deepEqual(contactos[0], { franchiseId: "aguascalientes", groupKey: "juan perez", nombre: "Juan Pérez", telefono: "524491234567", correo: null, recibeCorreo: false });

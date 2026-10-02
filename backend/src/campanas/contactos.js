@@ -1,27 +1,43 @@
 // Normalización de datos de contacto y lectura del archivo de contactos (.csv o .xlsx).
 import { parse } from "csv-parse/sync";
 import ExcelJS from "exceljs";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { normalizeBusinessKey } from "../imports/consolidation.js";
 
-// Teléfono de México a formato internacional para wa.me (52 + 10 dígitos). Acepta 10
-// dígitos, 52 + 10, el antiguo 521 + 10 de celulares y celdas con varios números separados
-// por "/", "," o ";" (se toma el primero válido). Devuelve null si no hay uno válido.
+// Teléfono en formato internacional (código de país + número, solo dígitos y sin "+"), que es
+// lo que usa wa.me. Acepta:
+//   - Con código de país: "+52 449 123 4567", "+1 (415) 555-2671", "0034 612 345 678" o los
+//     mismos dígitos sin "+" ("524491234567", "14155552671").
+//   - 10 dígitos sin código de país: se asume México (+52).
+//   - El formato antiguo de celulares de México (+52 1 + 10 dígitos).
+// Valida longitud y código de país con libphonenumber. Si la celda trae varios números
+// separados por "/", "," o ";", toma el primero válido. Devuelve null si no hay uno válido.
 export function normalizarTelefono(value) {
   const candidatos = String(value ?? "").split(/[\/,;|]|\s{2,}|\by\b/i);
   for (const candidato of candidatos) {
-    const digitos = candidato.replace(/\D/g, "");
-    if (digitos.length === 10) return `52${digitos}`;
-    if (digitos.length === 12 && digitos.startsWith("52")) return digitos;
-    if (digitos.length === 13 && digitos.startsWith("521")) return `52${digitos.slice(3)}`;
+    const normalizado = normalizarUnTelefono(candidato);
+    if (normalizado) return normalizado;
   }
   return null;
 }
 
-// "52 449 123 4567" para mostrar en pantalla.
+function normalizarUnTelefono(texto) {
+  const limpio = String(texto ?? "").trim();
+  let digitos = limpio.replace(/\D/g, "");
+  if (digitos.length < 8) return null;
+  const conPrefijo = limpio.startsWith("+") || limpio.startsWith("00");
+  if (limpio.startsWith("00")) digitos = digitos.slice(2);
+  if (!conPrefijo && digitos.length === 10) digitos = `52${digitos}`;
+  if (digitos.length === 13 && digitos.startsWith("521")) digitos = `52${digitos.slice(3)}`;
+  if (digitos.length > 15) return null;
+  const numero = parsePhoneNumberFromString(`+${digitos}`);
+  return numero?.isPossible() ? numero.number.slice(1) : null;
+}
+
+// "+52 449 123 4567", "+1 415 555 2671" para mostrar en pantalla y en la plantilla.
 export function telefonoLegible(normalizado) {
   if (!normalizado) return "";
-  const local = normalizado.slice(2);
-  return `+52 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+  return parsePhoneNumberFromString(`+${normalizado}`)?.formatInternational() ?? `+${normalizado}`;
 }
 
 const CORREO = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i;

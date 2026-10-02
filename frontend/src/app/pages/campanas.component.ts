@@ -22,6 +22,7 @@ interface ItemLote {
   canal: 'whatsapp' | 'correo' | null;
   destino: string | null;
   telefono: string | null;
+  telefonoLegible: string;
   motivoSinCanal: string | null;
   whatsappTexto: string;
   whatsappUrl: string | null;
@@ -35,6 +36,7 @@ interface Contacto {
   segment: string;
   saldo: number;
   telefono: string | null;
+  telefonoLegible: string;
   correo: string | null;
   recibeCorreo: boolean;
   origen: string | null;
@@ -305,7 +307,7 @@ export class CampanasComponent implements OnChanges {
       const filas = await this.api.campanasContactos(this.franchise, refrescar);
       this.contactos = filas.map((fila: any) => ({
         ...fila,
-        telefonoEdit: this.telefonoLocal(fila.telefono),
+        telefonoEdit: fila.telefonoLegible ?? '',
         correoEdit: fila.correo ?? '',
         recibeCorreoEdit: fila.recibeCorreo,
       }));
@@ -331,7 +333,7 @@ export class CampanasComponent implements OnChanges {
   }
 
   modificado(contacto: Contacto): boolean {
-    return contacto.telefonoEdit.trim() !== this.telefonoLocal(contacto.telefono)
+    return contacto.telefonoEdit.trim() !== (contacto.telefonoLegible ?? '')
       || contacto.correoEdit.trim() !== (contacto.correo ?? '')
       || contacto.recibeCorreoEdit !== contacto.recibeCorreo;
   }
@@ -351,11 +353,12 @@ export class CampanasComponent implements OnChanges {
       });
       Object.assign(contacto, {
         telefono: fila.telefono,
+        telefonoLegible: fila.telefono_legible ?? '',
         correo: fila.correo,
         recibeCorreo: fila.recibe_correo,
         origen: fila.origen,
         editadoManual: fila.editado_manual,
-        telefonoEdit: this.telefonoLocal(fila.telefono),
+        telefonoEdit: fila.telefono_legible ?? '',
         correoEdit: fila.correo ?? '',
         recibeCorreoEdit: fila.recibe_correo,
         guardado: true,
@@ -463,16 +466,6 @@ export class CampanasComponent implements OnChanges {
 
   franquicia(id: string): string {
     return FRANQUICIA_LABEL[id] ?? id;
-  }
-
-  telefonoLegible(telefono: string | null): string {
-    if (!telefono) return '';
-    const local = telefono.slice(2);
-    return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
-  }
-
-  telefonoLocal(telefono: string | null): string {
-    return telefono ? telefono.slice(2) : '';
   }
 
   money(value: unknown): string {
