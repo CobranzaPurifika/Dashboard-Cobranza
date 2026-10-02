@@ -316,7 +316,7 @@
           <label class="invoice-row" [class.selected]="selectedInvoiceIds.has(invoice.id)">
             <input type="checkbox" [checked]="selectedInvoiceIds.has(invoice.id)" (change)="toggleInvoiceSelection(invoice.id)" />
             <span class="invoice-folio">{{ invoice.folio }}</span>
-            <span class="invoice-date">{{ invoiceDate(invoice.fecha_facturacion) }}</span>
+            <span class="invoice-date">{{ invoiceDate(invoice.fecha_facturacion) }}@if (invoice.cubierta) { · <em class="paid-chip">Pagada {{ shortDate(invoice.ultimo_pago_iso) }}</em> } @else if (invoice.pagado > 0) { · <em class="partial-chip">Abono {{ moneyExact(invoice.pagado) }}</em> }</span>
             <b class="invoice-amount">{{ moneyExact(invoice.monto) }}</b>
           </label>
         } @empty { <p class="empty-line">Sin facturas activas.</p> }

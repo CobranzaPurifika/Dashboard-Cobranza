@@ -377,3 +377,8 @@ button, input, select, textarea { font: inherit; }
 .report-month-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
 .report-month-menu button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .report-month-menu button:hover, .report-month-menu button:focus-visible { background: var(--surface-hover); }
+
+// Factura con pago registrado posterior a la BDD (ver backend/src/domain/paymentEvidence.js).
+.paid-chip, .partial-chip { font-style: normal; font-weight: 700; }
+.paid-chip { color: #218e50; }
+.partial-chip { color: #b87904; }

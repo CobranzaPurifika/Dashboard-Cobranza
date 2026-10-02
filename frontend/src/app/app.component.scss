@@ -197,6 +197,15 @@
 .lector-dialog .badge.warning, .lector-search-results .badge.warning { color: #b87904; background: color-mix(in srgb, #ef9f16 15%, transparent); }
 .lector-dialog .badge.serious, .lector-search-results .badge.serious { color: #d05c25; background: color-mix(in srgb, #e56d31 15%, transparent); }
 .lector-dialog .badge.critical, .lector-search-results .badge.critical { color: #cd4036; background: color-mix(in srgb, #dc4b3e 14%, transparent); }
+.lector-dialog .badge.out, .lector-search-results .badge.out { color: var(--ink-soft); background: color-mix(in srgb, var(--muted) 18%, transparent); }
+.lector-dialog .portfolio-status-banner { display: grid; gap: 3px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent); border-radius: 10px; background: var(--surface-soft); }
+.lector-dialog .portfolio-status-banner strong { color: var(--ink); font-size: 12px; }
+.lector-dialog .portfolio-status-banner span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.lector-dialog .balance-meta.covered strong { display: inline; margin: 0; font-size: 11px; color: var(--ink-soft); }
+.lector-dialog .invoice-covered b { color: var(--muted); text-decoration: line-through; }
+.lector-dialog .paid-chip, .lector-dialog .partial-chip { font-style: normal; font-weight: 700; }
+.lector-dialog .paid-chip { color: #218e50; }
+.lector-dialog .partial-chip { color: #b87904; }
 .lector-dialog .balance-summary { padding: 16px; border-radius: 12px; background: var(--surface-soft); }
 .lector-dialog .balance-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lector-dialog .balance-summary span, .lector-dialog .balance-summary strong { display: block; }
