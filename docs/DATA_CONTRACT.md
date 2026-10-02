@@ -9,6 +9,7 @@ dominio.
 | Recuperación | Pagos | Historial de pagos y métricas de recuperación del periodo |
 | Gestión | Aplicación | Estatus, promesas, agenda, notas, lista negra y timeline |
 | Histórico | Snapshots | Fotografías semanales y mensuales inmutables |
+| Campañas | Módulo Campañas | Directorio de contactos y bitácora de recordatorios (`campana_contactos`, `campana_envios`); lee la BDD de Drive sin aplicarla y no escribe en cartera ni gestión (ver `docs/CAMPANAS.md`) |
 
 ## Invariantes
 

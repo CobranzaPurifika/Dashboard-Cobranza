@@ -70,6 +70,8 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   @Input() user: any;
   @Input() statusCatalog: any[] = [];
   @Input() priorityDensity: 'comfortable' | 'compact' = 'comfortable';
+  // Al llegar desde Campañas ("Abrir ficha"), abre la ficha de ese cliente.
+  @Input() focusClient: { id: string; nonce: number } | null = null;
   @Output() refreshRequested = new EventEmitter<void>();
 
   priority: any[] = [];
@@ -161,6 +163,7 @@ export class ManagementComponent implements OnChanges, OnDestroy {
     // Los cambios de franquicia son el único disparador de las tres consultas. Evitar
     // recargas por referencias de usuario/catálogo elimina abortos cruzados al arrancar.
     if (changes['franchise'] || !this.loaded) void this.loadAll();
+    if (changes['focusClient'] && this.focusClient?.id) void this.openDetail(this.focusClient.id);
   }
 
   ngOnDestroy(): void {

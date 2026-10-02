@@ -17,6 +17,7 @@ import { monthlyManagementRouter } from "./routes/monthlyManagement.js";
 import { notasRouter } from "./routes/notas.js";
 import { usersRouter } from "./routes/users.js";
 import { documentosRouter } from "./routes/documentos.js";
+import { campanasRouter } from "./routes/campanas.js";
 import { startSnapshotSchedule } from "./jobs/scheduler.js";
 import { authenticate, requireAuthenticated } from "./auth/authorization.js";
 
@@ -64,6 +65,7 @@ app.use("/api/seguimiento", seguimientoRouter);
 app.use("/api/gestiones-mes", monthlyManagementRouter);
 app.use("/api/importaciones", importacionesRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/campanas", campanasRouter);
 
 // En producción el mismo proceso sirve la SPA y la API; localmente puede conservarse
 // el servidor estático independiente descrito en el README.
@@ -73,7 +75,8 @@ app.use((err, _req, res, _next) => {
   const statusCode = err.statusCode ?? 500;
   if (statusCode >= 500) console.error(err);
   res.status(statusCode).json({
-    error: statusCode >= 500 ? "Error interno del servidor" : err.message,
+    // `expose` marca mensajes 5xx pensados para el usuario (p. ej. migración pendiente).
+    error: statusCode >= 500 && !err.expose ? "Error interno del servidor" : err.message,
   });
 });
 

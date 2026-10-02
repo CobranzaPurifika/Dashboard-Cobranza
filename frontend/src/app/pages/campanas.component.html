@@ -1,0 +1,301 @@
+<section class="campanas" [class.is-loading]="cargando">
+  @if (error) { <div class="error-banner" role="alert"><span>{{ error }}</span><button type="button" (click)="cargar()">Reintentar</button></div> }
+  @if (aviso) { <div class="info-banner" role="status"><span>{{ aviso }}</span><button type="button" aria-label="Cerrar aviso" (click)="cerrarAviso()"><ion-icon name="close-outline"></ion-icon></button></div> }
+
+  <article class="card">
+    <header class="campanas-header">
+      <div>
+        <span class="eyebrow">CAMPAÑAS</span>
+        <h1>Cobranza preventiva y correctiva</h1>
+        <p>Lote del {{ lote ? shortDate(lote.hoyISO) : '…' }} · BDD leída directamente de Drive · los recordatorios no cuentan como gestión</p>
+      </div>
+    </header>
+
+    @if (lote) {
+      <div class="rule-strip">
+        <div class="rule"><i class="dot good"></i><span><strong>Preventivo</strong>{{ descripcionVentanas().preventivo }}</span></div>
+        <div class="rule"><i class="dot warning"></i><span><strong>Correctivo 1-30</strong>{{ descripcionVentanas().correctivo }}</span></div>
+        <div class="rule"><i class="dot critical"></i><span><strong>Escalamiento 31+</strong>Gestión puntual con documento</span></div>
+      </div>
+      @for (fuente of fuentesDesactualizadas; track fuente.franchiseId) {
+        <p class="stale-warning"><ion-icon name="warning-outline"></ion-icon>
+          La BDD de {{ franquicia(fuente.franchiseId) }} no se ha modificado desde {{ fuente.modificadoEn ? fechaHora(fuente.modificadoEn) : 'fecha desconocida' }}: revisa que esté al día antes de enviar.</p>
+      }
+      @if (lote.excluidos.length || lote.resumen.yaEnviados || lote.resumen.sinVencimiento) {
+        <div class="meta-line">
+          @if (lote.resumen.yaEnviados) { <span>{{ lote.resumen.yaEnviados }} ya enviados</span> }
+          @if (lote.excluidos.length) { <button type="button" (click)="excluidosVisibles = !excluidosVisibles">{{ lote.excluidos.length }} excluidos <ion-icon [name]="excluidosVisibles ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon></button> }
+          @if (lote.resumen.sinVencimiento) { <span title="Facturas sin días de crédito en la BDD: se usan sus días vencidos y no entran al preventivo">{{ lote.resumen.sinVencimiento }} facturas sin días de crédito</span> }
+        </div>
+        @if (excluidosVisibles) {
+          <ul class="excluded-list">
+            @for (item of lote.excluidos; track item.franchiseId + item.groupKey) { <li><strong>{{ item.nombre }}</strong><span>{{ item.motivo }}</span></li> }
+          </ul>
+        }
+      }
+    }
+
+    <nav class="tabs" role="tablist" aria-label="Secciones de campañas">
+      <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
+      <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
+      <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
+    </nav>
+
+    <div class="tab-body">
+      @if (cargando && !lote) {
+        <div class="skeleton" aria-label="Armando el lote"><i></i><i></i><i></i><i></i></div>
+      } @else {
+      @switch (pestana) {
+        @case ('whatsapp') {
+          <p class="tab-hint">Residenciales. <strong>Enviar</strong> abre WhatsApp con el mensaje listo y lo registra; envíalo desde tu WhatsApp. {{ whatsappRegistrados }} de {{ whatsapp.length }} registrados en esta sesión.</p>
+          @for (item of whatsapp; track llave(item)) {
+            <div class="row" [class.done]="registrados.has(llave(item))">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.regla === 'preventivo' ? 'Preventivo' : 'Correctivo' }} · {{ folios(item) }} · {{ item.telefonoLegible }}</small>
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                <button type="button" class="icon-button" title="Ver mensaje" aria-label="Ver mensaje" (click)="toggleVistaPrevia(item)"><ion-icon [name]="vistaPrevia.has(llave(item)) ? 'eye-off-outline' : 'eye-outline'"></ion-icon></button>
+                @if (registrados.has(llave(item))) {
+                  <button type="button" class="ghost-button small" [disabled]="enCurso.has(llave(item))" (click)="deshacer(item)">Deshacer</button>
+                } @else {
+                  <button type="button" class="primary-button small" [disabled]="enCurso.has(llave(item))" (click)="enviarWhatsApp(item)">
+                    @if (enCurso.has(llave(item))) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon name="call-outline"></ion-icon> } Enviar
+                  </button>
+                }
+              </span>
+              @if (vistaPrevia.has(llave(item))) {
+                <div class="message-preview"><pre>{{ item.whatsappTexto }}</pre><button type="button" class="ghost-button small" (click)="copiarMensaje(item)">Copiar</button></div>
+              }
+            </div>
+          } @empty { <div class="empty-state">No hay recordatorios de WhatsApp pendientes hoy.</div> }
+        }
+
+        @case ('correo') {
+          @if (!lote?.correoConfigurado) {
+            <p class="stale-warning"><ion-icon name="warning-outline"></ion-icon> El envío de correo no está configurado en el servidor (faltan las credenciales SMTP de la cuenta de cobranza).</p>
+          }
+          <p class="tab-hint">Comerciales autorizados en el Directorio. Selecciona y envía desde {{ lote?.remitente || 'la cuenta de cobranza' }}; las respuestas con comprobante llegan a esa bandeja.</p>
+          @if (correo.length) {
+            <div class="bulk-bar">
+              <label class="check"><input type="checkbox" [checked]="todosSeleccionados" (change)="toggleTodos()" [disabled]="enviandoCorreos" /> Seleccionar todos</label>
+              <span>{{ seleccion.size }} seleccionados</span>
+              <button type="button" class="primary-button" [disabled]="!seleccion.size || enviandoCorreos || !lote?.correoConfigurado" (click)="enviarCorreos()">
+                @if (enviandoCorreos) { <ion-spinner name="crescent"></ion-spinner> {{ progresoCorreo }} } @else { Enviar correos }
+              </button>
+            </div>
+          }
+          @for (item of correo; track llave(item)) {
+            <div class="row" [class.done]="resultadosCorreo.get(llave(item))?.ok">
+              <span class="row-check">
+                @if (resultadosCorreo.get(llave(item))?.ok) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                @else { <input type="checkbox" [checked]="seleccion.has(llave(item))" (change)="toggleSeleccion(item)" [disabled]="enviandoCorreos" [attr.aria-label]="'Seleccionar ' + item.nombre" /> }
+              </span>
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.destino }}</small>
+                <small class="subject">{{ item.correoAsunto }}</small>
+                @if (resultadosCorreo.get(llave(item)); as resultado) { @if (!resultado.ok) { <small class="row-error">{{ resultado.error }}</small> } }
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions"><button type="button" class="ghost-button small" (click)="verCorreo(item)">Vista previa</button></span>
+            </div>
+          } @empty { <div class="empty-state">No hay correos pendientes hoy. Autoriza comerciales en el Directorio.</div> }
+        }
+
+        @case ('sinCanal') {
+          <p class="tab-hint">Clientes con recordatorio pendiente pero sin un canal válido. Captura su contacto o, si es comercial con teléfono, envía por WhatsApp.</p>
+          @for (item of sinCanal; track llave(item)) {
+            <div class="row" [class.done]="registrados.has(llave(item))">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ item.segment === 'comercial' ? 'Comercial' : 'Residencial' }} · {{ folios(item) }}</small>
+                <small class="row-error">{{ item.motivoSinCanal }}</small>
+              </span>
+              <span class="row-badges"><i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i></span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                @if (item.whatsappUrl) {
+                  @if (registrados.has(llave(item))) {
+                    <button type="button" class="ghost-button small" (click)="deshacer(item)">Deshacer</button>
+                  } @else {
+                    <button type="button" class="ghost-button small" [disabled]="enCurso.has(llave(item))" (click)="enviarWhatsApp(item)">WhatsApp</button>
+                  }
+                }
+                <button type="button" class="ghost-button small" (click)="capturarContacto(item)">Capturar contacto</button>
+              </span>
+            </div>
+          } @empty { <div class="empty-state">Todos los recordatorios pendientes tienen canal.</div> }
+        }
+
+        @case ('escalamiento') {
+          <p class="tab-hint">31 días o más de atraso: sin mensaje masivo. Gestión puntual del gestor o administrador; desde la ficha se emite el documento sugerido.</p>
+          @for (item of escalamiento; track item.franchiseId + item.groupKey) {
+            <div class="row">
+              <span class="row-main">
+                <strong>{{ item.nombre }}</strong>
+                <small>{{ franquicia(item.franchiseId) }} · {{ folios(item) }}@if (item.ejecutivos?.length) { · {{ item.ejecutivos.join(', ') }} }</small>
+                <small class="suggestion">Documento sugerido: {{ documentoSugerido(item.tramo) }}</small>
+              </span>
+              <span class="row-badges">
+                <i class="badge" [class]="'badge ' + item.tramo">{{ item.atrasoMaximo }} días</i>
+                @if (item.enListaNegra) { <i class="flag-badge">Lista negra</i> }
+                @if (item.promesaVigente) { <i class="flag-badge promise">Promesa vigente</i> }
+              </span>
+              <strong class="amount">{{ money(item.monto) }}</strong>
+              <span class="row-actions">
+                @if (item.clienteId) {
+                  <button type="button" class="primary-button small" (click)="openClient.emit(item.clienteId)"><ion-icon name="document-text-outline"></ion-icon> Abrir ficha</button>
+                } @else {
+                  <span class="muted-note" title="El cliente aún no existe en la app: ejecuta Actualizar en Configuración">Sin ficha</span>
+                }
+              </span>
+            </div>
+          } @empty { <div class="empty-state">No hay clientes con 31 días o más de atraso.</div> }
+        }
+
+        @case ('directorio') {
+          <div class="directory-tools">
+            <label class="search-box"><ion-icon name="search-outline"></ion-icon><input type="search" [(ngModel)]="filtroContacto" placeholder="Buscar cliente…" /></label>
+            <div class="segments">
+              <button type="button" [class.active]="segmentoContacto === ''" (click)="segmentoContacto = ''">Todos</button>
+              <button type="button" [class.active]="segmentoContacto === 'comercial'" (click)="segmentoContacto = 'comercial'">Comercial</button>
+              <button type="button" [class.active]="segmentoContacto === 'residencial'" (click)="segmentoContacto = 'residencial'">Residencial</button>
+            </div>
+            <label class="check"><input type="checkbox" [(ngModel)]="soloSinContacto" /> Sin contacto</label>
+            <button type="button" class="ghost-button" [disabled]="descargandoPlantilla" (click)="descargarPlantilla()" title="Excel con los encabezados correctos y tus clientes vigentes ya listados">
+              @if (descargandoPlantilla) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon name="download-outline"></ion-icon> } Plantilla
+            </button>
+            @if (esAdmin) {
+              <div class="upload-group" [class.open]="formatoVisible">
+                <label class="primary-button upload-button" [class.disabled]="importando">
+                  @if (importando) { <ion-spinner name="crescent"></ion-spinner> Leyendo… } @else { <ion-icon name="cloud-upload-outline"></ion-icon> Subir archivo }
+                  <input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" [disabled]="importando" (change)="subirArchivo($event)" />
+                </label>
+                <button type="button" class="icon-button" aria-label="Ver formato del archivo" [attr.aria-expanded]="formatoVisible" (click)="formatoVisible = !formatoVisible"><ion-icon name="information-circle-outline"></ion-icon></button>
+                <div class="format-popover" role="tooltip">
+                  <strong>Formato del archivo (.xlsx o .csv)</strong>
+                  <p>Primera hoja, encabezados en la fila 1. El orden de las columnas no importa.</p>
+                  <div class="sheet-sample" aria-hidden="true">
+                    <div class="sheet-row letters"><i></i><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span></div>
+                    <div class="sheet-row header"><i>1</i><span>Franquicia</span><span>Grupo De Facturación</span><span>Teléfono</span><span>Correo</span><span>Recibe Correo</span></div>
+                    <div class="sheet-row"><i>2</i><span>AGS</span><span>Juan Pérez López</span><span>+52 449 123 4567</span><span></span><span></span></div>
+                    <div class="sheet-row"><i>3</i><span>CUN</span><span>Hotel Sol SA de CV</span><span>+1 415 555 2671</span><span>pagos&#64;hotelsol.mx; admin&#64;hotelsol.mx</span><span>Sí</span></div>
+                    <div class="sheet-row"><i>4</i><span>MID</span><span>Consultorio Peña SC</span><span></span><span>citas&#64;pena.mx</span><span>No</span></div>
+                  </div>
+                  <ul>
+                    <li><b>Franquicia:</b> AGS, CUN o MID (también acepta el nombre de la ciudad).</li>
+                    <li><b>Grupo De Facturación:</b> escrito igual que en la BDD; la plantilla ya lo trae.</li>
+                    <li><b>Teléfono:</b> con código de país (<b>+52</b> México, <b>+1</b> EE. UU. y Canadá, etc.). Sin código de país se asume México.</li>
+                    <li><b>Correo:</b> uno o varios, separados por punto y coma.</li>
+                    <li><b>Recibe Correo:</b> Sí / No, solo comerciales. Opcional.</li>
+                    <li>Lo editado aquí en el Directorio no se sobrescribe, y una celda vacía no borra un dato ya guardado.</li>
+                  </ul>
+                </div>
+              </div>
+            }
+          </div>
+          @if (resultadoImportacion; as resultado) {
+            <div class="import-result" [class.failed]="resultado.error">
+              <header>
+                <strong>{{ resultado.error ? 'No se cargó ' + resultado.archivo : resultado.archivo + ' cargado' }}</strong>
+                <button type="button" class="icon-button" aria-label="Cerrar resultado" (click)="resultadoImportacion = null"><ion-icon name="close-outline"></ion-icon></button>
+              </header>
+              @if (resultado.error) {
+                <p class="row-error">{{ resultado.error }}</p>
+              } @else {
+                <p>{{ resultado.leidos }} con contacto · {{ resultado.insertados }} nuevos · {{ resultado.actualizados }} actualizados · {{ resultado.protegidos }} protegidos por edición manual@if (resultado.sinDatos) { · {{ resultado.sinDatos }} sin teléfono ni correo (ignoradas) }</p>
+              }
+              @if (resultado.omitidas?.length) {
+                <p class="result-title">{{ resultado.omitidas.length === 1 ? '1 fila omitida' : resultado.omitidas.length + ' filas omitidas' }}</p>
+                <ul>
+                  @for (fila of primeros(resultado.omitidas); track fila.fila) { <li>{{ descripcionFila(fila) }}</li> }
+                  @if (resultado.omitidas.length > 8) { <li>y {{ resultado.omitidas.length - 8 }} más</li> }
+                </ul>
+              }
+              @if (resultado.advertencias?.length) {
+                <p class="result-title">{{ resultado.advertencias.length === 1 ? '1 fila con un dato inválido' : resultado.advertencias.length + ' filas con un dato inválido' }}</p>
+                <ul>
+                  @for (fila of primeros(resultado.advertencias); track fila.fila) { <li>{{ descripcionFila(fila) }}</li> }
+                  @if (resultado.advertencias.length > 8) { <li>y {{ resultado.advertencias.length - 8 }} más</li> }
+                </ul>
+              }
+              @if (resultado.sinCoincidencia?.length) {
+                <p class="result-title">{{ resultado.sinCoincidencia.length === 1 ? '1 nombre no coincide' : resultado.sinCoincidencia.length + ' nombres no coinciden' }} con la BDD vigente. No aparecerán en los lotes hasta que el nombre sea igual al de la BDD</p>
+                <ul>
+                  @for (fila of primeros(resultado.sinCoincidencia); track fila.franchiseId + fila.nombre) { <li>{{ franquicia(fila.franchiseId) }} · {{ fila.nombre }}</li> }
+                  @if (resultado.sinCoincidencia.length > 8) { <li>y {{ resultado.sinCoincidencia.length - 8 }} más</li> }
+                </ul>
+              }
+            </div>
+          }
+          <p class="tab-hint">{{ contactosFiltrados.length }} de {{ contactos.length }} clientes vigentes · {{ autorizadosCorreo }} comerciales autorizados para correo. Lo que edites aquí ya no lo cambia la carga de un archivo.</p>
+          @if (cargandoContactos && !contactosCargados) {
+            <div class="skeleton"><i></i><i></i><i></i></div>
+          } @else {
+            @for (contacto of contactosFiltrados; track contacto.franchiseId + contacto.groupKey) {
+              <div class="contact-row" [class.dirty]="modificado(contacto)">
+                <span class="row-main">
+                  <strong>{{ contacto.nombre }}</strong>
+                  <small>{{ franquicia(contacto.franchiseId) }} · {{ contacto.segment === 'comercial' ? 'Comercial' : 'Residencial' }} · {{ money(contacto.saldo) }}@if (contacto.origen) { · {{ contacto.editadoManual ? 'Editado aquí' : 'Del archivo' }} }</small>
+                  @if (contacto.error) { <small class="row-error">{{ contacto.error }}</small> }
+                </span>
+                <label class="field"><span>Teléfono</span><input type="tel" inputmode="tel" maxlength="24" placeholder="+52 449 123 4567" [(ngModel)]="contacto.telefonoEdit" /></label>
+                <label class="field wide"><span>Correo</span><input type="text" placeholder="correo@empresa.mx" [(ngModel)]="contacto.correoEdit" /></label>
+                <label class="check" [class.hidden]="contacto.segment !== 'comercial'" title="Solo comerciales: aparece en el lote de correo">
+                  <input type="checkbox" [(ngModel)]="contacto.recibeCorreoEdit" [disabled]="contacto.segment !== 'comercial'" /> Recibe correo
+                </label>
+                <span class="row-actions">
+                  @if (contacto.guardado && !modificado(contacto)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                  <button type="button" class="primary-button small" [disabled]="!modificado(contacto) || contacto.guardando" (click)="guardarContacto(contacto)">
+                    @if (contacto.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
+                  </button>
+                </span>
+              </div>
+            } @empty { <div class="empty-state">Sin clientes para estos filtros.</div> }
+          }
+        }
+
+        @case ('historial') {
+          <p class="tab-hint">Recordatorios registrados en los últimos 30 días.</p>
+          @if (cargandoHistorial) { <div class="skeleton"><i></i><i></i><i></i></div> }
+          @else {
+            @for (envio of historial; track envio.id) {
+              <div class="row history-row">
+                <span class="row-main">
+                  <strong>{{ envio.cliente_nombre }}</strong>
+                  <small>{{ franquicia(envio.franchise_id) }} · {{ envio.regla === 'preventivo' ? 'Preventivo' : 'Correctivo ' + envio.periodo.slice(-2) }} · {{ envio.folios.join(', ') }}</small>
+                </span>
+                <span class="row-badges"><i class="channel-badge" [class.mail]="envio.canal === 'correo'">{{ envio.canal === 'correo' ? 'Correo' : 'WhatsApp' }}</i></span>
+                <span class="history-meta">{{ fechaHora(envio.enviado_at) }}<small>{{ envio.enviado_por || '—' }}</small></span>
+                <strong class="amount">{{ money(envio.monto) }}</strong>
+              </div>
+            } @empty { <div class="empty-state">Aún no hay recordatorios registrados.</div> }
+          }
+        }
+      }
+      }
+    </div>
+  </article>
+
+  @if (correoPrevio) {
+    <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="correoPrevio = null"></button>
+    <section class="mail-dialog" role="dialog" aria-modal="true" aria-label="Vista previa del correo">
+      <header>
+        <div><span class="eyebrow">VISTA PREVIA</span><h2>{{ correoPrevio.asunto }}</h2><p>Para: {{ correoPrevio.para }}</p></div>
+        <button type="button" class="icon-button" aria-label="Cerrar" (click)="correoPrevio = null"><ion-icon name="close-outline"></ion-icon></button>
+      </header>
+      <pre>{{ correoPrevio.texto }}</pre>
+    </section>
+  }
+</section>

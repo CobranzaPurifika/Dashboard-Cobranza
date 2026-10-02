@@ -70,6 +70,18 @@ volverán a aparecer en Seguimiento, aunque el cliente seguirá fuera de la cola
 El motivo es texto libre obligatorio. La lista compacta muestra nombre, franquicia y motivo;
 el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
+## Campañas de cobranza
+
+La pestaña **Campañas** (admin y gestor) arma el lote diario de recordatorios desde la BDD de
+Drive:
+- preventivo a clientes al corriente cuya factura vence en 5 días o menos;
+- correctivo a clientes de 1-30 días los días 7 y 15;
+- lista de escalamiento para 31 días o más.
+
+Residenciales por WhatsApp asistido y comerciales autorizados por correo, con directorio de
+contactos editable. No escribe en la cartera ni en la bitácora de gestión. Reglas, formato del
+archivo del portal y configuración en [`docs/CAMPANAS.md`](docs/CAMPANAS.md).
+
 ## Documentos formales de cobranza
 
 La ficha del cliente tiene tres acciones: **Ver facturas**, **Generar documento** y **Lista

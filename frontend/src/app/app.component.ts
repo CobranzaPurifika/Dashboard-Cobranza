@@ -8,6 +8,7 @@ import { AppPreferences, DEFAULT_PREFERENCES, loadPreferences, savePreferences }
 import { invoiceDate as formatInvoiceDate, money as formatMoney, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from './core/format';
 import { DashboardComponent } from './pages/dashboard.component';
 import { ManagementComponent } from './pages/management.component';
+import { CampanasComponent } from './pages/campanas.component';
 import { PresentationComponent } from './pages/presentation.component';
 import { reportMonthOptions } from './core/report-months';
 
@@ -23,7 +24,7 @@ const FRANCHISES: FranchiseOption[] = [
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonApp, IonContent, IonIcon, IonSpinner, DashboardComponent, ManagementComponent, PresentationComponent],
+  imports: [CommonModule, FormsModule, IonApp, IonContent, IonIcon, IonSpinner, DashboardComponent, ManagementComponent, CampanasComponent, PresentationComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -38,7 +39,9 @@ export class AppComponent implements OnInit {
     ...option, label: index === 0 ? 'Mes en curso' : option.label.replace(/ \d{4}$/, ''),
   }));
   dashboardMonth = this.dashboardMonths[0].value;
-  view: 'dashboard' | 'management' = 'dashboard';
+  view: 'dashboard' | 'management' | 'campanas' = 'dashboard';
+  // Cliente que se abre en Gestión al pulsar "Abrir ficha" desde Campañas (escalamiento).
+  focusClient: { id: string; nonce: number } | null = null;
   dashboardData: any = null;
   statusCatalog: any[] = [];
   loading = true;
@@ -131,6 +134,8 @@ export class AppComponent implements OnInit {
   // Modo presentación en sí: admin y supervisor -- actualizar la BDD sigue siendo solo admin
   // (ver la sección aparte dentro del panel de Configuración).
   get canConfigure(): boolean { return this.isAdmin || this.isSupervisor; }
+  // Campañas (recordatorios masivos asistidos): quienes gestionan cobranza, admin y gestor.
+  get canRunCampaigns(): boolean { return this.isAdmin || this.user?.role === 'gestor'; }
 
   async openApp(): Promise<void> {
     // getValidAccessToken() limpia una sesión que ya no se puede renovar. Conservamos
@@ -263,10 +268,17 @@ export class AppComponent implements OnInit {
     this.showLoginPassword = !this.showLoginPassword;
   }
 
-  async setView(view: 'dashboard' | 'management'): Promise<void> {
+  async setView(view: 'dashboard' | 'management' | 'campanas'): Promise<void> {
     if (view === 'management' && this.isAnonymous) return;
+    if (view === 'campanas' && !this.canRunCampaigns) return;
+    if (view !== 'management') this.focusClient = null;
     this.view = view;
     if (!this.dashboardData) await this.loadDashboard();
+  }
+
+  openClientFromCampaigns(id: string): void {
+    this.focusClient = { id, nonce: Date.now() };
+    void this.setView('management');
   }
 
   selectFranchise(id: string): void {
