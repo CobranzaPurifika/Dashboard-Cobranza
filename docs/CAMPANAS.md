@@ -29,8 +29,8 @@ comerciales autorizados. Es independiente del resto de la app.
 | --- | --- | --- |
 | Campañas | Módulo Campañas | `campana_contactos` y `campana_envios` |
 
-1. El módulo **lee** la BDD directamente de Drive (solo lectura, caché de 10 minutos; el botón
-   *Actualizar BDD* fuerza la lectura). No aplica la BDD ni pasa por el botón Actualizar.
+1. El módulo **lee** la BDD directamente de Drive (solo lectura, con caché de 10 minutos). No
+   aplica la BDD ni pasa por el botón Actualizar.
 2. No escribe en `clientes`, `facturas`, `pagos` ni `gestion_timeline`: los recordatorios no
    cuentan en Gestiones del mes, metas por franquicia ni el embudo de gestión.
 3. Si la BDD de Drive tiene más de un día sin modificarse, el lote se muestra con aviso.
@@ -51,16 +51,26 @@ comerciales autorizados. Es independiente del resto de la app.
 Lista todos los clientes vigentes de la BDD con teléfono, correo y la casilla **Recibe correo**
 (solo comerciales). La llave es franquicia + Grupo De Facturación.
 
-**Carga inicial desde el portal** (botón *Cargar desde portal*, solo admin): Google Sheet en
-Drive compartida con la cuenta de servicio, con estas columnas en la primera hoja:
+**Carga por archivo** (botón *Subir archivo*, solo admin): un `.xlsx` o `.csv` subido desde la
+pantalla. El botón muestra una vista de referencia del formato al pasar el cursor (o con el
+ícono ⓘ en celular), y *Plantilla* descarga un Excel con los encabezados correctos y los
+clientes vigentes ya listados, con su contacto actual si existe.
 
 | Franquicia | Grupo De Facturación | Teléfono | Correo | Recibe Correo |
 | --- | --- | --- | --- | --- |
-| AGS / CUN / MID (o el nombre de la ciudad) | Igual que en la BDD | 10 dígitos | uno o varios, separados por `;` | Sí / No (opcional) |
+| AGS / CUN / MID (o el nombre de la ciudad) | Igual que en la BDD | 10 dígitos | uno o varios, separados por `;` | Sí / No (opcional, solo comerciales) |
 
-- Agrega clientes nuevos y actualiza los que vinieron del portal.
-- **Nunca sobrescribe un contacto editado en el módulo.**
-- Reporta las filas omitidas (franquicia no reconocida, sin teléfono ni correo válidos).
+- Se lee la primera hoja; los encabezados van en la fila 1, en cualquier orden, sin importar
+  acentos ni mayúsculas. Columnas adicionales (como *Segmento (referencia)* de la plantilla)
+  se ignoran.
+- CSV con coma o punto y coma, en UTF-8 o ANSI (como lo guarda Excel en español). El formato
+  `.xls` antiguo no es compatible.
+- Agrega clientes nuevos y actualiza los que vinieron de un archivo. **Nunca sobrescribe un
+  contacto editado en el Directorio**, y una celda vacía no borra un dato ya guardado.
+- Filas sin teléfono ni correo se ignoran. El resultado de la carga lista las filas omitidas
+  (franquicia no reconocida, datos inválidos), los datos inválidos que se descartaron y los
+  nombres que no coinciden con ningún Grupo De Facturación vigente.
+- Límite: 5 MB.
 
 ## Configuración (variables del backend)
 
@@ -70,7 +80,6 @@ Drive compartida con la cuenta de servicio, con estas columnas en la primera hoj
 | `CAMPANAS_SMTP_PASSWORD` | Contraseña de aplicación de Google para esa cuenta (requiere verificación en dos pasos) |
 | `CAMPANAS_SMTP_HOST` / `CAMPANAS_SMTP_PORT` | Opcionales; por defecto `smtp.gmail.com` / `465` |
 | `CAMPANAS_REMITENTE_NOMBRE` | Opcional; por defecto "Cobranza Purifika" |
-| `CAMPANAS_CONTACTOS_FILE_ID` | ID del Google Sheet del portal |
 
 Sin las variables SMTP la pestaña funciona y el correo se muestra deshabilitado.
 

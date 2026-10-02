@@ -1,5 +1,6 @@
-// Normalización de datos de contacto y lectura del archivo del portal.
+// Normalización de datos de contacto y lectura del archivo de contactos (.csv o .xlsx).
 import { parse } from "csv-parse/sync";
+import ExcelJS from "exceljs";
 import { normalizeBusinessKey } from "../imports/consolidation.js";
 
 // Teléfono de México a formato internacional para wa.me (52 + 10 dígitos). Acepta 10
@@ -60,51 +61,69 @@ const FRANQUICIA_POR_TEXTO = new Map([
   ["merida", "merida"], ["mid", "merida"],
 ]);
 
-const ALIAS = Object.freeze({
-  franquicia: ["franquicia", "sucursal", "plaza"],
-  grupo: ["grupo de facturacion", "grupo facturacion", "grupo"],
-  telefono: ["telefono", "telefono whatsapp", "whatsapp", "celular", "tel"],
-  correo: ["correo", "correo electronico", "email", "e-mail"],
-  recibeCorreo: ["recibe correo", "enviar correo", "autoriza correo"],
-});
-
-function indiceColumna(encabezados, alias) {
-  return encabezados.findIndex((encabezado) => alias.includes(encabezado));
-}
+// Encabezado oficial de cada columna (lo que se muestra en la pantalla y en la plantilla) y
+// los alias aceptados. Se comparan sin acentos ni mayúsculas, en cualquier orden.
+export const COLUMNAS_CONTACTOS = Object.freeze([
+  { campo: "franquicia", encabezado: "Franquicia", requerida: true, alias: ["franquicia", "sucursal", "plaza"] },
+  { campo: "grupo", encabezado: "Grupo De Facturación", requerida: true, alias: ["grupo de facturacion", "grupo facturacion", "grupo"] },
+  { campo: "telefono", encabezado: "Teléfono", requerida: true, alias: ["telefono", "telefono whatsapp", "whatsapp", "celular", "tel"] },
+  { campo: "correo", encabezado: "Correo", requerida: true, alias: ["correo", "correo electronico", "email", "e-mail"] },
+  { campo: "recibeCorreo", encabezado: "Recibe Correo", requerida: false, alias: ["recibe correo", "enviar correo", "autoriza correo"] },
+]);
 
 function verdadero(value) {
   return ["si", "sí", "s", "x", "1", "true", "verdadero"].includes(String(value ?? "").trim().toLowerCase());
 }
 
-// Archivo del portal (Google Sheet exportada a CSV). Columnas requeridas: Franquicia,
-// Grupo De Facturación, Teléfono y Correo; "Recibe Correo" es opcional. Devuelve los
-// contactos válidos y la lista de filas omitidas con su motivo.
-export function parseContactosCsv(csvText) {
-  const filas = parse(csvText, { bom: true, skip_empty_lines: true, relax_column_count: true });
-  if (filas.length === 0) throw new Error("El archivo de contactos está vacío");
+function errorDeArchivo(mensaje) {
+  const error = new Error(mensaje);
+  error.statusCode = 400;
+  return error;
+}
+
+// filas: arreglo de arreglos de texto; la primera fila son los encabezados. Devuelve los
+// contactos válidos y la lista de filas omitidas con su motivo. Las filas vacías se ignoran.
+export function parseContactosFilas(filas) {
   const [encabezado, ...datos] = filas;
+  if (!encabezado || !datos.length) throw errorDeArchivo("El archivo de contactos está vacío o solo tiene encabezados");
   const encabezados = encabezado.map((valor) => normalizeBusinessKey(valor));
-  const columnas = Object.fromEntries(
-    Object.entries(ALIAS).map(([campo, alias]) => [campo, indiceColumna(encabezados, alias)])
-  );
-  for (const requerido of ["franquicia", "grupo", "telefono", "correo"]) {
-    if (columnas[requerido] < 0) {
-      throw new Error(`El archivo de contactos no contiene la columna requerida: ${ALIAS[requerido][0]}`);
-    }
+  const columnas = Object.fromEntries(COLUMNAS_CONTACTOS.map(({ campo, alias }) =>
+    [campo, encabezados.findIndex((encabezadoActual) => alias.includes(encabezadoActual))]));
+  const faltantes = COLUMNAS_CONTACTOS.filter(({ campo, requerida }) => requerida && columnas[campo] < 0);
+  if (faltantes.length) {
+    throw errorDeArchivo(`Faltan columnas en la primera fila: ${faltantes.map(({ encabezado: nombre }) => nombre).join(", ")}`);
   }
 
   const contactos = new Map();
   const omitidas = [];
+  const advertencias = [];
+  let sinDatos = 0;
   datos.forEach((fila, index) => {
     const numeroFila = index + 2;
+    if (fila.every((valor) => !String(valor ?? "").trim())) return;
     const franchiseId = FRANQUICIA_POR_TEXTO.get(normalizeBusinessKey(fila[columnas.franquicia]));
-    const grupo = String(fila[columnas.grupo] ?? "").trim();
-    if (!franchiseId) return omitidas.push({ fila: numeroFila, motivo: "Franquicia no reconocida" });
+    const grupo = String(fila[columnas.grupo] ?? "").trim().replace(/\s+/g, " ");
+    const telefonoTexto = String(fila[columnas.telefono] ?? "").trim();
+    const correoTexto = String(fila[columnas.correo] ?? "").trim();
+    // Fila de la plantilla todavía sin llenar: se ignora sin reportarla como error.
+    if (!telefonoTexto && !correoTexto) {
+      sinDatos += 1;
+      return;
+    }
+    if (!franchiseId) return omitidas.push({ fila: numeroFila, motivo: "Franquicia no reconocida (usa AGS, CUN o MID)", nombre: grupo || null });
     if (!grupo) return omitidas.push({ fila: numeroFila, motivo: "Sin Grupo De Facturación" });
-    const telefono = normalizarTelefono(fila[columnas.telefono]);
-    const correos = normalizarCorreos(fila[columnas.correo]);
+    const telefono = telefonoTexto ? normalizarTelefono(telefonoTexto) : null;
+    const correos = normalizarCorreos(correoTexto);
+    const problemas = [];
+    if (telefonoTexto && !telefono) problemas.push(`teléfono inválido "${telefonoTexto}"`);
+    if (correoTexto && !correos.length) problemas.push(`correo inválido "${correoTexto}"`);
     if (!telefono && correos.length === 0) {
-      return omitidas.push({ fila: numeroFila, motivo: "Sin teléfono ni correo válidos" });
+      const motivo = problemas.join(" y ");
+      return omitidas.push({ fila: numeroFila, motivo: motivo[0].toUpperCase() + motivo.slice(1), nombre: grupo });
+    }
+    if (problemas.length) {
+      const motivo = `${problemas.join(" y ")}; se guardó el resto`;
+      advertencias.push({ fila: numeroFila, motivo: motivo[0].toUpperCase() + motivo.slice(1), nombre: grupo });
     }
     const groupKey = normalizeBusinessKey(grupo);
     contactos.set(`${franchiseId}|${groupKey}`, {
@@ -116,5 +135,73 @@ export function parseContactosCsv(csvText) {
       recibeCorreo: columnas.recibeCorreo >= 0 ? verdadero(fila[columnas.recibeCorreo]) : null,
     });
   });
-  return { contactos: [...contactos.values()], omitidas };
+  return { contactos: [...contactos.values()], omitidas, advertencias, sinDatos };
+}
+
+// CSV con coma o punto y coma (Excel en español guarda con ";").
+export function parseContactosCsv(csvText) {
+  const texto = String(csvText ?? "").replace(/^﻿/, "");
+  const primeraLinea = texto.split(/\r?\n/, 1)[0] ?? "";
+  const cuenta = (caracter) => primeraLinea.split(caracter).length - 1;
+  const delimiter = [";", "\t", ","].reduce((mejor, caracter) => (cuenta(caracter) > cuenta(mejor) ? caracter : mejor), ",");
+  let filas;
+  try {
+    filas = parse(texto, { delimiter, skip_empty_lines: true, relax_column_count: true, relax_quotes: true });
+  } catch (error) {
+    throw errorDeArchivo(`No se pudo leer el CSV: ${error.message}`);
+  }
+  return parseContactosFilas(filas);
+}
+
+function textoCelda(valor) {
+  if (valor === null || valor === undefined) return "";
+  if (typeof valor === "number") return Number.isInteger(valor) ? String(valor) : String(valor);
+  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
+  if (typeof valor === "object") {
+    if (Array.isArray(valor.richText)) return valor.richText.map((parte) => parte.text).join("");
+    if ("text" in valor) return textoCelda(valor.text);
+    if ("result" in valor) return textoCelda(valor.result);
+    if ("error" in valor) return "";
+  }
+  return String(valor);
+}
+
+// Primera hoja del libro de Excel (.xlsx).
+export async function parseContactosXlsx(buffer) {
+  const libro = new ExcelJS.Workbook();
+  try {
+    await libro.xlsx.load(buffer);
+  } catch {
+    throw errorDeArchivo("No se pudo abrir el archivo de Excel; verifica que sea .xlsx");
+  }
+  const hoja = libro.worksheets[0];
+  if (!hoja) throw errorDeArchivo("El archivo de Excel no tiene hojas");
+  const filas = [];
+  hoja.eachRow({ includeEmpty: false }, (fila) => {
+    const valores = [];
+    for (let columna = 1; columna <= fila.cellCount; columna += 1) valores.push(textoCelda(fila.getCell(columna).value).trim());
+    filas.push(valores);
+  });
+  return parseContactosFilas(filas);
+}
+
+function decodificarTexto(buffer) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    // CSV guardado por Excel en Windows (ANSI): conserva acentos y ñ.
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+}
+
+// Archivo subido desde la pantalla: .xlsx o .csv (se detecta por contenido y extensión).
+export async function leerArchivoContactos(buffer, nombreArchivo = "") {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw errorDeArchivo("Selecciona un archivo");
+  const extension = String(nombreArchivo).toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "";
+  if (buffer[0] === 0x50 && buffer[1] === 0x4b) return parseContactosXlsx(buffer);
+  if (extension === "xls" || (buffer[0] === 0xd0 && buffer[1] === 0xcf)) {
+    throw errorDeArchivo("El formato .xls (Excel 97-2003) no es compatible: guárdalo como .xlsx o .csv");
+  }
+  if (extension && !["csv", "txt"].includes(extension)) throw errorDeArchivo("Sube un archivo .csv o .xlsx");
+  return parseContactosCsv(decodificarTexto(buffer));
 }

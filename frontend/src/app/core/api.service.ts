@@ -149,7 +149,42 @@ export class ApiService {
     this.request(`/campanas/contactos?${this.query({ franchise, refrescar: refrescar ? '1' : '' })}`);
   campanasGuardarContacto = (body: { franchiseId: string; groupKey: string; nombre: string; telefono: string; correo: string; recibeCorreo: boolean }) =>
     this.request('/campanas/contactos', { method: 'PUT', body: JSON.stringify(body) });
-  campanasImportarContactos = () => this.request('/campanas/contactos/importar', { method: 'POST' });
+  // Sube el archivo de contactos (.csv o .xlsx) tal cual; el backend lo lee y valida.
+  async campanasImportarContactos(archivo: File): Promise<any> {
+    const token = await this.auth.getValidAccessToken();
+    const response = await fetch(`${this.apiBase}/campanas/contactos/importar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Archivo-Nombre': encodeURIComponent(archivo.name),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: archivo,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.auth.clearSession();
+        window.dispatchEvent(new CustomEvent('auth-required'));
+      }
+      const error: any = new Error(payload.error ?? `Error ${response.status}`);
+      error.omitidas = payload.omitidas ?? [];
+      throw error;
+    }
+    return payload;
+  }
+
+  async campanasPlantilla(franchise: string): Promise<{ blob: Blob; fileName: string }> {
+    const token = await this.auth.getValidAccessToken();
+    const response = await fetch(`${this.apiBase}/campanas/contactos/plantilla?${this.query({ franchise })}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error ?? `Error ${response.status}`);
+    }
+    return { blob: await response.blob(), fileName: 'Plantilla_Contactos_Campanas.xlsx' };
+  }
 
   // Genera un documento formal (aviso de deuda, aviso de retiro o acuerdo de pagos) y lo
   // regresa como PDF junto con el nombre de archivo estandarizado y los avisos del backend

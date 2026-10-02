@@ -1,7 +1,8 @@
 // Rutas del módulo Campañas (cobranza preventiva y correctiva por envío masivo asistido).
 // Montadas en /api/campanas, siempre con sesión. Administradores y gestores; cada gestor
 // solo ve y opera las franquicias asignadas.
-import { Router } from "express";
+import express, { Router } from "express";
+import ExcelJS from "exceljs";
 import { pool } from "../db/pool.js";
 import { requireRole } from "../auth/authorization.js";
 import { FRANCHISE_IDS, resolveFranchiseScope } from "../auth/franchiseScope.js";
@@ -9,13 +10,13 @@ import { normalizeBusinessKey } from "../imports/consolidation.js";
 import { contactosPorGrupo, leerBdd, obtenerLote, registrarEnvio } from "../campanas/service.js";
 import { correoDeItem } from "../campanas/reglas.js";
 import { correoConfigurado, enviarCorreo, remitente } from "../campanas/correo.js";
-import { normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase } from "../campanas/contactos.js";
-import { descargarCsv } from "../campanas/drive.js";
+import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase } from "../campanas/contactos.js";
 
 export const campanasRouter = Router();
 campanasRouter.use(requireRole("admin", "gestor"));
 
 const MAX_CORREOS_POR_SOLICITUD = 25;
+const PREFIJO_FRANQUICIA = Object.freeze({ aguascalientes: "AGS", cancun: "CUN", merida: "MID" });
 
 function franquiciaUnica(user, value) {
   if (!FRANCHISE_IDS.includes(value)) {
@@ -246,51 +247,144 @@ campanasRouter.put("/contactos", async (req, res, next) => {
 });
 
 // POST /api/campanas/contactos/importar  (solo admin)
-// Lee el archivo del portal en Drive (CAMPANAS_CONTACTOS_FILE_ID). Agrega clientes nuevos y
-// actualiza los que vinieron del portal; nunca sobrescribe un contacto editado a mano.
-campanasRouter.post("/contactos/importar", requireRole("admin"), async (_req, res, next) => {
-  const fileId = process.env.CAMPANAS_CONTACTOS_FILE_ID;
-  if (!fileId) return res.status(503).json({ error: "Falta configurar el archivo de contactos del portal (CAMPANAS_CONTACTOS_FILE_ID)" });
-  const client = await pool.connect();
-  try {
-    const { contactos, omitidas } = parseContactosCsv(await descargarCsv(fileId));
-    await client.query("begin");
-    const existentes = await client.query("select franchise_id, group_key, editado_manual from campana_contactos");
-    const estado = new Map(existentes.rows.map((row) => [`${row.franchise_id}|${row.group_key}`, row.editado_manual]));
-    const resumen = { insertados: 0, actualizados: 0, protegidos: 0, omitidas };
-    for (const contacto of contactos) {
-      const llave = `${contacto.franchiseId}|${contacto.groupKey}`;
-      if (estado.get(llave) === true) {
-        resumen.protegidos += 1;
-        continue;
+// Body: el archivo tal cual (application/octet-stream), .csv o .xlsx; nombre en el
+// encabezado X-Archivo-Nombre. Agrega clientes nuevos y actualiza los que vinieron de un
+// archivo; nunca sobrescribe un contacto editado a mano en el Directorio, y una celda vacía
+// no borra un dato ya guardado (para borrar se usa el Directorio).
+campanasRouter.post(
+  "/contactos/importar",
+  requireRole("admin"),
+  express.raw({ type: "application/octet-stream", limit: "5mb" }),
+  async (req, res, next) => {
+    let client;
+    try {
+      let nombreArchivo = "";
+      try { nombreArchivo = decodeURIComponent(req.get("x-archivo-nombre") ?? ""); } catch { nombreArchivo = ""; }
+      const { contactos, omitidas, advertencias, sinDatos } = await leerArchivoContactos(req.body, nombreArchivo);
+      if (!contactos.length) {
+        return res.status(400).json({ error: "El archivo no tiene filas con teléfono o correo válidos", omitidas });
       }
-      await client.query(
-        `insert into campana_contactos (franchise_id, group_key, nombre, telefono, correo, recibe_correo, origen, editado_manual)
-         values ($1, $2, $3, $4, $5, coalesce($6, false), 'portal', false)
-         on conflict (franchise_id, group_key) do update set
-           nombre = excluded.nombre, telefono = excluded.telefono, correo = excluded.correo,
-           recibe_correo = coalesce($6, campana_contactos.recibe_correo), updated_at = now()
-         where campana_contactos.editado_manual = false`,
-        [contacto.franchiseId, contacto.groupKey, contacto.nombre, contacto.telefono, contacto.correo, contacto.recibeCorreo]
-      );
-      if (estado.has(llave)) resumen.actualizados += 1;
-      else resumen.insertados += 1;
+
+      client = await pool.connect();
+      await client.query("begin");
+      const existentes = await client.query("select franchise_id, group_key, editado_manual from campana_contactos");
+      const estado = new Map(existentes.rows.map((row) => [`${row.franchise_id}|${row.group_key}`, row.editado_manual]));
+      const resumen = { leidos: contactos.length, insertados: 0, actualizados: 0, protegidos: 0, sinDatos, omitidas, advertencias, sinCoincidencia: null };
+      for (const contacto of contactos) {
+        const llave = `${contacto.franchiseId}|${contacto.groupKey}`;
+        if (estado.get(llave) === true) {
+          resumen.protegidos += 1;
+          continue;
+        }
+        await client.query(
+          `insert into campana_contactos (franchise_id, group_key, nombre, telefono, correo, recibe_correo, origen, editado_manual)
+           values ($1, $2, $3, $4, $5, coalesce($6, false), 'portal', false)
+           on conflict (franchise_id, group_key) do update set
+             nombre = excluded.nombre,
+             telefono = coalesce(excluded.telefono, campana_contactos.telefono),
+             correo = coalesce(excluded.correo, campana_contactos.correo),
+             recibe_correo = coalesce($6, campana_contactos.recibe_correo), updated_at = now()
+           where campana_contactos.editado_manual = false`,
+          [contacto.franchiseId, contacto.groupKey, contacto.nombre, contacto.telefono, contacto.correo, contacto.recibeCorreo]
+        );
+        if (estado.has(llave)) resumen.actualizados += 1;
+        else resumen.insertados += 1;
+      }
+      await client.query("commit");
+
+      // Aviso (no bloquea): nombres que no coinciden con ningún Grupo De Facturación vigente
+      // de la BDD, normalmente por un error de captura. Si Drive no responde, se omite.
+      try {
+        const franquicias = [...new Set(contactos.map((contacto) => contacto.franchiseId))];
+        const vigentes = new Set();
+        for (const franchiseId of franquicias) {
+          const bdd = await leerBdd(franchiseId);
+          for (const cliente of bdd.clientes) vigentes.add(`${franchiseId}|${cliente.groupKey}`);
+        }
+        resumen.sinCoincidencia = contactos
+          .filter((contacto) => !vigentes.has(`${contacto.franchiseId}|${contacto.groupKey}`))
+          .map((contacto) => ({ franchiseId: contacto.franchiseId, nombre: contacto.nombre }));
+      } catch (error) {
+        console.error("[campanas] coincidencias", error.message);
+      }
+      res.json(resumen);
+    } catch (err) {
+      if (client) await client.query("rollback").catch(() => {});
+      if (err.statusCode === 400) err.expose = true;
+      next(err);
+    } finally {
+      client?.release();
     }
-    await client.query("commit");
-    res.json(resumen);
+  }
+);
+
+// GET /api/campanas/contactos/plantilla?franchise=  -> plantilla .xlsx
+// Los encabezados exactos, una fila por cliente vigente de la BDD (con su contacto actual si
+// ya existe) y una columna de referencia con el segmento, que la carga ignora.
+campanasRouter.get("/contactos/plantilla", async (req, res, next) => {
+  try {
+    const franquicias = resolveFranchiseScope(req.user, String(req.query.franchise ?? "todas"));
+    const filas = [];
+    for (const franchiseId of franquicias) {
+      let clientes = [];
+      try {
+        clientes = (await leerBdd(franchiseId)).clientes;
+      } catch (error) {
+        console.error("[campanas] plantilla", error.message);
+      }
+      const contactos = await contactosPorGrupo(pool, franchiseId);
+      for (const cliente of clientes) {
+        const contacto = contactos.get(cliente.groupKey);
+        filas.push({
+          franquicia: PREFIJO_FRANQUICIA[franchiseId],
+          grupo: cliente.grupo,
+          telefono: contacto?.telefono ? contacto.telefono.slice(2) : "",
+          correo: contacto?.correo ? contacto.correo.replace(/, /g, "; ") : "",
+          recibeCorreo: cliente.segment === "comercial" ? (contacto?.recibe_correo ? "Sí" : "No") : "",
+          segmento: cliente.segment === "comercial" ? "Comercial" : "Residencial",
+        });
+      }
+    }
+    filas.sort((a, b) => a.franquicia.localeCompare(b.franquicia) || a.grupo.localeCompare(b.grupo, "es"));
+
+    const libro = new ExcelJS.Workbook();
+    const hoja = libro.addWorksheet("Contactos", { views: [{ state: "frozen", ySplit: 1 }] });
+    hoja.columns = [
+      { header: "Franquicia", key: "franquicia", width: 12 },
+      { header: "Grupo De Facturación", key: "grupo", width: 44 },
+      { header: "Teléfono", key: "telefono", width: 16, style: { numFmt: "@" } },
+      { header: "Correo", key: "correo", width: 38 },
+      { header: "Recibe Correo", key: "recibeCorreo", width: 15 },
+      { header: "Segmento (referencia)", key: "segmento", width: 22 },
+    ];
+    hoja.addRows(filas);
+    const encabezado = hoja.getRow(1);
+    encabezado.font = { bold: true, color: { argb: "FF063A3E" } };
+    encabezado.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF21C2CC" } };
+    hoja.getCell("F1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9DEE3" } };
+    hoja.autoFilter = "A1:F1";
+    for (let fila = 2; fila <= Math.max(filas.length + 1, 200); fila += 1) {
+      hoja.getCell(`C${fila}`).numFmt = "@";
+      hoja.getCell(`E${fila}`).dataValidation = { type: "list", allowBlank: true, formulae: ['"Sí,No"'] };
+      hoja.getCell(`A${fila}`).dataValidation = { type: "list", allowBlank: true, formulae: ['"AGS,CUN,MID"'] };
+    }
+    const buffer = await libro.xlsx.writeBuffer();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="Plantilla_Contactos_Campanas.xlsx"`);
+    res.send(Buffer.from(buffer));
   } catch (err) {
-    await client.query("rollback").catch(() => {});
-    if (!err.statusCode && /columna requerida|vacío/.test(err.message)) err.statusCode = 400;
     next(err);
-  } finally {
-    client.release();
   }
 });
 
 // Errores conocidos del módulo con un mensaje que diga qué hacer, en lugar del genérico
 // "Error interno del servidor": tablas sin migrar y fallas al leer Drive.
 campanasRouter.use((err, _req, _res, next) => {
-  if (err?.code === "42P01" && /campana_/.test(String(err.message))) {
+  if (err?.type === "entity.too.large") {
+    err.statusCode = 413;
+    err.expose = true;
+    err.message = "El archivo supera 5 MB";
+  } else if (err?.code === "42P01" && /campana_/.test(String(err.message))) {
     err.statusCode = 503;
     err.expose = true;
     err.message = "Falta aplicar en la base de datos la migración del módulo Campañas (20261002090000_campanas_cobranza.sql)";

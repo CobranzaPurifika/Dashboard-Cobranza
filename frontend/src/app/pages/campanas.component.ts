@@ -99,6 +99,9 @@ export class CampanasComponent implements OnChanges {
   segmentoContacto: '' | 'comercial' | 'residencial' = '';
   soloSinContacto = false;
   importando = false;
+  descargandoPlantilla = false;
+  formatoVisible = false;
+  resultadoImportacion: any = null;
 
   // Historial
   historial: any[] = [];
@@ -367,20 +370,56 @@ export class CampanasComponent implements OnChanges {
     }
   }
 
-  async importarPortal(): Promise<void> {
-    if (this.importando) return;
+  async subirArchivo(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo || this.importando) return;
+    if (!/\.(csv|xlsx)$/i.test(archivo.name)) {
+      this.resultadoImportacion = { error: 'Sube un archivo .csv o .xlsx', archivo: archivo.name, omitidas: [] };
+      return;
+    }
     this.importando = true;
+    this.resultadoImportacion = null;
+    this.formatoVisible = false;
+    this.cdr.markForCheck();
     try {
-      const resumen = await this.api.campanasImportarContactos();
-      const omitidas = resumen.omitidas?.length ?? 0;
-      this.aviso = `Portal: ${resumen.insertados} nuevos, ${resumen.actualizados} actualizados, ${resumen.protegidos} protegidos por edición manual${omitidas ? `, ${omitidas} filas omitidas` : ''}`;
+      const resumen = await this.api.campanasImportarContactos(archivo);
+      this.resultadoImportacion = { ...resumen, archivo: archivo.name };
       await Promise.all([this.cargarContactos(), this.cargar()]);
     } catch (error: any) {
-      this.aviso = error.message;
+      this.resultadoImportacion = { error: error.message, archivo: archivo.name, omitidas: error.omitidas ?? [] };
     } finally {
       this.importando = false;
       this.cdr.markForCheck();
     }
+  }
+
+  async descargarPlantilla(): Promise<void> {
+    if (this.descargandoPlantilla) return;
+    this.descargandoPlantilla = true;
+    try {
+      const { blob, fileName } = await this.api.campanasPlantilla(this.franchise);
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = fileName;
+      enlace.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error: any) {
+      this.aviso = `No se pudo descargar la plantilla: ${error.message}`;
+    } finally {
+      this.descargandoPlantilla = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  descripcionFila(fila: { fila: number; nombre?: string | null; motivo: string }): string {
+    return `Fila ${fila.fila}${fila.nombre ? ` · ${fila.nombre}` : ''}: ${fila.motivo}`;
+  }
+
+  primeros<T>(lista: T[] | null | undefined, cantidad = 8): T[] {
+    return (lista ?? []).slice(0, cantidad);
   }
 
   capturarContacto(item: ItemLote): void {

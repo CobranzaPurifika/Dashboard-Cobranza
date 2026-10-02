@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { agruparClientes, extraerFacturas } from "../src/campanas/bdd.js";
-import { normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase } from "../src/campanas/contactos.js";
+import ExcelJS from "exceljs";
+import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase } from "../src/campanas/contactos.js";
 import { correoDeItem } from "../src/campanas/reglas.js";
 import {
   calendarioFactura,
@@ -215,14 +216,52 @@ test("lee el archivo del portal y reporta filas omitidas", () => {
     "Cancún,HOTEL SOL SA DE CV,,pagos@hotelsol.mx,Sí",
     "Monterrey,Otro,4491234567,,",
     "MID,Sin Datos,,,",
+    "AGS,Tel Malo,123,ok@correo.mx,",
+    "AGS,Todo Malo,123,no-es-correo,",
   ].join("\n");
-  const { contactos, omitidas } = parseContactosCsv(csv);
-  assert.equal(contactos.length, 2);
+  const { contactos, omitidas, advertencias, sinDatos } = parseContactosCsv(csv);
+  assert.equal(contactos.length, 3);
+  assert.equal(sinDatos, 1);
+  assert.deepEqual(advertencias.map((fila) => fila.motivo), ['Teléfono inválido "123"; se guardó el resto']);
   assert.deepEqual(contactos[0], { franchiseId: "aguascalientes", groupKey: "juan perez", nombre: "Juan Pérez", telefono: "524491234567", correo: null, recibeCorreo: false });
   assert.equal(contactos[1].recibeCorreo, true);
-  assert.deepEqual(omitidas.map((fila) => fila.motivo), ["Franquicia no reconocida", "Sin teléfono ni correo válidos"]);
+  assert.deepEqual(omitidas.map((fila) => fila.motivo), ["Franquicia no reconocida (usa AGS, CUN o MID)", 'Teléfono inválido "123" y correo inválido "no-es-correo"']);
 });
 
-test("el archivo del portal exige las columnas mínimas", () => {
-  assert.throws(() => parseContactosCsv("Franquicia,Grupo De Facturación,Correo\nAGS,X,a@b.mx"), /teléfono|telefono/i);
+test("el archivo exige las columnas mínimas y lo dice con su nombre", () => {
+  assert.throws(() => parseContactosCsv("Franquicia,Grupo De Facturación,Correo\nAGS,X,a@b.mx"), /Faltan columnas en la primera fila: Teléfono/);
+});
+
+test("CSV de Excel en español: punto y coma, acentos en ANSI y filas vacías", async () => {
+  const texto = "Franquicia;Grupo De Facturación;Teléfono;Correo;Recibe Correo\r\nAGS;Juan Pérez;449 123 4567;;\r\n;;;;\r\nMID;Peña SA de CV;;pagos@pena.mx;Sí\r\n";
+  const ansi = Buffer.from(texto, "latin1");
+  const { contactos, omitidas } = await leerArchivoContactos(ansi, "contactos.csv");
+  assert.deepEqual(contactos.map((c) => [c.franchiseId, c.nombre, c.telefono, c.correo, c.recibeCorreo]), [
+    ["aguascalientes", "Juan Pérez", "524491234567", null, false],
+    ["merida", "Peña SA de CV", null, "pagos@pena.mx", true],
+  ]);
+  assert.equal(omitidas.length, 0);
+});
+
+test("XLSX: teléfono numérico, correo como hipervínculo y columnas en otro orden", async () => {
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet("Hoja1");
+  hoja.addRow(["Correo", "Teléfono", "Grupo De Facturación", "Franquicia", "Notas"]);
+  hoja.addRow([{ text: "admin@hotel.mx", hyperlink: "mailto:admin@hotel.mx" }, 9981234567, "HOTEL SOL SA DE CV", "Cancún", "x"]);
+  hoja.addRow([]);
+  hoja.addRow(["", "", "Sin Datos", "AGS", ""]);
+  const buffer = Buffer.from(await libro.xlsx.writeBuffer());
+  const { contactos, omitidas, sinDatos } = await leerArchivoContactos(buffer, "contactos.xlsx");
+  assert.deepEqual(contactos, [{
+    franchiseId: "cancun", groupKey: "hotel sol sa de cv", nombre: "HOTEL SOL SA DE CV",
+    telefono: "529981234567", correo: "admin@hotel.mx", recibeCorreo: null,
+  }]);
+  assert.equal(omitidas.length, 0);
+  assert.equal(sinDatos, 1);
+});
+
+test("rechaza .xls antiguo y otros formatos con mensaje claro", async () => {
+  await assert.rejects(leerArchivoContactos(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]), "viejo.xls"), /\.xls/);
+  await assert.rejects(leerArchivoContactos(Buffer.from("hola"), "notas.pdf"), /\.csv o \.xlsx/);
+  await assert.rejects(leerArchivoContactos(Buffer.alloc(0), "vacio.csv"), /Selecciona un archivo/);
 });

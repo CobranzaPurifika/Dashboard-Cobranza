@@ -100,6 +100,32 @@ button, input, select, textarea { font: inherit; }
 .segments button { padding: 6px 13px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .segments .active { color: #063a3e; background: var(--accent); font-weight: 800; }
 
+.upload-group { position: relative; display: flex; align-items: center; gap: 6px; }
+.upload-button { position: relative; overflow: hidden; }
+.upload-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-button.disabled { opacity: .6; pointer-events: none; }
+.upload-button ion-spinner { width: 15px; height: 15px; }
+.format-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: none; width: min(620px, calc(100vw - 32px)); padding: 15px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--ink-soft); font-size: 11px; line-height: 1.45; }
+.upload-group:hover .format-popover, .upload-group:focus-within .format-popover, .upload-group.open .format-popover { display: block; }
+.format-popover > strong { color: var(--ink); font-size: 12px; }
+.format-popover p { margin: 3px 0 10px; color: var(--muted); }
+.format-popover ul { margin: 10px 0 0; padding-left: 16px; }
+.format-popover li + li { margin-top: 3px; }
+.format-popover b { color: var(--ink); }
+.sheet-sample { display: grid; overflow-x: auto; border: 1px solid #c9ced3; border-radius: 6px; background: #ffffff; color: #1f2937; font-family: Calibri, Carlito, Arial, sans-serif; font-size: 11px; }
+.sheet-row { display: grid; grid-template-columns: 26px 62px minmax(130px, 1.3fr) 90px minmax(150px, 1.6fr) 82px; min-width: 560px; }
+.sheet-row > * { overflow: hidden; padding: 4px 6px; border-right: 1px solid #e1e5e9; border-bottom: 1px solid #e1e5e9; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-row i { color: #6b7280; background: #f1f3f5; font-style: normal; text-align: center; }
+.sheet-row.letters > * { color: #6b7280; background: #f1f3f5; text-align: center; }
+.sheet-row.header span { background: #21c2cc; color: #063a3e; font-weight: 700; }
+.import-result { margin: 0; padding: 12px 22px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, #2cae60 8%, transparent); font-size: 11px; }
+.import-result.failed { background: color-mix(in srgb, #d84f43 9%, transparent); }
+.import-result header { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 12px; }
+.import-result p { margin: 4px 0 0; color: var(--ink-soft); }
+.import-result p.row-error { color: #d84f43; }
+.import-result .result-title { margin-top: 10px; color: var(--ink); font-weight: 700; }
+.import-result ul { margin: 4px 0 0; padding-left: 16px; color: var(--muted); }
+
 .contact-row { grid-template-columns: minmax(190px, 1.4fr) 130px minmax(180px, 1.2fr) 110px 110px; }
 .contact-row.dirty { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .field { display: grid; gap: 3px; }
@@ -120,6 +146,7 @@ button, input, select, textarea { font: inherit; }
 .mail-dialog pre { margin: 0; padding: 18px 22px 24px; overflow: auto; color: var(--ink-soft); font: inherit; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
 
 @media (max-width: 900px) {
+  .format-popover { position: fixed; top: 16px; right: 16px; left: 16px; z-index: 80; width: auto; max-height: calc(100dvh - 32px); overflow: auto; }
   .rule-strip { grid-template-columns: 1fr; }
   .row, .row:has(.row-check), .history-row, .contact-row { grid-template-columns: 1fr auto; gap: 8px 12px; padding: 12px 16px; }
   .row-main { grid-column: 1 / -1; }
