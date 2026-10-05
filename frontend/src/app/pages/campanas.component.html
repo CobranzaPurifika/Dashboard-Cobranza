@@ -14,7 +14,7 @@
     @if (lote) {
       <div class="rule-strip">
         <div class="rule"><i class="dot good"></i><span><strong>Preventivo</strong>{{ descripcionVentanas().preventivo }}</span></div>
-        <div class="rule"><i class="dot warning"></i><span><strong>Correctivo 1-30</strong>{{ descripcionVentanas().correctivo }}</span></div>
+        <div class="rule"><i class="dot warning"></i><span><strong>Correctivo 1-30 · semanal</strong>{{ descripcionVentanas().correctivo }}@if (descripcionVentanas().calendario) { <small>{{ descripcionVentanas().calendario }}</small> }</span></div>
         <div class="rule"><i class="dot critical"></i><span><strong>Escalamiento 31+</strong>Gestión puntual con documento</span></div>
       </div>
       @for (fuente of fuentesDesactualizadas; track fuente.franchiseId) {
@@ -41,6 +41,7 @@
       <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
       <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
       <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
+      <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
       <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
     </nav>
 
@@ -50,7 +51,15 @@
       } @else {
       @switch (pestana) {
         @case ('whatsapp') {
-          <p class="tab-hint">Residenciales. <strong>Enviar</strong> abre WhatsApp con el mensaje listo y lo registra; envíalo desde tu WhatsApp. {{ whatsappRegistrados }} de {{ whatsapp.length }} registrados en esta sesión.</p>
+          <p class="tab-hint">Residenciales. Revisa o edita el mensaje con <ion-icon name="create-outline"></ion-icon>; <strong>Enviar</strong> abre WhatsApp con ese texto y lo registra; envíalo desde tu WhatsApp. {{ whatsappRegistrados }} de {{ whatsapp.length }} registrados en esta sesión.</p>
+          @if (whatsapp.length) {
+            <div class="bulk-bar">
+              <button type="button" class="ghost-button small" (click)="toggleTodosVisibles()">
+                <ion-icon [name]="todosVisibles ? 'eye-off-outline' : 'eye-outline'"></ion-icon> {{ todosVisibles ? 'Ocultar mensajes' : 'Revisar todos los mensajes' }}
+              </button>
+              @if (ediciones.size) { <span>{{ ediciones.size }} editado{{ ediciones.size === 1 ? '' : 's' }}</span> }
+            </div>
+          }
           @for (item of whatsapp; track llave(item)) {
             <div class="row" [class.done]="registrados.has(llave(item))">
               <span class="row-main">
@@ -59,10 +68,11 @@
               </span>
               <span class="row-badges">
                 <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+                @if (editado(item)) { <i class="flag-badge edited">Editado</i> }
               </span>
               <strong class="amount">{{ money(item.monto) }}</strong>
               <span class="row-actions">
-                <button type="button" class="icon-button" title="Ver mensaje" aria-label="Ver mensaje" (click)="toggleVistaPrevia(item)"><ion-icon [name]="vistaPrevia.has(llave(item)) ? 'eye-off-outline' : 'eye-outline'"></ion-icon></button>
+                <button type="button" class="icon-button" title="Revisar o editar mensaje" aria-label="Revisar o editar mensaje" (click)="toggleVistaPrevia(item)"><ion-icon [name]="vistaPrevia.has(llave(item)) ? 'chevron-up-outline' : 'create-outline'"></ion-icon></button>
                 @if (registrados.has(llave(item))) {
                   <button type="button" class="ghost-button small" [disabled]="enCurso.has(llave(item))" (click)="deshacer(item)">Deshacer</button>
                 } @else {
@@ -72,7 +82,15 @@
                 }
               </span>
               @if (vistaPrevia.has(llave(item))) {
-                <div class="message-preview"><pre>{{ item.whatsappTexto }}</pre><button type="button" class="ghost-button small" (click)="copiarMensaje(item)">Copiar</button></div>
+                <div class="message-editor">
+                  <textarea rows="12" maxlength="4000" [attr.aria-label]="'Mensaje para ' + item.nombre" [disabled]="registrados.has(llave(item))"
+                    [ngModel]="textoWhatsApp(item)" (ngModelChange)="editarWhatsApp(item, $event)"></textarea>
+                  <div class="editor-actions">
+                    <small>{{ editado(item) ? 'Editado solo para este envío' : 'Generado con la plantilla' }}</small>
+                    @if (editado(item) && !registrados.has(llave(item))) { <button type="button" class="ghost-button small" (click)="restablecerWhatsApp(item)">Restablecer</button> }
+                    <button type="button" class="ghost-button small" (click)="copiarMensaje(item)">Copiar</button>
+                  </div>
+                </div>
               }
             </div>
           } @empty { <div class="empty-state">No hay recordatorios de WhatsApp pendientes hoy.</div> }
@@ -101,14 +119,15 @@
               <span class="row-main">
                 <strong>{{ item.nombre }}</strong>
                 <small>{{ franquicia(item.franchiseId) }} · {{ item.destino }}</small>
-                <small class="subject">{{ item.correoAsunto }}</small>
+                <small class="subject">{{ asuntoCorreo(item) }}</small>
                 @if (resultadosCorreo.get(llave(item)); as resultado) { @if (!resultado.ok) { <small class="row-error">{{ resultado.error }}</small> } }
               </span>
               <span class="row-badges">
                 <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
+                @if (correoEditado(item)) { <i class="flag-badge edited">Editado</i> }
               </span>
               <strong class="amount">{{ money(item.monto) }}</strong>
-              <span class="row-actions"><button type="button" class="ghost-button small" (click)="verCorreo(item)">Vista previa</button></span>
+              <span class="row-actions"><button type="button" class="ghost-button small" [disabled]="resultadosCorreo.get(llave(item))?.ok" (click)="verCorreo(item)">Revisar / editar</button></span>
             </div>
           } @empty { <div class="empty-state">No hay correos pendientes hoy. Autoriza comerciales en el Directorio.</div> }
         }
@@ -266,19 +285,89 @@
           }
         }
 
+        @case ('plantillas') {
+          <p class="tab-hint">
+            Texto base de cada recordatorio. Las variables entre llaves se llenan con los datos de cada cliente y de su franquicia
+            (nombre, facturas pendientes, monto, fecha límite y datos de transferencia).
+            @if (esAdmin) { Al guardar, el lote se recalcula con la nueva versión. } @else { Solo un administrador puede modificarlas; puedes editar cada mensaje antes de enviarlo. }
+          </p>
+          @if (cargandoPlantillas && !plantillasCargadas) {
+            <div class="skeleton"><i></i><i></i><i></i></div>
+          } @else {
+            @for (canal of ['whatsapp', 'correo']; track canal) {
+              <h2 class="template-group">{{ canal === 'whatsapp' ? 'WhatsApp (residenciales)' : 'Correo (comerciales autorizados)' }}</h2>
+              @for (plantilla of plantillasDe($any(canal)); track plantilla.clave) {
+                <div class="template-card" [class.dirty]="plantillaModificada(plantilla)">
+                  <header>
+                    <strong>{{ plantilla.titulo }}</strong>
+                    <small>{{ plantilla.personalizada ? 'Editada' + (plantilla.actualizadoPor ? ' por ' + plantilla.actualizadoPor : '') + (plantilla.actualizado ? ' · ' + fechaHora(plantilla.actualizado) : '') : 'Predeterminada' }}</small>
+                  </header>
+                  @if (plantilla.tipo === 'asunto') {
+                    <input #campo type="text" [maxlength]="plantilla.limite" [readonly]="!esAdmin" [attr.aria-label]="plantilla.titulo" [(ngModel)]="plantilla.contenidoEdit" (ngModelChange)="plantilla.guardado = false" />
+                    @if (esAdmin) {
+                      <div class="variable-chips">
+                        @for (variable of variables; track variable.clave) { <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (click)="insertarVariable(plantilla, variable.clave, campo)">{{ '{' + variable.clave + '}' }}</button> }
+                      </div>
+                    }
+                  } @else {
+                    <textarea #campo rows="10" [maxlength]="plantilla.limite" [readonly]="!esAdmin" [attr.aria-label]="plantilla.titulo" [(ngModel)]="plantilla.contenidoEdit" (ngModelChange)="plantilla.guardado = false"></textarea>
+                    @if (esAdmin) {
+                      <div class="variable-chips">
+                        @for (variable of variables; track variable.clave) { <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (click)="insertarVariable(plantilla, variable.clave, campo)">{{ '{' + variable.clave + '}' }}</button> }
+                      </div>
+                    }
+                  }
+                  @if (plantilla.error) { <p class="row-error">{{ plantilla.error }}</p> }
+                  <div class="editor-actions">
+                    <button type="button" class="ghost-button small" [disabled]="plantilla.cargandoVista" (click)="vistaPreviaPlantilla(plantilla)">
+                      @if (plantilla.cargandoVista) { <ion-spinner name="crescent"></ion-spinner> } Vista previa
+                    </button>
+                    @if (esAdmin) {
+                      @if (plantilla.personalizada) { <button type="button" class="ghost-button small" [disabled]="plantilla.guardando" (click)="restablecerPlantilla(plantilla)">Restablecer predeterminada</button> }
+                      @if (plantillaModificada(plantilla)) { <button type="button" class="ghost-button small" (click)="plantilla.contenidoEdit = plantilla.contenido">Descartar cambios</button> }
+                      @if (plantilla.guardado && !plantillaModificada(plantilla)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                      <button type="button" class="primary-button small" [disabled]="!plantillaModificada(plantilla) || plantilla.guardando" (click)="guardarPlantilla(plantilla)">
+                        @if (plantilla.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
+                      </button>
+                    }
+                  </div>
+                  @if (plantilla.vista) {
+                    <div class="message-preview"><span class="eyebrow">EJEMPLO CON UN CLIENTE FICTICIO</span><pre>{{ plantilla.vista }}</pre></div>
+                  }
+                </div>
+              }
+            }
+            @if (esAdmin && variables.length) {
+              <details class="variables-help">
+                <summary>¿Qué pone cada variable?</summary>
+                <dl>
+                  @for (variable of variables; track variable.clave) { <dt>{{ '{' + variable.clave + '}' }}</dt><dd>{{ variable.descripcion }}. Ej.: {{ variable.ejemplo }}</dd> }
+                </dl>
+                <p>En correo, <b>{{ '{detalle_facturas}' }}</b> y <b>{{ '{datos_transferencia}' }}</b> en su propia línea salen como tabla y recuadro, y <b>{{ '{eslogan}' }}</b> en su propio párrafo sale con el estilo de marca.</p>
+              </details>
+            }
+          }
+        }
+
         @case ('historial') {
-          <p class="tab-hint">Recordatorios registrados en los últimos 30 días.</p>
+          <p class="tab-hint">Recordatorios registrados en los últimos 30 días. Toca uno para ver el texto que se envió.</p>
           @if (cargandoHistorial) { <div class="skeleton"><i></i><i></i><i></i></div> }
           @else {
             @for (envio of historial; track envio.id) {
-              <div class="row history-row">
+              <div class="row history-row" [class.clickable]="envio.mensaje" (click)="envio.mensaje && toggleHistorial(envio.id)">
                 <span class="row-main">
                   <strong>{{ envio.cliente_nombre }}</strong>
-                  <small>{{ franquicia(envio.franchise_id) }} · {{ envio.regla === 'preventivo' ? 'Preventivo' : 'Correctivo ' + envio.periodo.slice(-2) }} · {{ envio.folios.join(', ') }}</small>
+                  <small>{{ franquicia(envio.franchise_id) }} · {{ etiquetaEnvio(envio) }} · {{ envio.folios.join(', ') }}</small>
                 </span>
-                <span class="row-badges"><i class="channel-badge" [class.mail]="envio.canal === 'correo'">{{ envio.canal === 'correo' ? 'Correo' : 'WhatsApp' }}</i></span>
+                <span class="row-badges">
+                  <i class="channel-badge" [class.mail]="envio.canal === 'correo'">{{ envio.canal === 'correo' ? 'Correo' : 'WhatsApp' }}</i>
+                  @if (envio.editado) { <i class="flag-badge edited">Editado</i> }
+                </span>
                 <span class="history-meta">{{ fechaHora(envio.enviado_at) }}<small>{{ envio.enviado_por || '—' }}</small></span>
                 <strong class="amount">{{ money(envio.monto) }}</strong>
+                @if (historialAbierto.has(envio.id)) {
+                  <div class="message-preview">@if (envio.asunto) { <strong>{{ envio.asunto }}</strong> }<pre>{{ envio.mensaje }}</pre></div>
+                }
               </div>
             } @empty { <div class="empty-state">Aún no hay recordatorios registrados.</div> }
           }
@@ -288,14 +377,21 @@
     </div>
   </article>
 
-  @if (correoPrevio) {
+  @if (correoPrevio; as previo) {
     <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="correoPrevio = null"></button>
-    <section class="mail-dialog" role="dialog" aria-modal="true" aria-label="Vista previa del correo">
+    <section class="mail-dialog" role="dialog" aria-modal="true" aria-label="Revisar correo">
       <header>
-        <div><span class="eyebrow">VISTA PREVIA</span><h2>{{ correoPrevio.asunto }}</h2><p>Para: {{ correoPrevio.para }}</p></div>
+        <div><span class="eyebrow">REVISAR CORREO · {{ previo.item.nombre }}</span><p>Para: {{ previo.para }}</p></div>
         <button type="button" class="icon-button" aria-label="Cerrar" (click)="correoPrevio = null"><ion-icon name="close-outline"></ion-icon></button>
       </header>
-      <pre>{{ correoPrevio.texto }}</pre>
+      <label class="field"><span>Asunto</span><input type="text" maxlength="200" [(ngModel)]="previo.asunto" /></label>
+      <label class="field"><span>Mensaje</span><textarea rows="18" maxlength="4000" [(ngModel)]="previo.texto"></textarea></label>
+      <p class="tab-hint">Los cambios aplican solo a este envío. Si editas el texto, el correo se envía sin la tabla de facturas ni el recuadro de transferencia (todo como texto). Para cambiar todos los correos, edita la plantilla.</p>
+      <footer class="editor-actions">
+        @if (correoEditado(previo.item)) { <button type="button" class="ghost-button small" (click)="restablecerCorreo()">Restablecer</button> }
+        <button type="button" class="ghost-button small" (click)="correoPrevio = null">Cancelar</button>
+        <button type="button" class="primary-button small" (click)="guardarEdicionCorreo()">Usar este texto</button>
+      </footer>
     </section>
   }
 </section>

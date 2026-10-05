@@ -9,7 +9,7 @@ comerciales autorizados. Es independiente del resto de la app.
 | Regla | A quién | Cuándo | Canal |
 | --- | --- | --- | --- |
 | Preventivo | Cliente al corriente con una factura que vence en 5 días o menos | Todos los días, desde 5 días antes hasta el vencimiento. Un recordatorio por factura | WhatsApp (residencial) / correo (comercial autorizado) |
-| Correctivo | Atraso máximo de 1 a 30 días | 1er recordatorio del día 7 al 14; 2do del 15 a fin de mes. Si el 7 o el 15 caen en fin de semana, la ventana abre el siguiente día hábil | Igual que preventivo |
+| Correctivo | Atraso máximo de 1 a 30 días | Semanal: recordatorios a partir de los días 7, 15, 21 y fin de mes (30, 31, o 28/29 en febrero). Cada uno queda pendiente hasta que abre el siguiente; el de fin de mes, hasta que termina el mes. Si el día cae en fin de semana, la ventana abre el siguiente día hábil; el de fin de mes se adelanta al viernes para no salirse del mes | Igual que preventivo |
 | Escalamiento | Atraso máximo de 31 días o más | Siempre visible | Sin mensaje masivo: gestión puntual. Documento sugerido: Aviso de deuda (31-60) o Aviso de retiro / Acuerdo de pagos (+60), desde la ficha del cliente |
 
 - **Vencimiento** = fecha de facturación (columna I) + días de crédito (columna K) de la BDD.
@@ -19,9 +19,35 @@ comerciales autorizados. Es independiente del resto de la app.
   un pago registrado en Pagos desde 3 días antes de la última modificación de la BDD.
 - **Ventanas en lugar de un día exacto**: si nadie entra justo el día 7, el recordatorio
   sigue pendiente hasta el 14. Un cliente nunca recibe dos veces el mismo recordatorio
-  (llave única por factura en preventivo y por mes + recordatorio en correctivo).
-- Las plantillas siguen la skill `cobranza-purifika`: tono amable (mora temprana), datos
-  bancarios de la franquicia correcta, contacto de escalamiento y, en correo, el eslogan.
+  (llave única por factura en preventivo y por mes + recordatorio, `YYYY-MM-R1` a `R4`, en
+  correctivo). Del día 1 al 6 no hay correctivo.
+- Los días están en `REGLAS.correctivoDias` (`backend/src/campanas/config.js`); un día mayor
+  al último del mes se toma como fin de mes.
+
+## Mensajes y plantillas
+
+Cada mensaje se arma con una plantilla y se personaliza con los datos del cliente y de su
+franquicia, como el Aviso de deuda: nombre, facturas pendientes (folio, saldo y
+vencimiento), monto, fecha límite y los datos de transferencia de la franquicia correcta
+(beneficiario, banco, cuenta y CLABE; nunca se mezclan cuentas).
+
+- **Pestaña Plantillas**: seis plantillas (preventivo y correctivo × WhatsApp, asunto de correo
+  y correo). Todos las ven; solo un administrador las edita. Las variables se insertan con un
+  clic (`{nombre}`, `{franquicia}`, `{facturas}`, `{detalle_facturas}`, `{monto}`,
+  `{fecha_limite}`, `{datos_transferencia}`, `{contacto}`, `{eslogan}`, entre otras); una
+  variable desconocida no se deja guardar. *Vista previa* muestra el resultado con un cliente
+  ficticio y *Restablecer predeterminada* vuelve al texto original. Al guardar, el lote se
+  recalcula.
+- En correo, `{detalle_facturas}` y `{datos_transferencia}` en su propia línea salen como
+  tabla y recuadro, y `{eslogan}` en su propio párrafo sale con el estilo de marca.
+- Las predeterminadas siguen la skill `cobranza-purifika`: tono amable (mora temprana), datos
+  bancarios de la franquicia, contacto de escalamiento y, en correo, el eslogan.
+- **Revisión antes de enviar**: en WhatsApp, el ícono de lápiz (o *Revisar todos los
+  mensajes*) muestra cada texto en un campo editable; en correo, *Revisar / editar* abre el
+  asunto y el texto. Lo editado aplica solo a ese envío y se marca como *Editado*. Un correo
+  con el texto editado se envía como texto simple (sin la tabla ni el recuadro).
+- El **Historial** guarda el texto tal como se envió (con sus ediciones) y lo muestra al tocar
+  cada registro.
 
 ## Propiedad de datos
 
@@ -89,3 +115,7 @@ clientes vigentes ya listados, con su contacto actual si existe.
 Sin las variables SMTP la pestaña funciona y el correo se muestra deshabilitado.
 
 La migración `supabase/migrations/20261002090000_campanas_cobranza.sql` crea las dos tablas.
+`20261005090000_campanas_plantillas.sql` agrega `campana_plantillas` y las columnas `mensaje`,
+`asunto` y `editado` de `campana_envios`; debe aplicarse antes de desplegar el backend que
+las usa (sin ella el lote funciona con las plantillas predeterminadas, pero registrar un
+envío falla con un aviso de migración pendiente).

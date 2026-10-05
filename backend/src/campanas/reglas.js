@@ -4,9 +4,10 @@
 // Reglas:
 // - Preventivo: cliente al corriente con una factura que vence dentro de los próximos
 //   `preventivoDiasAntes` días (incluido el día del vencimiento). Un recordatorio por factura.
-// - Correctivo: cliente con atraso máximo de 1 a 30 días. Dos recordatorios al mes, a partir
-//   de los días 7 y 15 (o el siguiente día hábil); cada uno queda pendiente hasta que abre la
-//   siguiente ventana, para no perderlo si nadie entra justo ese día.
+// - Correctivo: cliente con atraso máximo de 1 a 30 días. Un recordatorio por semana, a
+//   partir de los días 7, 15, 21 y fin de mes (o el día hábil más cercano dentro del mes);
+//   cada uno queda pendiente hasta que abre la siguiente ventana, para no perderlo si nadie
+//   entra justo ese día.
 // - Escalamiento: atraso máximo de 31 días o más. Sin mensaje masivo: lista para gestión
 //   puntual del gestor o administrador, con sugerencia de emitir documento.
 //
@@ -17,6 +18,7 @@ import { normalizeInvoiceKey } from "../imports/consolidation.js";
 import { REGLAS } from "./config.js";
 import { normalizarCorreos, properCase, telefonoLegible } from "./contactos.js";
 import { asuntoCorreo, correoHtml, correoTexto, enlaceWhatsApp, mensajeWhatsApp } from "./mensajes.js";
+import { plantillasVigentes } from "./plantillas.js";
 
 function diaSemana(iso) {
   const [year, month, day] = iso.split("-").map(Number);
@@ -48,20 +50,51 @@ export function diasEntre(desdeISO, hastaISO) {
   return Math.round((Date.parse(`${hastaISO}T00:00:00Z`) - Date.parse(`${desdeISO}T00:00:00Z`)) / 86_400_000);
 }
 
-// Ventanas activas para la fecha dada. El correctivo devuelve el recordatorio vigente
-// ("R1" o "R2") y su periodo, que es la llave de deduplicación del mes.
+export function ultimoDiaDelMes(mes) {
+  const [year, month] = mes.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function ultimoDiaHabilHasta(iso) {
+  let fecha = iso;
+  while (!esDiaHabil(fecha)) fecha = addCalendarDays(fecha, -1);
+  return fecha;
+}
+
+function mesSiguiente(mes) {
+  return addCalendarDays(`${mes}-${String(ultimoDiaDelMes(mes))}`, 1).slice(0, 7);
+}
+
+// Inicio de cada recordatorio correctivo del mes ("YYYY-MM"): R1, R2… en el orden de
+// REGLAS.correctivoDias. El periodo ("YYYY-MM-R3") es la llave de deduplicación.
+export function calendarioCorrectivo(mes) {
+  const ultimo = ultimoDiaDelMes(mes);
+  const inicios = [];
+  for (const dia of REGLAS.correctivoDias) {
+    const fecha = `${mes}-${String(Math.min(dia, ultimo)).padStart(2, "0")}`;
+    let desdeISO = primerDiaHabilDesde(fecha);
+    if (desdeISO.slice(0, 7) !== mes) desdeISO = ultimoDiaHabilHasta(fecha);
+    // Si dos días quedan en la misma fecha hábil (meses cortos), se conserva solo el primero.
+    if (inicios.length && desdeISO <= inicios[inicios.length - 1].desdeISO) continue;
+    const recordatorio = `R${inicios.length + 1}`;
+    inicios.push({ recordatorio, periodo: `${mes}-${recordatorio}`, desdeISO, finDeMes: dia >= ultimo });
+  }
+  return inicios;
+}
+
+// Ventanas activas para la fecha dada. El correctivo devuelve el recordatorio vigente y su
+// periodo; cada uno sigue pendiente hasta que abre el siguiente, y el último hasta fin de
+// mes. Antes del primero del mes no hay correctivo.
 export function ventanas(hoyISO) {
   const mes = hoyISO.slice(0, 7);
-  const [dia1, dia2] = REGLAS.correctivoDias;
-  const inicioR1 = primerDiaHabilDesde(`${mes}-${String(dia1).padStart(2, "0")}`);
-  const inicioR2 = primerDiaHabilDesde(`${mes}-${String(dia2).padStart(2, "0")}`);
-  let correctivo = null;
-  if (hoyISO >= inicioR2) correctivo = { recordatorio: "R2", periodo: `${mes}-R2`, desdeISO: inicioR2 };
-  else if (hoyISO >= inicioR1) correctivo = { recordatorio: "R1", periodo: `${mes}-R1`, desdeISO: inicioR1 };
+  const calendario = calendarioCorrectivo(mes);
+  const correctivo = calendario.filter((ventana) => hoyISO >= ventana.desdeISO).at(-1) ?? null;
+  const proximo = calendario.find((ventana) => ventana.desdeISO > hoyISO);
   return {
     preventivo: { diasAntes: REGLAS.preventivoDiasAntes },
     correctivo,
-    proximoCorrectivoISO: hoyISO < inicioR1 ? inicioR1 : hoyISO < inicioR2 ? inicioR2 : null,
+    calendario,
+    proximoCorrectivoISO: (proximo ?? calendarioCorrectivo(mesSiguiente(mes))[0])?.desdeISO ?? null,
   };
 }
 
@@ -101,13 +134,13 @@ function asignarCanal(segment, contacto) {
   return { canal: null, motivo: "Residencial sin teléfono registrado", telefono: null };
 }
 
-function construirMensajes(item, telefono) {
-  const texto = mensajeWhatsApp(item);
+function construirMensajes(item, telefono, plantillas) {
+  const texto = mensajeWhatsApp(item, plantillas);
   return {
     whatsappTexto: texto,
     whatsappUrl: telefono ? enlaceWhatsApp(telefono, texto) : null,
-    correoAsunto: asuntoCorreo(item),
-    correoTexto: correoTexto(item),
+    correoAsunto: asuntoCorreo(item, plantillas),
+    correoTexto: correoTexto(item, plantillas),
   };
 }
 
@@ -121,8 +154,9 @@ function construirMensajes(item, telefono) {
  * @param {Set<string>} input.foliosPagados folios (normalizeInvoiceKey) con pago reciente
  * @param {Set<string>} input.enviados llaves llaveEnvio() ya registradas
  * @param {Map<string, object>} input.contactos fila de campana_contactos por groupKey
+ * @param {object} input.plantillas salida de plantillasVigentes()
  */
-export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new Map(), foliosPagados = new Set(), enviados = new Set(), contactos = new Map() }) {
+export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new Map(), foliosPagados = new Set(), enviados = new Set(), contactos = new Map(), plantillas = plantillasVigentes() }) {
   const activas = ventanas(hoyISO);
   const pendientes = [];
   const escalamiento = [];
@@ -221,7 +255,7 @@ export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new M
       telefonoLegible: telefonoLegible(canal.telefono),
       motivoSinCanal: canal.motivo ?? null,
     };
-    pendientes.push({ ...item, ...construirMensajes(item, canal.telefono) });
+    pendientes.push({ ...item, ...construirMensajes(item, canal.telefono, plantillas) });
   }
 
   const porMonto = (a, b) => b.monto - a.monto || a.nombre.localeCompare(b.nombre, "es");
@@ -242,6 +276,6 @@ function publicarFactura(factura) {
 }
 
 // Para el correo: el HTML se arma al enviar (no viaja en el lote).
-export function correoDeItem(item) {
-  return { asunto: asuntoCorreo(item), texto: correoTexto(item), html: correoHtml(item) };
+export function correoDeItem(item, plantillas = plantillasVigentes()) {
+  return { asunto: asuntoCorreo(item, plantillas), texto: correoTexto(item, plantillas), html: correoHtml(item, plantillas) };
 }

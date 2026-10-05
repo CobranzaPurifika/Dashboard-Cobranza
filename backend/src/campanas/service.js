@@ -10,6 +10,7 @@ import { parseBddCsv } from "../imports/parsers.js";
 import { agruparClientes, extraerFacturas } from "./bdd.js";
 import { REGLAS } from "./config.js";
 import { descargarCsv, fechaModificacion } from "./drive.js";
+import { plantillasVigentes } from "./plantillas.js";
 import { construirLote, diasEntre, llaveEnvio } from "./reglas.js";
 
 const CACHE_MINUTOS = 10;
@@ -96,6 +97,26 @@ export async function contactosPorGrupo(db, franchiseId) {
   return new Map(rows.map((row) => [row.group_key, row]));
 }
 
+// Plantillas guardadas por un administrador ({ clave: { contenido, updated_at, actualizado_por } }).
+// Si la migración de plantillas aún no se aplica, se trabaja con las predeterminadas.
+export async function plantillasGuardadas(db) {
+  try {
+    const { rows } = await db.query(
+      `select p.clave, p.contenido, p.updated_at, u.display_name as actualizado_por
+       from campana_plantillas p left join app_users u on u.id = p.updated_by`
+    );
+    return Object.fromEntries(rows.map((row) => [row.clave, row]));
+  } catch (error) {
+    if (error.code === "42P01") return {};
+    throw error;
+  }
+}
+
+export async function cargarPlantillas(db) {
+  const guardadas = await plantillasGuardadas(db);
+  return plantillasVigentes(Object.fromEntries(Object.entries(guardadas).map(([clave, row]) => [clave, row.contenido])));
+}
+
 export async function obtenerLote(db, franchiseId, opciones = {}) {
   const bdd = await leerBdd(franchiseId, opciones);
   const hoyISO = mexicoTodayISO();
@@ -103,11 +124,12 @@ export async function obtenerLote(db, franchiseId, opciones = {}) {
     bdd.fuente.modificadoEn ? [mexicoTodayISO(new Date(bdd.fuente.modificadoEn)), hoyISO].sort()[0] : hoyISO,
     -REGLAS.pagoRecienteDias
   );
-  const [estado, pagados, yaEnviados, contactos] = await Promise.all([
+  const [estado, pagados, yaEnviados, contactos, plantillas] = await Promise.all([
     estadoApp(db, franchiseId, bdd.clientes, hoyISO),
     foliosPagados(db, franchiseId, desdePago),
     enviados(db, franchiseId),
     contactosPorGrupo(db, franchiseId),
+    opciones.plantillas ?? cargarPlantillas(db),
   ]);
   const lote = construirLote({
     hoyISO,
@@ -117,14 +139,16 @@ export async function obtenerLote(db, franchiseId, opciones = {}) {
     foliosPagados: pagados,
     enviados: yaEnviados,
     contactos,
+    plantillas,
   });
   return { ...lote, fuente: bdd.fuente };
 }
 
 // Registra el envío de un item del lote: una fila por periodo (por factura en preventivo,
 // por recordatorio del mes en correctivo). La llave única evita duplicados aunque dos
-// personas lo marquen al mismo tiempo. Devuelve los ids insertados.
-export async function registrarEnvio(db, item, canal, destino, userId) {
+// personas lo marquen al mismo tiempo. Guarda el texto tal como se envió (asunto solo en
+// correo) y si se editó a mano. Devuelve los ids insertados.
+export async function registrarEnvio(db, item, canal, destino, userId, { mensaje = null, asunto = null, editado = false } = {}) {
   const ids = [];
   for (const periodo of item.periodos) {
     const facturas = item.regla === "preventivo"
@@ -133,12 +157,13 @@ export async function registrarEnvio(db, item, canal, destino, userId) {
     const monto = Math.round(facturas.reduce((suma, factura) => suma + factura.saldo, 0) * 100) / 100;
     const { rows } = await db.query(
       `insert into campana_envios
-         (franchise_id, group_key, cliente_nombre, cliente_id, regla, periodo, canal, destino, folios, monto, enviado_por)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         (franchise_id, group_key, cliente_nombre, cliente_id, regla, periodo, canal, destino, folios, monto, enviado_por,
+          mensaje, asunto, editado)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        on conflict (franchise_id, group_key, regla, periodo) do nothing
        returning id`,
       [item.franchiseId, item.groupKey, item.nombre, item.clienteId, item.regla, periodo, canal, destino,
-        facturas.map((factura) => factura.folio), monto, userId]
+        facturas.map((factura) => factura.folio), monto, userId, mensaje, asunto, editado]
     );
     if (rows[0]) ids.push(rows[0].id);
   }

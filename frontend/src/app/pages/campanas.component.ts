@@ -5,7 +5,7 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
 import { moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
 
-type Pestana = 'whatsapp' | 'correo' | 'sinCanal' | 'escalamiento' | 'directorio' | 'historial';
+type Pestana = 'whatsapp' | 'correo' | 'sinCanal' | 'escalamiento' | 'directorio' | 'plantillas' | 'historial';
 
 interface ItemLote {
   franchiseId: string;
@@ -27,6 +27,35 @@ interface ItemLote {
   whatsappTexto: string;
   whatsappUrl: string | null;
   correoAsunto: string;
+  correoTexto: string;
+}
+
+interface CorreoPrevio {
+  item: ItemLote;
+  para: string;
+  asunto: string;
+  texto: string;
+}
+
+interface PlantillaMensaje {
+  clave: string;
+  titulo: string;
+  regla: 'preventivo' | 'correctivo';
+  canal: 'whatsapp' | 'correo';
+  tipo: 'asunto' | 'cuerpo';
+  limite: number;
+  contenido: string;
+  predeterminada: string;
+  personalizada: boolean;
+  actualizado: string | null;
+  actualizadoPor: string | null;
+  // Edición en pantalla
+  contenidoEdit: string;
+  vista?: string;
+  cargandoVista?: boolean;
+  guardando?: boolean;
+  error?: string;
+  guardado?: boolean;
 }
 
 interface Contacto {
@@ -57,11 +86,14 @@ const FRANQUICIA_LABEL: Record<string, string> = {
 };
 
 const CORREOS_POR_LOTE = 20;
+const ORDINAL_RECORDATORIO: Record<string, string> = { R1: '1er', R2: '2do', R3: '3er', R4: '4to', R5: '5to' };
 
 // Módulo independiente de Campañas: lote diario de recordatorios preventivos (al corriente,
-// vencimiento en 5 días) y correctivos (1-30 días, días 7 y 15), WhatsApp asistido para
-// residenciales, correo para comerciales autorizados, lista de escalamiento (31+ días) y
-// directorio de contactos. No registra gestiones en la bitácora del cliente.
+// vencimiento en 5 días) y correctivos (1-30 días, semanal: días 7, 15, 21 y fin de mes),
+// WhatsApp asistido para residenciales, correo para comerciales autorizados, lista de
+// escalamiento (31+ días), directorio de contactos y plantillas de los mensajes. Cada
+// mensaje se puede revisar y editar antes de enviarlo. No registra gestiones en la bitácora
+// del cliente.
 @Component({
   selector: 'app-campanas',
   standalone: true,
@@ -85,13 +117,22 @@ export class CampanasComponent implements OnChanges {
   registrados = new Map<string, number[]>();
   enCurso = new Set<string>();
   vistaPrevia = new Set<string>();
+  // Mensajes editados a mano antes de enviar (llave del item -> texto).
+  ediciones = new Map<string, string>();
 
   // Correo
   seleccion = new Set<string>();
   enviandoCorreos = false;
   progresoCorreo = '';
   resultadosCorreo = new Map<string, { ok: boolean; error?: string }>();
-  correoPrevio: { para: string; asunto: string; texto: string } | null = null;
+  correoPrevio: CorreoPrevio | null = null;
+  edicionesCorreo = new Map<string, { asunto: string; texto: string }>();
+
+  // Plantillas de los mensajes
+  plantillas: PlantillaMensaje[] = [];
+  variables: { clave: string; descripcion: string; ejemplo: string }[] = [];
+  plantillasCargadas = false;
+  cargandoPlantillas = false;
 
   // Directorio
   contactos: Contacto[] = [];
@@ -108,6 +149,7 @@ export class CampanasComponent implements OnChanges {
   // Historial
   historial: any[] = [];
   cargandoHistorial = false;
+  historialAbierto = new Set<number>();
 
   private solicitud = 0;
 
@@ -159,6 +201,10 @@ export class CampanasComponent implements OnChanges {
       this.resultadosCorreo.clear();
       const vigentes = new Set(this.correo.map((item) => this.llave(item)));
       this.seleccion = new Set([...this.seleccion].filter((llave) => vigentes.has(llave)));
+      // Las ediciones a mano se conservan mientras el recordatorio siga pendiente.
+      const pendientes = new Set((lote.pendientes ?? []).map((item: ItemLote) => this.llave(item)));
+      for (const llave of [...this.ediciones.keys()]) if (!pendientes.has(llave)) this.ediciones.delete(llave);
+      for (const llave of [...this.edicionesCorreo.keys()]) if (!pendientes.has(llave)) this.edicionesCorreo.delete(llave);
       if (refrescar && this.contactosCargados) await this.cargarContactos();
     } catch (error: any) {
       if (solicitud === this.solicitud) this.error = error.message ?? 'No se pudo armar el lote del día';
@@ -171,6 +217,7 @@ export class CampanasComponent implements OnChanges {
   setPestana(pestana: Pestana): void {
     this.pestana = pestana;
     if (pestana === 'directorio' && !this.contactosCargados) void this.cargarContactos();
+    if (pestana === 'plantillas' && !this.plantillasCargadas) void this.cargarPlantillas();
     if (pestana === 'historial') void this.cargarHistorial();
   }
 
@@ -180,15 +227,40 @@ export class CampanasComponent implements OnChanges {
 
   // ---- WhatsApp asistido ----
 
+  textoWhatsApp(item: ItemLote): string {
+    return this.ediciones.get(this.llave(item)) ?? item.whatsappTexto;
+  }
+
+  editarWhatsApp(item: ItemLote, texto: string): void {
+    if (texto === item.whatsappTexto) this.ediciones.delete(this.llave(item));
+    else this.ediciones.set(this.llave(item), texto);
+  }
+
+  editado(item: ItemLote): boolean {
+    return this.ediciones.has(this.llave(item));
+  }
+
+  restablecerWhatsApp(item: ItemLote): void {
+    this.ediciones.delete(this.llave(item));
+  }
+
   async enviarWhatsApp(item: ItemLote): Promise<void> {
     const llave = this.llave(item);
-    if (!item.whatsappUrl || this.enCurso.has(llave) || this.registrados.has(llave)) return;
+    if (!item.whatsappUrl || !item.telefono || this.enCurso.has(llave) || this.registrados.has(llave)) return;
+    const mensaje = this.ediciones.get(llave)?.trim();
+    if (mensaje === '') {
+      this.aviso = `${item.nombre}: el mensaje está vacío`;
+      return;
+    }
     // Se abre primero (dentro del clic) para que el navegador no lo bloquee como ventana
     // emergente; el registro se hace en paralelo.
-    window.open(item.whatsappUrl, '_blank', 'noopener');
+    const url = mensaje ? `https://wa.me/${item.telefono}?text=${encodeURIComponent(mensaje)}` : item.whatsappUrl;
+    window.open(url, '_blank', 'noopener');
     this.enCurso.add(llave);
     try {
-      const { ids } = await this.api.campanasRegistrarWhatsApp({ franchiseId: item.franchiseId, groupKey: item.groupKey, regla: item.regla });
+      const { ids } = await this.api.campanasRegistrarWhatsApp({
+        franchiseId: item.franchiseId, groupKey: item.groupKey, regla: item.regla, ...(mensaje ? { mensaje } : {}),
+      });
       this.registrados.set(llave, ids);
     } catch (error: any) {
       this.aviso = `${item.nombre}: ${error.message}`;
@@ -216,7 +288,7 @@ export class CampanasComponent implements OnChanges {
 
   async copiarMensaje(item: ItemLote): Promise<void> {
     try {
-      await navigator.clipboard.writeText(item.whatsappTexto);
+      await navigator.clipboard.writeText(this.textoWhatsApp(item));
       this.aviso = `Mensaje de ${item.nombre} copiado`;
     } catch {
       this.aviso = 'No se pudo copiar el mensaje';
@@ -228,6 +300,15 @@ export class CampanasComponent implements OnChanges {
     const llave = this.llave(item);
     if (this.vistaPrevia.has(llave)) this.vistaPrevia.delete(llave);
     else this.vistaPrevia.add(llave);
+  }
+
+  get todosVisibles(): boolean {
+    return this.whatsapp.length > 0 && this.whatsapp.every((item) => this.vistaPrevia.has(this.llave(item)));
+  }
+
+  toggleTodosVisibles(): void {
+    if (this.todosVisibles) this.vistaPrevia.clear();
+    else this.vistaPrevia = new Set(this.whatsapp.map((item) => this.llave(item)));
   }
 
   get whatsappRegistrados(): number {
@@ -256,13 +337,44 @@ export class CampanasComponent implements OnChanges {
     else this.seleccion = new Set(this.correosPendientes.map((item) => this.llave(item)));
   }
 
-  async verCorreo(item: ItemLote): Promise<void> {
-    try {
-      this.correoPrevio = await this.api.campanasVistaPrevia({ franchiseId: item.franchiseId, groupKey: item.groupKey, regla: item.regla });
-    } catch (error: any) {
-      this.aviso = error.message;
+  verCorreo(item: ItemLote): void {
+    const edicion = this.edicionesCorreo.get(this.llave(item));
+    this.correoPrevio = {
+      item,
+      para: item.destino ?? '',
+      asunto: edicion?.asunto ?? item.correoAsunto,
+      texto: edicion?.texto ?? item.correoTexto,
+    };
+  }
+
+  correoEditado(item: ItemLote): boolean {
+    return this.edicionesCorreo.has(this.llave(item));
+  }
+
+  asuntoCorreo(item: ItemLote): string {
+    return this.edicionesCorreo.get(this.llave(item))?.asunto ?? item.correoAsunto;
+  }
+
+  guardarEdicionCorreo(): void {
+    const previo = this.correoPrevio;
+    if (!previo) return;
+    const asunto = previo.asunto.replace(/\s+/g, ' ').trim();
+    const texto = previo.texto.trim();
+    if (!asunto || !texto) {
+      this.aviso = 'El asunto y el texto del correo no pueden quedar vacíos';
+      return;
     }
-    this.cdr.markForCheck();
+    const llave = this.llave(previo.item);
+    if (asunto === previo.item.correoAsunto && texto === previo.item.correoTexto.trim()) this.edicionesCorreo.delete(llave);
+    else this.edicionesCorreo.set(llave, { asunto, texto });
+    this.correoPrevio = null;
+  }
+
+  restablecerCorreo(): void {
+    const previo = this.correoPrevio;
+    if (!previo) return;
+    this.edicionesCorreo.delete(this.llave(previo.item));
+    this.correoPrevio = { ...previo, asunto: previo.item.correoAsunto, texto: previo.item.correoTexto };
   }
 
   async enviarCorreos(): Promise<void> {
@@ -278,7 +390,10 @@ export class CampanasComponent implements OnChanges {
         this.progresoCorreo = `Enviando ${Math.min(inicio + bloque.length, total)} de ${total}…`;
         this.cdr.markForCheck();
         const respuesta = await this.api.campanasEnviarCorreos(
-          bloque.map((item) => ({ franchiseId: item.franchiseId, groupKey: item.groupKey, regla: item.regla }))
+          bloque.map((item) => ({
+            franchiseId: item.franchiseId, groupKey: item.groupKey, regla: item.regla,
+            ...(this.edicionesCorreo.get(this.llave(item)) ?? {}),
+          }))
         );
         for (const resultado of respuesta.resultados) {
           const llave = this.llave(resultado);
@@ -286,6 +401,7 @@ export class CampanasComponent implements OnChanges {
           if (resultado.ok) {
             enviados += 1;
             this.seleccion.delete(llave);
+            this.edicionesCorreo.delete(llave);
           }
         }
       }
@@ -432,6 +548,95 @@ export class CampanasComponent implements OnChanges {
     this.setPestana('directorio');
   }
 
+  // ---- Plantillas de los mensajes ----
+
+  async cargarPlantillas(): Promise<void> {
+    this.cargandoPlantillas = true;
+    try {
+      const { plantillas, variables } = await this.api.campanasPlantillasMensaje();
+      this.plantillas = plantillas.map((plantilla: any) => ({ ...plantilla, contenidoEdit: plantilla.contenido }));
+      this.variables = variables;
+      this.plantillasCargadas = true;
+    } catch (error: any) {
+      this.error = error.message;
+    } finally {
+      this.cargandoPlantillas = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  plantillasDe(canal: 'whatsapp' | 'correo'): PlantillaMensaje[] {
+    return this.plantillas.filter((plantilla) => plantilla.canal === canal);
+  }
+
+  plantillaModificada(plantilla: PlantillaMensaje): boolean {
+    return plantilla.contenidoEdit.trim() !== plantilla.contenido;
+  }
+
+  // Inserta la variable donde está el cursor del campo de esa plantilla.
+  insertarVariable(plantilla: PlantillaMensaje, clave: string, campo: HTMLTextAreaElement | HTMLInputElement): void {
+    const token = `{${clave}}`;
+    const inicio = campo.selectionStart ?? plantilla.contenidoEdit.length;
+    const fin = campo.selectionEnd ?? inicio;
+    plantilla.contenidoEdit = plantilla.contenidoEdit.slice(0, inicio) + token + plantilla.contenidoEdit.slice(fin);
+    plantilla.guardado = false;
+    setTimeout(() => {
+      campo.focus();
+      campo.setSelectionRange(inicio + token.length, inicio + token.length);
+    });
+  }
+
+  async vistaPreviaPlantilla(plantilla: PlantillaMensaje): Promise<void> {
+    plantilla.cargandoVista = true;
+    plantilla.error = '';
+    try {
+      const { texto } = await this.api.campanasVistaPreviaPlantillaMensaje({
+        clave: plantilla.clave,
+        contenido: plantilla.contenidoEdit,
+        ...(this.franchise !== 'todas' ? { franchiseId: this.franchise } : {}),
+      });
+      plantilla.vista = texto;
+    } catch (error: any) {
+      plantilla.error = error.message;
+    } finally {
+      plantilla.cargandoVista = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async guardarPlantilla(plantilla: PlantillaMensaje): Promise<void> {
+    plantilla.guardando = true;
+    plantilla.error = '';
+    try {
+      this.aplicarPlantilla(plantilla, await this.api.campanasGuardarPlantillaMensaje(plantilla.clave, plantilla.contenidoEdit));
+    } catch (error: any) {
+      plantilla.error = error.message;
+    } finally {
+      plantilla.guardando = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async restablecerPlantilla(plantilla: PlantillaMensaje): Promise<void> {
+    if (!window.confirm(`¿Volver a la plantilla predeterminada de "${plantilla.titulo}"? Se pierde la versión editada.`)) return;
+    plantilla.guardando = true;
+    plantilla.error = '';
+    try {
+      this.aplicarPlantilla(plantilla, await this.api.campanasRestablecerPlantillaMensaje(plantilla.clave));
+    } catch (error: any) {
+      plantilla.error = error.message;
+    } finally {
+      plantilla.guardando = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  // Los mensajes del lote se arman con las plantillas: se recalcula para verlos ya con el cambio.
+  private aplicarPlantilla(plantilla: PlantillaMensaje, fila: any): void {
+    Object.assign(plantilla, { ...fila, contenidoEdit: fila.contenido, guardado: true, vista: undefined });
+    void this.cargar();
+  }
+
   // ---- Historial ----
 
   async cargarHistorial(): Promise<void> {
@@ -452,12 +657,27 @@ export class CampanasComponent implements OnChanges {
     return tramo === 'critical' ? 'Aviso de retiro de equipos o Acuerdo de pagos' : 'Aviso de deuda';
   }
 
-  descripcionVentanas(): { preventivo: string; correctivo: string } {
+  descripcionVentanas(): { preventivo: string; correctivo: string; calendario: string } {
     const ventanas = this.lote?.ventanas;
     const correctivo = ventanas?.correctivo
-      ? `${ventanas.correctivo.recordatorio === 'R1' ? '1er' : '2do'} recordatorio activo desde el ${this.shortDate(ventanas.correctivo.desdeISO)}`
+      ? `${this.ordinal(ventanas.correctivo.recordatorio)} recordatorio${ventanas.correctivo.finDeMes ? ' (fin de mes)' : ''} activo desde el ${this.shortDate(ventanas.correctivo.desdeISO)}`
       : `Próximo recordatorio: ${this.shortDate(ventanas?.proximoCorrectivoISO)}`;
-    return { preventivo: `Vencimiento en ${ventanas?.preventivo?.diasAntes ?? 5} días o menos`, correctivo };
+    const fechas = (ventanas?.calendario ?? []).map((ventana: any) => this.shortDate(ventana.desdeISO));
+    const calendario = fechas.length > 1 ? `Este mes: ${fechas.slice(0, -1).join(', ')} y ${fechas[fechas.length - 1]}` : '';
+    return { preventivo: `Vencimiento en ${ventanas?.preventivo?.diasAntes ?? 5} días o menos`, correctivo, calendario };
+  }
+
+  ordinal(recordatorio: string): string {
+    return ORDINAL_RECORDATORIO[recordatorio] ?? recordatorio;
+  }
+
+  etiquetaEnvio(envio: { regla: string; periodo: string }): string {
+    return envio.regla === 'preventivo' ? 'Preventivo' : `Correctivo ${this.ordinal(envio.periodo.slice(-2))} recordatorio`;
+  }
+
+  toggleHistorial(id: number): void {
+    if (this.historialAbierto.has(id)) this.historialAbierto.delete(id);
+    else this.historialAbierto.add(id);
   }
 
   folios(item: { facturas: { folio: string }[] }): string {

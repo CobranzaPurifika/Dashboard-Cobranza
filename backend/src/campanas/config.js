@@ -8,10 +8,12 @@ export const REGLAS = Object.freeze({
   // Preventivo: clientes al corriente cuya factura vence dentro de esta ventana (en días
   // naturales, incluido el día del vencimiento).
   preventivoDiasAntes: 5,
-  // Correctivo (1-30 días): dos recordatorios al mes. Si el día cae en fin de semana, la
-  // ventana empieza el siguiente día hábil. El primero queda pendiente hasta el día anterior
-  // al segundo; el segundo, hasta fin de mes.
-  correctivoDias: [7, 15],
+  // Correctivo (1-30 días): un recordatorio por semana, a partir de estos días del mes. Un
+  // día mayor al último del mes (31) se toma como fin de mes. Si el día cae en fin de
+  // semana, la ventana empieza el siguiente día hábil; si eso ya sería el mes siguiente, el
+  // día hábil anterior. Cada recordatorio queda pendiente hasta que abre el siguiente; el de
+  // fin de mes, hasta que termina el mes.
+  correctivoDias: [7, 15, 21, 31],
   // Fecha límite que se le da al cliente en el recordatorio correctivo.
   correctivoPlazoDiasHabiles: 5,
   // A partir de estos días de atraso el cliente no recibe mensaje masivo: pasa a la lista de
