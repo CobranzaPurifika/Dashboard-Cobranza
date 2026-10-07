@@ -119,6 +119,7 @@ const FRANQUICIA_LABEL: Record<string, string> = {
 };
 
 const CORREOS_POR_LOTE = 20;
+const PESTANAS_SUPERVISOR: Pestana[] = ['plantillas', 'historial'];
 const ORDINAL_RECORDATORIO: Record<string, string> = { R1: '1er', R2: '2do', R3: '3er', R4: '4to', R5: '5to' };
 
 // Módulo independiente de Campañas: lote diario de recordatorios preventivos (al corriente,
@@ -190,6 +191,8 @@ export class CampanasComponent implements OnChanges {
   constructor(private readonly api: ApiService, private readonly cdr: ChangeDetectorRef) {}
 
   ngOnChanges(changes: SimpleChanges): void {
+    // El supervisor solo consulta: entra directo al Historial.
+    if (changes['user'] && this.soloLectura && !PESTANAS_SUPERVISOR.includes(this.pestana)) this.pestana = 'historial';
     if (changes['franchise']) {
       this.contactosCargados = false;
       this.historial = [];
@@ -197,6 +200,11 @@ export class CampanasComponent implements OnChanges {
       if (this.pestana === 'directorio') void this.cargarContactos();
       if (this.pestana === 'historial') void this.cargarHistorial();
     }
+  }
+
+  // Supervisor: ve Historial y Plantillas (con vista previa); no arma el lote ni envía.
+  get soloLectura(): boolean {
+    return this.user?.role === 'supervisor';
   }
 
   get esAdmin(): boolean {
@@ -224,6 +232,7 @@ export class CampanasComponent implements OnChanges {
   }
 
   async cargar(refrescar = false): Promise<void> {
+    if (this.soloLectura) return;
     const solicitud = ++this.solicitud;
     this.cargando = true;
     this.error = '';
@@ -249,6 +258,7 @@ export class CampanasComponent implements OnChanges {
   }
 
   setPestana(pestana: Pestana): void {
+    if (this.soloLectura && !PESTANAS_SUPERVISOR.includes(pestana)) return;
     this.pestana = pestana;
     if (pestana === 'directorio' && !this.contactosCargados) void this.cargarContactos();
     if (pestana === 'plantillas' && !this.plantillasCargadas) void this.cargarPlantillas();

@@ -18,7 +18,7 @@
       <nav class="primary-nav" aria-label="Secciones">
         <button type="button" [class.active]="view === 'dashboard'" (click)="setView('dashboard')">Dashboard</button>
         @if (!isAnonymous) { <button type="button" [class.active]="view === 'management'" (click)="setView('management')">Gestión</button> }
-        @if (canRunCampaigns) { <button type="button" [class.active]="view === 'campanas'" (click)="setView('campanas')">Campañas</button> }
+        @if (canViewCampaigns) { <button type="button" [class.active]="view === 'campanas'" (click)="setView('campanas')">Campañas</button> }
       </nav>
 
       <nav class="franchise-tabs" aria-label="Franquicias">

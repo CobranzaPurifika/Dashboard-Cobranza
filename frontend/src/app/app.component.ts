@@ -136,6 +136,8 @@ export class AppComponent implements OnInit {
   get canConfigure(): boolean { return this.isAdmin || this.isSupervisor; }
   // Campañas (recordatorios masivos asistidos): quienes gestionan cobranza, admin y gestor.
   get canRunCampaigns(): boolean { return this.isAdmin || this.user?.role === 'gestor'; }
+  // El supervisor entra a Campañas solo para consultar el Historial y las Plantillas.
+  get canViewCampaigns(): boolean { return this.canRunCampaigns || this.isSupervisor; }
 
   async openApp(): Promise<void> {
     // getValidAccessToken() limpia una sesión que ya no se puede renovar. Conservamos
@@ -270,7 +272,7 @@ export class AppComponent implements OnInit {
 
   async setView(view: 'dashboard' | 'management' | 'campanas'): Promise<void> {
     if (view === 'management' && this.isAnonymous) return;
-    if (view === 'campanas' && !this.canRunCampaigns) return;
+    if (view === 'campanas' && !this.canViewCampaigns) return;
     if (view !== 'management') this.focusClient = null;
     this.view = view;
     if (!this.dashboardData) await this.loadDashboard();

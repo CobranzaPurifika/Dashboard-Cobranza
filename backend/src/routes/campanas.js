@@ -1,6 +1,7 @@
 // Rutas del módulo Campañas (cobranza preventiva y correctiva por envío masivo asistido).
 // Montadas en /api/campanas, siempre con sesión. Administradores y gestores; cada gestor
-// solo ve y opera las franquicias asignadas.
+// solo ve y opera las franquicias asignadas. El supervisor solo consulta Historial y
+// Plantillas.
 import express, { Router } from "express";
 import ExcelJS from "exceljs";
 import { pool } from "../db/pool.js";
@@ -24,10 +25,18 @@ import {
   validarPlantilla,
 } from "../campanas/plantillas.js";
 import { correoConfigurado, enviarCorreo, remitente, remitenteVisible } from "../campanas/correo.js";
+import { puedeUsarCampanas } from "../campanas/permisos.js";
 import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase, telefonoLegible } from "../campanas/contactos.js";
 
 export const campanasRouter = Router();
-campanasRouter.use(requireRole("admin", "gestor"));
+// Administradores y gestores usan todo el módulo; el supervisor solo consulta el Historial
+// y las Plantillas (ver campanas/permisos.js).
+campanasRouter.use((req, res, next) => {
+  if (!puedeUsarCampanas(req.user?.role, req.method, req.path)) {
+    return res.status(403).json({ error: "No tienes permisos para realizar esta acción" });
+  }
+  next();
+});
 
 const MAX_CORREOS_POR_SOLICITUD = 25;
 const PREFIJO_FRANQUICIA = Object.freeze({ aguascalientes: "AGS", cancun: "CUN", merida: "MID" });

@@ -1,6 +1,7 @@
 # Módulo Campañas — cobranza preventiva y correctiva
 
-Pestaña **Campañas** (admin y gestor). Arma cada día el lote de recordatorios a partir de la
+Pestaña **Campañas** (admin y gestor; el supervisor solo consulta el Historial y las
+Plantillas, con su vista previa, sin armar el lote ni enviar ni editar). Arma cada día el lote de recordatorios a partir de la
 BDD de Drive y lo envía de forma asistida: WhatsApp para residenciales y correo para
 comerciales autorizados. Es independiente del resto de la app.
 
