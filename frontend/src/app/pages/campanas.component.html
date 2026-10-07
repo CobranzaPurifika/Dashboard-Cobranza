@@ -40,18 +40,13 @@
     }
 
     <nav class="tabs" role="tablist" aria-label="Secciones de campañas">
-      @if (soloLectura) {
-        <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
-        <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
-      } @else {
-        <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button>
-        <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button>
-        <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
-        <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
-        <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
-        <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
-        <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
-      }
+      @if (puedeVer('whatsapp')) { <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button> }
+      @if (puedeVer('correo')) { <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button> }
+      @if (puedeVer('sinCanal')) { <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button> }
+      @if (puedeVer('escalamiento')) { <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button> }
+      @if (puedeVer('directorio')) { <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button> }
+      @if (puedeVer('plantillas')) { <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button> }
+      @if (puedeVer('historial')) { <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button> }
     </nav>
 
     <div class="tab-body">

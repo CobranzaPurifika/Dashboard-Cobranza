@@ -133,7 +133,14 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   documentResult: { fileName: string; warnings: string[] } | null = null;
   documentInvoicesData: DocumentInvoice[] = [];
   documentInvoicesLoading = false;
-  readonly documentTypes = DOCUMENT_TYPES;
+  // El gestor solo emite el Aviso de deuda: el botón lo abre directo, sin menú.
+  get documentTypes(): typeof DOCUMENT_TYPES {
+    return this.soloAvisoDeuda ? DOCUMENT_TYPES.filter((type) => type.value === 'aviso_deuda') : DOCUMENT_TYPES;
+  }
+
+  get soloAvisoDeuda(): boolean {
+    return this.user?.role === 'gestor';
+  }
   private queryTimer?: ReturnType<typeof setTimeout>;
   private priorityAbort?: AbortController;
   private detailAbort?: AbortController;
@@ -931,6 +938,11 @@ export class ManagementComponent implements OnChanges, OnDestroy {
   // "Generar documento" y "Lista negra" abren su propio panel bajo los botones; solo uno a
   // la vez para no apilar dos paneles en la ficha.
   toggleDocumentMenu(): void {
+    if (this.soloAvisoDeuda) {
+      this.blacklistPanelOpen = false;
+      void this.openDocumentForm('aviso_deuda');
+      return;
+    }
     this.documentMenuOpen = !this.documentMenuOpen;
     if (this.documentMenuOpen) this.blacklistPanelOpen = false;
   }

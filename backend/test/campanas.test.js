@@ -403,8 +403,19 @@ test("supervisor: solo consulta Historial y Plantillas (con vista previa)", () =
   ]) {
     assert.equal(puedeUsarCampanas("supervisor", metodo, ruta), false, `${metodo} ${ruta}`);
   }
-  assert.equal(puedeUsarCampanas("gestor", "POST", "/envios"), true);
   assert.equal(puedeUsarCampanas("admin", "GET", "/lote"), true);
+  assert.equal(puedeUsarCampanas("admin", "POST", "/correo/enviar"), true);
   assert.equal(puedeUsarCampanas("lector", "GET", "/envios"), false);
   assert.equal(puedeUsarCampanas(undefined, "GET", "/plantillas"), false);
+});
+
+test("gestor: WhatsApp, Directorio e Historial; sin correo ni plantillas", () => {
+  for (const [metodo, ruta] of [["GET", "/lote"], ["POST", "/envios"], ["DELETE", "/envios"], ["GET", "/envios"],
+    ["GET", "/contactos"], ["PUT", "/contactos"], ["GET", "/contactos/plantilla"]]) {
+    assert.equal(puedeUsarCampanas("gestor", metodo, ruta), true, `${metodo} ${ruta}`);
+  }
+  for (const [metodo, ruta] of [["POST", "/correo/enviar"], ["GET", "/correo/vista-previa"], ["GET", "/plantillas"],
+    ["POST", "/plantillas/vista-previa"], ["PUT", "/plantillas/correctivo_r1_whatsapp"], ["POST", "/contactos/importar"]]) {
+    assert.equal(puedeUsarCampanas("gestor", metodo, ruta), false, `${metodo} ${ruta}`);
+  }
 });

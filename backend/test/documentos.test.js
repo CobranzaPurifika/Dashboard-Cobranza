@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildDocumentData, invoiceSchedule } from "../src/domain/documentos.js";
+import { buildDocumentData, documentosPermitidos, invoiceSchedule } from "../src/domain/documentos.js";
 import { generateDocumentPdf } from "../src/documents/generate.js";
 import { fechaConDia, fechaLarga, listaFolios, slugCliente } from "../src/documents/format.js";
 
@@ -140,4 +140,11 @@ test("un documento con muchas facturas se compacta antes de pasar a otra página
   const pdf = await generateDocumentPdf("aviso_deuda", data);
   assert.equal(pdf.fitsOnePage, true);
   assert.ok(pdf.density > 0);
+});
+
+test("el gestor solo genera el aviso de deuda; admin y supervisor, los tres", () => {
+  assert.deepEqual(documentosPermitidos("gestor"), ["aviso_deuda"]);
+  for (const role of ["admin", "supervisor"]) {
+    assert.deepEqual(documentosPermitidos(role).sort(), ["acuerdo_pagos", "aviso_deuda", "aviso_retiro"]);
+  }
 });
