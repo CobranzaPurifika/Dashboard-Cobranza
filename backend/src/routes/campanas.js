@@ -10,7 +10,7 @@ import { normalizeBusinessKey } from "../imports/consolidation.js";
 import { addCalendarDays, mexicoTodayISO } from "../domain/dates.js";
 import { cargarPlantillas, contactosPorGrupo, leerBdd, obtenerLote, plantillasGuardadas, registrarEnvio } from "../campanas/service.js";
 import { calendarioCorrectivo, correoDeItem, sumarDiasHabiles } from "../campanas/reglas.js";
-import { REGLAS } from "../campanas/config.js";
+import { FRANQUICIAS, REGLAS } from "../campanas/config.js";
 import { asuntoCorreo, correoHtml, correoTexto, mensajeWhatsApp } from "../campanas/mensajes.js";
 import {
   LIMITE_ASUNTO,
@@ -23,7 +23,7 @@ import {
   plantillasVigentes,
   validarPlantilla,
 } from "../campanas/plantillas.js";
-import { correoConfigurado, enviarCorreo, remitente } from "../campanas/correo.js";
+import { correoConfigurado, enviarCorreo, remitente, remitenteVisible } from "../campanas/correo.js";
 import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase, telefonoLegible } from "../campanas/contactos.js";
 
 export const campanasRouter = Router();
@@ -302,7 +302,8 @@ function itemDeEjemplo(plantilla, franchiseId) {
 }
 
 // POST /api/campanas/plantillas/vista-previa  body: { clave, contenido, franchiseId? }
-// Muestra cómo queda una plantilla (guardada o no) con un cliente de ejemplo.
+// Muestra cómo queda una plantilla (guardada o no) con un cliente de ejemplo. Incluye los
+// datos para simular la pantalla: franquicia (contacto de WhatsApp), cliente y remitente.
 campanasRouter.post("/plantillas/vista-previa", async (req, res, next) => {
   try {
     const { clave, contenido } = req.body ?? {};
@@ -313,9 +314,10 @@ campanasRouter.post("/plantillas/vista-previa", async (req, res, next) => {
     const plantilla = PLANTILLAS[clave];
     const plantillas = { ...plantillasVigentes(), [clave]: texto };
     const item = itemDeEjemplo(plantilla, franchiseId);
-    if (plantilla.canal === "whatsapp") return res.json({ texto: mensajeWhatsApp(item, plantillas) });
-    if (plantilla.tipo === "asunto") return res.json({ texto: asuntoCorreo(item, plantillas) });
-    res.json({ texto: correoTexto(item, plantillas), html: correoHtml(item, plantillas) });
+    const contexto = { franquicia: `Purifika ${FRANQUICIAS[franchiseId].label}`, cliente: item.nombre, remitente: remitenteVisible() };
+    if (plantilla.canal === "whatsapp") return res.json({ ...contexto, texto: mensajeWhatsApp(item, plantillas) });
+    if (plantilla.tipo === "asunto") return res.json({ ...contexto, texto: asuntoCorreo(item, plantillas) });
+    res.json({ ...contexto, texto: correoTexto(item, plantillas), html: correoHtml(item, plantillas) });
   } catch (err) {
     if (err.statusCode === 400) err.expose = true;
     next(err);

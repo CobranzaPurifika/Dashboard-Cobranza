@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, S
 import { FormsModule } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { ApiService } from '../core/api.service';
+import { VistaCorreoComponent, VistaWhatsappComponent } from './vista-mensaje.component';
 import { moneyExact as formatMoneyExact, shortDate as formatShortDate, tramoLabel as formatTramoLabel } from '../core/format';
 
 type Pestana = 'whatsapp' | 'correo' | 'sinCanal' | 'escalamiento' | 'directorio' | 'plantillas' | 'historial';
@@ -74,8 +75,17 @@ interface TarjetaPlantilla {
   // Último campo enfocado, para insertar ahí las variables.
   campoActivo: 'asunto' | 'cuerpo';
   elementoActivo?: HTMLInputElement | HTMLTextAreaElement;
-  vista?: { asunto?: string; texto: string };
+  // Vista previa simulada (celular con WhatsApp o bandeja de correo) con un cliente ficticio.
+  vista?: {
+    asunto?: string;
+    texto: string;
+    html?: string;
+    franquicia: string;
+    cliente: string;
+    remitente: { nombre: string; correo: string };
+  };
   cargandoVista?: boolean;
+  refrescoVista?: ReturnType<typeof setTimeout>;
   guardando?: boolean;
   error?: string;
   guardado?: boolean;
@@ -120,7 +130,7 @@ const ORDINAL_RECORDATORIO: Record<string, string> = { R1: '1er', R2: '2do', R3:
 @Component({
   selector: 'app-campanas',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonIcon, IonSpinner],
+  imports: [CommonModule, FormsModule, IonIcon, IonSpinner, VistaWhatsappComponent, VistaCorreoComponent],
   templateUrl: './campanas.component.html',
   styleUrl: './campanas.component.scss',
 })
@@ -634,11 +644,22 @@ export class CampanasComponent implements OnChanges {
 
   toggleTarjeta(tarjeta: TarjetaPlantilla): void {
     tarjeta.abierta = !tarjeta.abierta;
-    if (!tarjeta.abierta) tarjeta.elementoActivo = undefined;
+    if (!tarjeta.abierta) {
+      tarjeta.elementoActivo = undefined;
+      this.cerrarVista(tarjeta);
+    }
   }
 
+  // Con la vista previa abierta, se actualiza sola un momento después de dejar de escribir.
   marcarCambio(tarjeta: TarjetaPlantilla): void {
     tarjeta.guardado = false;
+    if (!tarjeta.vista) return;
+    clearTimeout(tarjeta.refrescoVista);
+    tarjeta.refrescoVista = setTimeout(() => void this.cargarVista(tarjeta), 600);
+  }
+
+  cerrarVista(tarjeta: TarjetaPlantilla): void {
+    clearTimeout(tarjeta.refrescoVista);
     tarjeta.vista = undefined;
   }
 
@@ -666,6 +687,11 @@ export class CampanasComponent implements OnChanges {
   }
 
   async vistaPreviaTarjeta(tarjeta: TarjetaPlantilla): Promise<void> {
+    if (tarjeta.vista) this.cerrarVista(tarjeta);
+    else await this.cargarVista(tarjeta);
+  }
+
+  private async cargarVista(tarjeta: TarjetaPlantilla): Promise<void> {
     tarjeta.cargandoVista = true;
     tarjeta.error = '';
     const franquicia = this.franchise !== 'todas' ? { franchiseId: this.franchise } : {};
@@ -676,7 +702,14 @@ export class CampanasComponent implements OnChanges {
           : Promise.resolve(null),
         this.api.campanasVistaPreviaPlantillaMensaje({ clave: tarjeta.cuerpo.clave, contenido: tarjeta.cuerpo.contenidoEdit, ...franquicia }),
       ]);
-      tarjeta.vista = { asunto: asunto?.texto, texto: cuerpo.texto };
+      tarjeta.vista = {
+        asunto: asunto?.texto,
+        texto: cuerpo.texto,
+        html: cuerpo.html,
+        franquicia: cuerpo.franquicia,
+        cliente: cuerpo.cliente,
+        remitente: cuerpo.remitente,
+      };
     } catch (error: any) {
       tarjeta.error = error.message;
     } finally {
@@ -719,7 +752,7 @@ export class CampanasComponent implements OnChanges {
         }
       }
       tarjeta.guardado = true;
-      tarjeta.vista = undefined;
+      if (tarjeta.vista) void this.cargarVista(tarjeta);
     } catch (error: any) {
       tarjeta.error = error.message;
     } finally {
