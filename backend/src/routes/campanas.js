@@ -7,8 +7,20 @@ import { pool } from "../db/pool.js";
 import { requireRole } from "../auth/authorization.js";
 import { FRANCHISE_IDS, resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { normalizeBusinessKey } from "../imports/consolidation.js";
-import { contactosPorGrupo, leerBdd, obtenerLote, registrarEnvio } from "../campanas/service.js";
-import { correoDeItem } from "../campanas/reglas.js";
+import { mexicoTodayISO } from "../domain/dates.js";
+import { cargarPlantillas, contactosPorGrupo, leerBdd, obtenerLote, plantillasGuardadas, registrarEnvio } from "../campanas/service.js";
+import { correoDeItem, ultimoDiaDelMes } from "../campanas/reglas.js";
+import { asuntoCorreo, correoHtml, correoTexto, mensajeWhatsApp } from "../campanas/mensajes.js";
+import {
+  LIMITE_ASUNTO,
+  LIMITE_CUERPO,
+  PLANTILLAS,
+  VARIABLES,
+  correoHtmlDesdeTexto,
+  esClavePlantilla,
+  plantillasVigentes,
+  validarPlantilla,
+} from "../campanas/plantillas.js";
 import { correoConfigurado, enviarCorreo, remitente } from "../campanas/correo.js";
 import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase, telefonoLegible } from "../campanas/contactos.js";
 
@@ -53,24 +65,41 @@ campanasRouter.get("/lote", async (req, res, next) => {
   }
 });
 
-async function buscarPendiente(user, { franchiseId, groupKey, regla }) {
+async function buscarPendiente(user, { franchiseId, groupKey, regla }, opciones = {}) {
   const franquicia = franquiciaUnica(user, franchiseId);
-  const lote = await obtenerLote(pool, franquicia);
+  const lote = await obtenerLote(pool, franquicia, opciones);
   return lote.pendientes.find((item) => item.groupKey === groupKey && item.regla === regla) ?? null;
 }
 
-// POST /api/campanas/envios  body: { franchiseId, groupKey, regla }
+// Texto editado a mano para un envío. null si no viene (se usa el de la plantilla).
+function textoEditado(valor, limite, etiqueta, { unaLinea = false } = {}) {
+  if (valor === undefined || valor === null) return null;
+  let texto = String(valor).replace(/\r\n?/g, "\n").trim();
+  if (unaLinea) texto = texto.replace(/\s+/g, " ");
+  const error = (mensaje) => Object.assign(new Error(mensaje), { statusCode: 400 });
+  if (!texto) throw error(`${etiqueta} no puede quedar vacío`);
+  if (texto.length > limite) throw error(`${etiqueta} supera ${limite} caracteres`);
+  return texto;
+}
+
+// POST /api/campanas/envios  body: { franchiseId, groupKey, regla, mensaje? }
 // Registra un recordatorio de WhatsApp enviado por el gestor (el texto se abre en WhatsApp
-// desde la pantalla). El item se vuelve a calcular en el servidor.
+// desde la pantalla, con las ediciones que haya hecho). El item se vuelve a calcular en el
+// servidor; el texto se guarda para el Historial.
 campanasRouter.post("/envios", async (req, res, next) => {
   try {
+    const mensaje = textoEditado(req.body?.mensaje, LIMITE_CUERPO, "El mensaje");
     const item = await buscarPendiente(req.user, req.body ?? {});
     if (!item) return res.status(409).json({ error: "El recordatorio ya no está pendiente" });
     if (!item.telefono) return res.status(400).json({ error: "El cliente no tiene teléfono registrado" });
-    const ids = await registrarEnvio(pool, item, "whatsapp", item.telefono, req.user.id);
+    const ids = await registrarEnvio(pool, item, "whatsapp", item.telefono, req.user.id, {
+      mensaje: mensaje ?? item.whatsappTexto,
+      editado: mensaje !== null && mensaje !== item.whatsappTexto.trim(),
+    });
     if (ids.length === 0) return res.status(409).json({ error: "Este recordatorio ya se había registrado" });
     res.status(201).json({ ids });
   } catch (err) {
+    if (err.statusCode === 400) err.expose = true;
     next(err);
   }
 });
@@ -93,9 +122,11 @@ campanasRouter.delete("/envios", async (req, res, next) => {
   }
 });
 
-// POST /api/campanas/correo/enviar  body: { items: [{ franchiseId, groupKey, regla }] }
+// POST /api/campanas/correo/enviar  body: { items: [{ franchiseId, groupKey, regla, asunto?, texto? }] }
 // Envía los correos seleccionados (comerciales autorizados). Primero reserva el envío en la
 // bitácora para que dos personas no manden el mismo correo; si el envío falla, se libera.
+// asunto / texto: ediciones hechas en la vista previa para ese cliente; sin ellas se usa la
+// plantilla.
 campanasRouter.post("/correo/enviar", async (req, res, next) => {
   try {
     if (!correoConfigurado()) return res.status(503).json({ error: "El envío de correo no está configurado en el servidor" });
@@ -105,23 +136,34 @@ campanasRouter.post("/correo/enviar", async (req, res, next) => {
       return res.status(400).json({ error: `Máximo ${MAX_CORREOS_POR_SOLICITUD} correos por solicitud` });
     }
 
+    const plantillas = await cargarPlantillas(pool);
     const resultados = [];
     for (const solicitado of solicitados) {
       const etiqueta = { groupKey: solicitado.groupKey, franchiseId: solicitado.franchiseId, regla: solicitado.regla };
       try {
-        const item = await buscarPendiente(req.user, solicitado);
+        const asuntoEditado = textoEditado(solicitado.asunto, LIMITE_ASUNTO, "El asunto", { unaLinea: true });
+        const textoEditadoCorreo = textoEditado(solicitado.texto, LIMITE_CUERPO, "El correo");
+        const item = await buscarPendiente(req.user, solicitado, { plantillas });
         if (!item || item.canal !== "correo") {
           resultados.push({ ...etiqueta, ok: false, error: "Ya no está pendiente de correo" });
           continue;
         }
-        const ids = await registrarEnvio(pool, item, "correo", item.destino, req.user.id);
+        const correo = correoDeItem(item, plantillas);
+        const textoCambio = textoEditadoCorreo !== null && textoEditadoCorreo !== correo.texto.trim();
+        const asunto = asuntoEditado ?? correo.asunto;
+        const texto = textoCambio ? textoEditadoCorreo : correo.texto;
+        const html = textoCambio ? correoHtmlDesdeTexto(texto) : correo.html;
+        const ids = await registrarEnvio(pool, item, "correo", item.destino, req.user.id, {
+          mensaje: texto,
+          asunto,
+          editado: textoCambio || asunto !== correo.asunto,
+        });
         if (!ids.length) {
           resultados.push({ ...etiqueta, ok: false, error: "Ya se había enviado" });
           continue;
         }
         try {
-          const correo = correoDeItem(item);
-          await enviarCorreo({ para: item.destino, asunto: correo.asunto, texto: correo.texto, html: correo.html });
+          await enviarCorreo({ para: item.destino, asunto, texto, html });
           resultados.push({ ...etiqueta, ok: true, destino: item.destino });
         } catch (error) {
           await pool.query("delete from campana_envios where id = any($1::bigint[])", [ids]);
@@ -141,10 +183,117 @@ campanasRouter.post("/correo/enviar", async (req, res, next) => {
 // GET /api/campanas/correo/vista-previa?franchiseId=&groupKey=&regla=
 campanasRouter.get("/correo/vista-previa", async (req, res, next) => {
   try {
-    const item = await buscarPendiente(req.user, req.query);
+    const plantillas = await cargarPlantillas(pool);
+    const item = await buscarPendiente(req.user, req.query, { plantillas });
     if (!item) return res.status(404).json({ error: "El recordatorio ya no está pendiente" });
-    res.json({ para: item.destino, ...correoDeItem(item) });
+    res.json({ para: item.destino, ...correoDeItem(item, plantillas) });
   } catch (err) {
+    next(err);
+  }
+});
+
+// ---- Plantillas ----
+
+function describirPlantillas(guardadas) {
+  return Object.entries(PLANTILLAS).map(([clave, plantilla]) => ({
+    clave,
+    titulo: plantilla.titulo,
+    regla: plantilla.regla,
+    canal: plantilla.canal,
+    tipo: plantilla.tipo,
+    limite: plantilla.tipo === "asunto" ? LIMITE_ASUNTO : LIMITE_CUERPO,
+    contenido: guardadas[clave]?.contenido ?? plantilla.predeterminada,
+    predeterminada: plantilla.predeterminada,
+    personalizada: Boolean(guardadas[clave]),
+    actualizado: guardadas[clave]?.updated_at ?? null,
+    actualizadoPor: guardadas[clave]?.actualizado_por ?? null,
+  }));
+}
+
+// GET /api/campanas/plantillas -> plantillas vigentes y variables disponibles
+campanasRouter.get("/plantillas", async (_req, res, next) => {
+  try {
+    res.json({ plantillas: describirPlantillas(await plantillasGuardadas(pool)), variables: VARIABLES });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/campanas/plantillas/:clave  body: { contenido }  (solo admin)
+// Guardar la predeterminada tal cual equivale a restablecerla.
+campanasRouter.put("/plantillas/:clave", requireRole("admin"), async (req, res, next) => {
+  try {
+    const { clave } = req.params;
+    if (!esClavePlantilla(clave)) return res.status(404).json({ error: "Plantilla desconocida" });
+    const contenido = validarPlantilla(clave, req.body?.contenido);
+    if (contenido === PLANTILLAS[clave].predeterminada) {
+      await pool.query("delete from campana_plantillas where clave = $1", [clave]);
+    } else {
+      await pool.query(
+        `insert into campana_plantillas (clave, contenido, updated_by, updated_at)
+         values ($1, $2, $3, now())
+         on conflict (clave) do update set contenido = excluded.contenido, updated_by = excluded.updated_by, updated_at = now()`,
+        [clave, contenido, req.user.id]
+      );
+    }
+    res.json(describirPlantillas(await plantillasGuardadas(pool)).find((plantilla) => plantilla.clave === clave));
+  } catch (err) {
+    if (err.statusCode === 400) err.expose = true;
+    next(err);
+  }
+});
+
+// DELETE /api/campanas/plantillas/:clave  (solo admin) -> vuelve a la predeterminada
+campanasRouter.delete("/plantillas/:clave", requireRole("admin"), async (req, res, next) => {
+  try {
+    const { clave } = req.params;
+    if (!esClavePlantilla(clave)) return res.status(404).json({ error: "Plantilla desconocida" });
+    await pool.query("delete from campana_plantillas where clave = $1", [clave]);
+    res.json(describirPlantillas(await plantillasGuardadas(pool)).find((plantilla) => plantilla.clave === clave));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cliente de ejemplo para la vista previa de una plantilla: dos facturas, con vencimientos
+// coherentes con la regla, en la franquicia elegida.
+function itemDeEjemplo(regla, franchiseId) {
+  const mes = mexicoTodayISO().slice(0, 7);
+  const dia = (numero) => `${mes}-${String(Math.min(numero, ultimoDiaDelMes(mes))).padStart(2, "0")}`;
+  const prefijo = PREFIJO_FRANQUICIA[franchiseId];
+  const correctivo = regla === "correctivo";
+  const facturas = [
+    { folio: `${prefijo}-1024`, saldo: 1250, vencimientoISO: correctivo ? dia(1) : dia(28), diasAtraso: correctivo ? 21 : -3 },
+    { folio: `${prefijo}-1101`, saldo: 850, vencimientoISO: correctivo ? dia(8) : dia(28), diasAtraso: correctivo ? 14 : -3 },
+  ];
+  return {
+    regla,
+    franchiseId,
+    nombre: "María López",
+    facturas,
+    monto: 2100,
+    fechaLimiteISO: correctivo ? dia(22) : dia(28),
+    atrasoMaximo: correctivo ? 21 : 0,
+  };
+}
+
+// POST /api/campanas/plantillas/vista-previa  body: { clave, contenido, franchiseId? }
+// Muestra cómo queda una plantilla (guardada o no) con un cliente de ejemplo.
+campanasRouter.post("/plantillas/vista-previa", async (req, res, next) => {
+  try {
+    const { clave, contenido } = req.body ?? {};
+    const texto = validarPlantilla(clave, contenido);
+    const franchiseId = FRANCHISE_IDS.includes(req.body?.franchiseId)
+      ? franquiciaUnica(req.user, req.body.franchiseId)
+      : resolveFranchiseScope(req.user, "todas")[0];
+    const plantilla = PLANTILLAS[clave];
+    const plantillas = { ...plantillasVigentes(), [clave]: texto };
+    const item = itemDeEjemplo(plantilla.regla, franchiseId);
+    if (plantilla.canal === "whatsapp") return res.json({ texto: mensajeWhatsApp(item, plantillas) });
+    if (plantilla.tipo === "asunto") return res.json({ texto: asuntoCorreo(item, plantillas) });
+    res.json({ texto: correoTexto(item, plantillas), html: correoHtml(item, plantillas) });
+  } catch (err) {
+    if (err.statusCode === 400) err.expose = true;
     next(err);
   }
 });
@@ -157,6 +306,7 @@ campanasRouter.get("/envios", async (req, res, next) => {
     const { rows } = await pool.query(
       `select e.id, e.franchise_id, e.group_key, e.cliente_nombre, e.cliente_id, e.regla, e.periodo,
               e.canal, e.destino, e.folios, e.monto::float as monto, e.enviado_at,
+              e.mensaje, e.asunto, e.editado,
               u.display_name as enviado_por
        from campana_envios e left join app_users u on u.id = e.enviado_por
        where e.franchise_id = any($1::text[]) and e.enviado_at >= now() - make_interval(days => $2)
@@ -385,10 +535,18 @@ campanasRouter.use((err, _req, _res, next) => {
     err.statusCode = 413;
     err.expose = true;
     err.message = "El archivo supera 5 MB";
+  } else if (err?.code === "42P01" && /campana_plantillas/.test(String(err.message))) {
+    err.statusCode = 503;
+    err.expose = true;
+    err.message = "Falta aplicar en la base de datos la migración de plantillas de Campañas (20261005090000_campanas_plantillas.sql)";
   } else if (err?.code === "42P01" && /campana_/.test(String(err.message))) {
     err.statusCode = 503;
     err.expose = true;
     err.message = "Falta aplicar en la base de datos la migración del módulo Campañas (20261002090000_campanas_cobranza.sql)";
+  } else if (err?.code === "42703" && /mensaje|asunto|editado/.test(String(err.message))) {
+    err.statusCode = 503;
+    err.expose = true;
+    err.message = "Falta aplicar en la base de datos la migración de plantillas de Campañas (20261005090000_campanas_plantillas.sql)";
   } else if (/^Drive respondió|credenciales de Google Drive/.test(String(err?.message))) {
     console.error("[campanas] drive", err);
     err.statusCode = 502;

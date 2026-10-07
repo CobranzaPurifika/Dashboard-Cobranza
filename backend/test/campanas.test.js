@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, parseContactosCsv, properCase, telefonoLegible } from "../src/campanas/contactos.js";
 import { correoDeItem } from "../src/campanas/reglas.js";
 import {
+  calendarioCorrectivo,
   calendarioFactura,
   construirLote,
   llaveEnvio,
@@ -13,6 +14,7 @@ import {
   sumarDiasHabiles,
   ventanas,
 } from "../src/campanas/reglas.js";
+import { correoHtmlDesdeTexto, plantillasVigentes, validarPlantilla } from "../src/campanas/plantillas.js";
 
 // Fila de BDD con las posiciones de columna que usa la importación oficial.
 function filaBdd({ grupo, rfc = "XAXX010101000", folio, fecha, credito = "15", diasBdd = "0", saldo, estatus = "Facturada", ejecutivo = "" }) {
@@ -49,18 +51,41 @@ test("omite filas que no son Facturada / Pago parcial o con saldo cero", () => {
   assert.deepEqual(facturas.map((factura) => factura.folio), ["AGS2-3"]);
 });
 
-test("ventanas del correctivo: día 7 y 15, recorridas al siguiente día hábil", () => {
-  // Noviembre 2026: el 7 es sábado y el 15 domingo.
+test("correctivo semanal: días 7, 15, 21 y fin de mes, recorridos al siguiente día hábil", () => {
+  // Noviembre 2026: el 7 es sábado, el 15 domingo, el 21 sábado y el 30 lunes.
   assert.equal(primerDiaHabilDesde("2026-11-07"), "2026-11-09");
+  assert.deepEqual(calendarioCorrectivo("2026-11").map((ventana) => [ventana.periodo, ventana.desdeISO]), [
+    ["2026-11-R1", "2026-11-09"],
+    ["2026-11-R2", "2026-11-16"],
+    ["2026-11-R3", "2026-11-23"],
+    ["2026-11-R4", "2026-11-30"],
+  ]);
   assert.equal(ventanas("2026-11-06").correctivo, null);
   assert.equal(ventanas("2026-11-06").proximoCorrectivoISO, "2026-11-09");
   assert.equal(ventanas("2026-11-08").correctivo, null);
   assert.equal(ventanas("2026-11-09").correctivo.periodo, "2026-11-R1");
   assert.equal(ventanas("2026-11-15").correctivo.periodo, "2026-11-R1");
   assert.equal(ventanas("2026-11-16").correctivo.periodo, "2026-11-R2");
-  assert.equal(ventanas("2026-11-30").correctivo.periodo, "2026-11-R2");
+  assert.equal(ventanas("2026-11-22").correctivo.periodo, "2026-11-R2");
+  assert.equal(ventanas("2026-11-23").correctivo.periodo, "2026-11-R3");
+  assert.equal(ventanas("2026-11-29").correctivo.periodo, "2026-11-R3");
+  assert.equal(ventanas("2026-11-30").correctivo.periodo, "2026-11-R4");
+  assert.equal(ventanas("2026-11-30").proximoCorrectivoISO, "2026-12-07");
   // Octubre 2026: el 7 es miércoles.
   assert.equal(ventanas("2026-10-07").correctivo.periodo, "2026-10-R1");
+  // Del día 1 al 6 no hay correctivo: el de fin de mes no se arrastra al mes siguiente.
+  assert.equal(ventanas("2026-12-01").correctivo, null);
+});
+
+test("fin de mes en fin de semana se adelanta al viernes, sin salirse del mes", () => {
+  // Octubre 2026: el 31 es sábado; el 21, miércoles.
+  assert.deepEqual(calendarioCorrectivo("2026-10").map((ventana) => ventana.desdeISO), ["2026-10-07", "2026-10-15", "2026-10-21", "2026-10-30"]);
+  assert.equal(calendarioCorrectivo("2026-10").at(-1).finDeMes, true);
+  assert.equal(ventanas("2026-10-31").correctivo.periodo, "2026-10-R4");
+  // Febrero 2027: el 21 es domingo (pasa al 22) y el 28, domingo (se adelanta al 26).
+  assert.deepEqual(calendarioCorrectivo("2027-02").map((ventana) => ventana.desdeISO), ["2027-02-08", "2027-02-15", "2027-02-22", "2027-02-26"]);
+  // Abril 2027: fin de mes es el 30 (viernes).
+  assert.equal(calendarioCorrectivo("2027-04").at(-1).desdeISO, "2027-04-30");
 });
 
 test("suma días hábiles saltando fines de semana", () => {
@@ -117,6 +142,60 @@ test("correctivo 1-30: solo dentro de su ventana y una vez por recordatorio del 
   assert.equal(repetido.pendientes.length, 0);
   const segundo = construirLote({ hoyISO: "2026-10-15", franchiseId: "aguascalientes", clientes: clientesDe(filas), enviados });
   assert.deepEqual(segundo.pendientes[0].periodos, ["2026-10-R2"]);
+  // Para el 21 la factura anterior ya pasó a escalamiento: se usa una más reciente.
+  const recientes = [filaBdd({ grupo: "Taller Ruiz", folio: "AGS2-21", fecha: "15/09/2026", credito: "15", saldo: "850" })];
+  const tercero = construirLote({ hoyISO: "2026-10-21", franchiseId: "aguascalientes", clientes: clientesDe(recientes), enviados });
+  assert.deepEqual(tercero.pendientes[0].periodos, ["2026-10-R3"]);
+});
+
+test("correctivo personalizado: nombre, franquicia, detalle de facturas y datos de transferencia", () => {
+  const filas = [
+    filaBdd({ grupo: "TALLER RUIZ", folio: "AGS2-20", fecha: "01/09/2026", credito: "15", saldo: "1200" }),
+    filaBdd({ grupo: "TALLER RUIZ", folio: "AGS2-21", fecha: "15/09/2026", credito: "15", saldo: "850.5" }),
+  ];
+  const lote = construirLote({
+    hoyISO: "2026-10-07",
+    franchiseId: "aguascalientes",
+    clientes: clientesDe(filas),
+    contactos: new Map([["taller ruiz", { telefono: "524491234567" }]]),
+  });
+  const texto = lote.pendientes[0].whatsappTexto;
+  assert.match(texto, /^Hola, Taller Ruiz\. Te saludamos de Purifika Aguascalientes\./);
+  assert.match(texto, /saldo pendiente de \$2,050\.50 MXN/);
+  assert.match(texto, /• AGS2-20 — \$1,200\.00 MXN — venció el 16 de septiembre de 2026/);
+  assert.match(texto, /• AGS2-21 — \$850\.50 MXN — venció el 30 de septiembre de 2026/);
+  assert.match(texto, /a más tardar el 14 de octubre de 2026/);
+  assert.match(texto, /Beneficiario: Stream Ingeniería Sustentable\nBanco: Banco Santander México, S\.A\.\nCuenta: 65509223777\nCLABE: 014010655092237775/);
+  assert.doesNotMatch(texto, /\{[a-z_]+\}/);
+});
+
+test("usa la plantilla editada por el administrador", () => {
+  const filas = [filaBdd({ grupo: "Ana Ruiz", folio: "MID-1", fecha: "01/09/2026", saldo: "300" })];
+  const plantillas = plantillasVigentes({ correctivo_whatsapp: "Hola {nombre}, debes {monto} ({folios}) a {franquicia}. CLABE {clabe}" });
+  const lote = construirLote({
+    hoyISO: "2026-10-07",
+    franchiseId: "merida",
+    clientes: clientesDe(filas, "merida"),
+    contactos: new Map([["ana ruiz", { telefono: "529991234567" }]]),
+    plantillas,
+  });
+  assert.equal(lote.pendientes[0].whatsappTexto, "Hola Ana Ruiz, debes $300.00 MXN (MID-1) a Purifika Mérida. CLABE 014010655094078589");
+  assert.match(lote.pendientes[0].whatsappUrl, /Hola%20Ana%20Ruiz/);
+});
+
+test("valida las plantillas antes de guardarlas", () => {
+  assert.equal(validarPlantilla("correctivo_whatsapp", "  Hola {nombre}\r\n\r\n{detalle_facturas}  "), "Hola {nombre}\n\n{detalle_facturas}");
+  assert.equal(validarPlantilla("correctivo_correo_asunto", "Saldo\n  {referencia}"), "Saldo {referencia}");
+  assert.throws(() => validarPlantilla("correctivo_whatsapp", "Hola {cliente} {saldo}"), /Variables desconocidas: \{cliente\}, \{saldo\}/);
+  assert.throws(() => validarPlantilla("correctivo_whatsapp", "   "), /vacía/);
+  assert.throws(() => validarPlantilla("otra", "Hola"), /desconocida/);
+  assert.throws(() => validarPlantilla("preventivo_correo_asunto", "x".repeat(201)), /200 caracteres/);
+});
+
+test("correo editado a mano: HTML escapado con el eslogan con estilo", () => {
+  const html = correoHtmlDesdeTexto("Hola, <Ana>:\nLínea dos\n\nMenos plástico, más futuro.");
+  assert.match(html, /Hola, &lt;Ana&gt;:<br>Línea dos/);
+  assert.match(html, /font-weight:bold[^>]*>Menos plástico, más futuro\.<\/p>/);
 });
 
 test("31 días o más pasa a escalamiento, sin mensaje masivo", () => {
@@ -181,6 +260,9 @@ test("comercial: correo solo si está autorizado; si no, queda sin canal con mot
   assert.match(correo.texto, /CLABE: 014010655092237775/);
   assert.match(correo.texto, /Menos plástico, más futuro\.$/);
   assert.match(correo.html, /Monto pendiente: \$4,850\.00 MXN/);
+  assert.match(correo.html, /<th[^>]*>Factura<\/th>/);
+  assert.match(correo.html, /<strong>CLABE:<\/strong> 014010655092237775/);
+  assert.doesNotMatch(correo.html, /\{[a-z_]+\}/);
 });
 
 test("usa los datos bancarios de la franquicia correcta", () => {

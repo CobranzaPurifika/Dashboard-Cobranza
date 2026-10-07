@@ -135,14 +135,20 @@ export class ApiService {
   // Módulo Campañas (cobranza preventiva y correctiva por envío masivo asistido).
   campanasLote = (franchise: string, refrescar = false, signal?: AbortSignal) =>
     this.request(`/campanas/lote?${this.query({ franchise, refrescar: refrescar ? '1' : '' })}`, { signal });
-  campanasRegistrarWhatsApp = (body: { franchiseId: string; groupKey: string; regla: string }) =>
+  campanasRegistrarWhatsApp = (body: { franchiseId: string; groupKey: string; regla: string; mensaje?: string }) =>
     this.request('/campanas/envios', { method: 'POST', body: JSON.stringify(body) });
   campanasDeshacer = (ids: number[]) =>
     this.request('/campanas/envios', { method: 'DELETE', body: JSON.stringify({ ids }) });
-  campanasEnviarCorreos = (items: { franchiseId: string; groupKey: string; regla: string }[]) =>
+  campanasEnviarCorreos = (items: { franchiseId: string; groupKey: string; regla: string; asunto?: string; texto?: string }[]) =>
     this.request('/campanas/correo/enviar', { method: 'POST', body: JSON.stringify({ items }) });
-  campanasVistaPrevia = (item: { franchiseId: string; groupKey: string; regla: string }) =>
-    this.request(`/campanas/correo/vista-previa?${this.query(item)}`);
+  // Plantillas de los mensajes (no confundir con campanasPlantilla, el Excel de contactos).
+  campanasPlantillasMensaje = () => this.request('/campanas/plantillas');
+  campanasGuardarPlantillaMensaje = (clave: string, contenido: string) =>
+    this.request(`/campanas/plantillas/${encodeURIComponent(clave)}`, { method: 'PUT', body: JSON.stringify({ contenido }) });
+  campanasRestablecerPlantillaMensaje = (clave: string) =>
+    this.request(`/campanas/plantillas/${encodeURIComponent(clave)}`, { method: 'DELETE' });
+  campanasVistaPreviaPlantillaMensaje = (body: { clave: string; contenido: string; franchiseId?: string }) =>
+    this.request('/campanas/plantillas/vista-previa', { method: 'POST', body: JSON.stringify(body) });
   campanasHistorial = (franchise: string, dias = 30) =>
     this.request(`/campanas/envios?${this.query({ franchise, dias: String(dias) })}`);
   campanasContactos = (franchise: string, refrescar = false) =>

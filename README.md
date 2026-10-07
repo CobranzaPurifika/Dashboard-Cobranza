@@ -75,11 +75,13 @@ el alta y el retiro se realizan únicamente desde la ficha del cliente.
 La pestaña **Campañas** (admin y gestor) arma el lote diario de recordatorios desde la BDD de
 Drive:
 - preventivo a clientes al corriente cuya factura vence en 5 días o menos;
-- correctivo a clientes de 1-30 días los días 7 y 15;
+- correctivo semanal a clientes de 1-30 días: días 7, 15, 21 y fin de mes;
 - lista de escalamiento para 31 días o más.
 
 Residenciales por WhatsApp asistido y comerciales autorizados por correo, con directorio de
-contactos editable. No escribe en la cartera ni en la bitácora de gestión. Reglas, formato del
+contactos editable. Los mensajes se personalizan por cliente y franquicia (facturas pendientes,
+datos de transferencia), salen de plantillas que un administrador edita y se pueden revisar y
+ajustar uno por uno antes de enviar. No escribe en la cartera ni en la bitácora de gestión. Reglas, formato del
 archivo del portal y configuración en [`docs/CAMPANAS.md`](docs/CAMPANAS.md).
 
 ## Documentos formales de cobranza
