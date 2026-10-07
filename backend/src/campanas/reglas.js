@@ -214,6 +214,7 @@ export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new M
     }
 
     let regla;
+    let recordatorio = null;
     let periodos;
     let seleccion;
     let fechaLimiteISO;
@@ -225,6 +226,7 @@ export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new M
         continue;
       }
       seleccion = facturas.filter((factura) => factura.diasAtraso >= 1);
+      recordatorio = activas.correctivo.recordatorio;
       periodos = [activas.correctivo.periodo];
       fechaLimiteISO = sumarDiasHabiles(hoyISO, REGLAS.correctivoPlazoDiasHabiles);
     } else {
@@ -244,6 +246,7 @@ export function construirLote({ hoyISO, franchiseId, clientes, estadoApp = new M
       ...base,
       ...tramo,
       regla,
+      recordatorio,
       periodos,
       atrasoMaximo,
       monto,

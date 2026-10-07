@@ -64,7 +64,7 @@
             <div class="row" [class.done]="registrados.has(llave(item))">
               <span class="row-main">
                 <strong>{{ item.nombre }}</strong>
-                <small>{{ franquicia(item.franchiseId) }} · {{ item.regla === 'preventivo' ? 'Preventivo' : 'Correctivo' }} · {{ folios(item) }} · {{ item.telefonoLegible }}</small>
+                <small>{{ franquicia(item.franchiseId) }} · {{ etiquetaRegla(item) }} · {{ folios(item) }} · {{ item.telefonoLegible }}</small>
               </span>
               <span class="row-badges">
                 <i class="badge" [class]="'badge ' + item.tramo">{{ item.regla === 'preventivo' ? 'Vence ' + shortDate(item.fechaLimiteISO) : item.atrasoMaximo + ' días' }}</i>
@@ -287,52 +287,66 @@
 
         @case ('plantillas') {
           <p class="tab-hint">
-            Texto base de cada recordatorio. Las variables entre llaves se llenan con los datos de cada cliente y de su franquicia
-            (nombre, facturas pendientes, monto, fecha límite y datos de transferencia).
+            Un mensaje preventivo y uno por cada recordatorio correctivo de la semana. Las variables entre llaves se llenan con los datos de cada
+            cliente y de su franquicia (nombre, facturas pendientes, monto, fecha límite y datos de transferencia). Toca un mensaje para abrirlo.
             @if (esAdmin) { Al guardar, el lote se recalcula con la nueva versión. } @else { Solo un administrador puede modificarlas; puedes editar cada mensaje antes de enviarlo. }
           </p>
           @if (cargandoPlantillas && !plantillasCargadas) {
             <div class="skeleton"><i></i><i></i><i></i></div>
           } @else {
-            @for (canal of ['whatsapp', 'correo']; track canal) {
-              <h2 class="template-group">{{ canal === 'whatsapp' ? 'WhatsApp (residenciales)' : 'Correo (comerciales autorizados)' }}</h2>
-              @for (plantilla of plantillasDe($any(canal)); track plantilla.clave) {
-                <div class="template-card" [class.dirty]="plantillaModificada(plantilla)">
-                  <header>
-                    <strong>{{ plantilla.titulo }}</strong>
-                    <small>{{ plantilla.personalizada ? 'Editada' + (plantilla.actualizadoPor ? ' por ' + plantilla.actualizadoPor : '') + (plantilla.actualizado ? ' · ' + fechaHora(plantilla.actualizado) : '') : 'Predeterminada' }}</small>
-                  </header>
-                  @if (plantilla.tipo === 'asunto') {
-                    <input #campo type="text" [maxlength]="plantilla.limite" [readonly]="!esAdmin" [attr.aria-label]="plantilla.titulo" [(ngModel)]="plantilla.contenidoEdit" (ngModelChange)="plantilla.guardado = false" />
-                    @if (esAdmin) {
-                      <div class="variable-chips">
-                        @for (variable of variables; track variable.clave) { <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (click)="insertarVariable(plantilla, variable.clave, campo)">{{ '{' + variable.clave + '}' }}</button> }
+            @for (mensaje of mensajes; track mensaje.clave) {
+              <h2 class="template-group">{{ mensaje.etiqueta }}<small>{{ mensaje.descripcion }}@if (mensaje.desdeISO) { · este mes, {{ shortDate(mensaje.desdeISO) }} }</small></h2>
+              @for (tarjeta of tarjetasDe(mensaje); track tarjeta.id) {
+                <div class="template-card" [class.open]="tarjeta.abierta" [class.dirty]="modificada(tarjeta)">
+                  <button type="button" class="template-summary" [attr.aria-expanded]="tarjeta.abierta" (click)="toggleTarjeta(tarjeta)">
+                    <i class="channel-badge" [class.mail]="tarjeta.canal === 'correo'">{{ tarjeta.canal === 'correo' ? 'Correo' : 'WhatsApp' }}</i>
+                    <span class="template-snippet">{{ resumenTarjeta(tarjeta) }}</span>
+                    <small [class.pending]="modificada(tarjeta)">{{ estadoTarjeta(tarjeta) }}</small>
+                    <ion-icon [name]="tarjeta.abierta ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                  </button>
+                  @if (tarjeta.abierta) {
+                    <div class="template-body">
+                      <div class="composer" [class.readonly]="!esAdmin">
+                        @if (tarjeta.asunto; as asunto) {
+                          <label class="composer-subject">
+                            <span>Asunto</span>
+                            <input type="text" [maxlength]="asunto.limite" [readonly]="!esAdmin" aria-label="Asunto del correo"
+                              [(ngModel)]="asunto.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'asunto', $event)" />
+                          </label>
+                        }
+                        <textarea [rows]="tarjeta.canal === 'correo' ? 14 : 10" [maxlength]="tarjeta.cuerpo.limite" [readonly]="!esAdmin"
+                          [attr.aria-label]="tarjeta.canal === 'correo' ? 'Cuerpo del correo' : 'Mensaje de WhatsApp'"
+                          [(ngModel)]="tarjeta.cuerpo.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'cuerpo', $event)"></textarea>
                       </div>
-                    }
-                  } @else {
-                    <textarea #campo rows="10" [maxlength]="plantilla.limite" [readonly]="!esAdmin" [attr.aria-label]="plantilla.titulo" [(ngModel)]="plantilla.contenidoEdit" (ngModelChange)="plantilla.guardado = false"></textarea>
-                    @if (esAdmin) {
-                      <div class="variable-chips">
-                        @for (variable of variables; track variable.clave) { <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (click)="insertarVariable(plantilla, variable.clave, campo)">{{ '{' + variable.clave + '}' }}</button> }
+                      @if (esAdmin) {
+                        <div class="variable-chips" aria-label="Insertar variable">
+                          @for (variable of variables; track variable.clave) {
+                            <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (mousedown)="$event.preventDefault()" (click)="insertarVariable(tarjeta, variable.clave)">{{ '{' + variable.clave + '}' }}</button>
+                          }
+                        </div>
+                      }
+                      @if (tarjeta.error) { <p class="row-error">{{ tarjeta.error }}</p> }
+                      <div class="editor-actions">
+                        <button type="button" class="ghost-button small" [disabled]="tarjeta.cargandoVista" (click)="vistaPreviaTarjeta(tarjeta)">
+                          @if (tarjeta.cargandoVista) { <ion-spinner name="crescent"></ion-spinner> } Vista previa
+                        </button>
+                        @if (esAdmin) {
+                          @if (personalizada(tarjeta)) { <button type="button" class="ghost-button small" [disabled]="tarjeta.guardando" (click)="restablecerTarjeta(tarjeta)">Restablecer predeterminada</button> }
+                          @if (modificada(tarjeta)) { <button type="button" class="ghost-button small" (click)="descartarTarjeta(tarjeta)">Descartar cambios</button> }
+                          @if (tarjeta.guardado && !modificada(tarjeta)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                          <button type="button" class="primary-button small" [disabled]="!modificada(tarjeta) || tarjeta.guardando" (click)="guardarTarjeta(tarjeta)">
+                            @if (tarjeta.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
+                          </button>
+                        }
                       </div>
-                    }
-                  }
-                  @if (plantilla.error) { <p class="row-error">{{ plantilla.error }}</p> }
-                  <div class="editor-actions">
-                    <button type="button" class="ghost-button small" [disabled]="plantilla.cargandoVista" (click)="vistaPreviaPlantilla(plantilla)">
-                      @if (plantilla.cargandoVista) { <ion-spinner name="crescent"></ion-spinner> } Vista previa
-                    </button>
-                    @if (esAdmin) {
-                      @if (plantilla.personalizada) { <button type="button" class="ghost-button small" [disabled]="plantilla.guardando" (click)="restablecerPlantilla(plantilla)">Restablecer predeterminada</button> }
-                      @if (plantillaModificada(plantilla)) { <button type="button" class="ghost-button small" (click)="plantilla.contenidoEdit = plantilla.contenido">Descartar cambios</button> }
-                      @if (plantilla.guardado && !plantillaModificada(plantilla)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
-                      <button type="button" class="primary-button small" [disabled]="!plantillaModificada(plantilla) || plantilla.guardando" (click)="guardarPlantilla(plantilla)">
-                        @if (plantilla.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
-                      </button>
-                    }
-                  </div>
-                  @if (plantilla.vista) {
-                    <div class="message-preview"><span class="eyebrow">EJEMPLO CON UN CLIENTE FICTICIO</span><pre>{{ plantilla.vista }}</pre></div>
+                      @if (tarjeta.vista; as vista) {
+                        <div class="message-preview">
+                          <span class="eyebrow">EJEMPLO CON UN CLIENTE FICTICIO · FECHAS REALES DE ESTE MES</span>
+                          @if (vista.asunto) { <strong>Asunto: {{ vista.asunto }}</strong> }
+                          <pre>{{ vista.texto }}</pre>
+                        </div>
+                      }
+                    </div>
                   }
                 </div>
               }
