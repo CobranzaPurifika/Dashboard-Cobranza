@@ -51,6 +51,9 @@ dominio.
     queda completa, pasa a liquidado en esa misma corrida.
 22. Gestiones del mes cuenta una sola vez a cada cliente por fecha, excluye eventos de pago/lista
     negra/notas, omite fines de semana y elimina del promedio los días con incidencia justificada.
+    Solo cuenta gestiones registradas por la cuenta de cobranza (`GESTIONES_MES_CUENTA`, por
+    defecto `cobranza.ags@purifika.com`) y las de la carga inicial sin usuario; las de otros
+    usuarios no suman ni en el panel ni en el reporte Excel.
 
 ## Perfiles y permisos
 

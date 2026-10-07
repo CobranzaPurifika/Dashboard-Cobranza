@@ -1,8 +1,10 @@
 import { buildMonthlyManagement } from "../domain/monthlyManagement.js";
+import { CUENTA_GESTIONES_MES, condicionCuentaGestiones } from "../domain/cuentaGestiones.js";
 
 // Cumplimiento de gestiones diarias (clientes únicos por día hábil vs. meta, con incidencias);
 // lo usan el panel "Gestiones acumuladas del mes" y la hoja Cumplimiento del reporte Excel.
-export async function queryMonthlyManagement({ month, throughDate, franchiseIds }, db) {
+// Solo cuentan las gestiones de la cuenta de cobranza (ver domain/cuentaGestiones.js).
+export async function queryMonthlyManagement({ month, throughDate, franchiseIds, cuenta = CUENTA_GESTIONES_MES }, db) {
   db ??= (await import("../db/pool.js")).pool;
   const [franchises, goals, counts, incidents] = await Promise.all([
     db.query(
@@ -23,8 +25,9 @@ export async function queryMonthlyManagement({ month, throughDate, franchiseIds 
        where c.franchise_id = any($1::text[])
          and gt.fecha_iso between $2::date and $3::date
          and coalesce(gt.descripcion, '') !~* '^(Pago aplicado|Enviado a lista negra|Nota actualizada)(\\s+—.*)?$'
+         and ${condicionCuentaGestiones("gt", "$4")}
        group by c.franchise_id, gt.fecha_iso`,
-      [franchiseIds, `${month}-01`, throughDate]
+      [franchiseIds, `${month}-01`, throughDate, cuenta]
     ),
     db.query(
       `select franchise_id, fecha, note
@@ -33,12 +36,15 @@ export async function queryMonthlyManagement({ month, throughDate, franchiseIds 
       [franchiseIds, `${month}-01`, throughDate]
     ),
   ]);
-  return buildMonthlyManagement({
-    month,
-    throughDate,
-    franchises: franchises.rows,
-    goals: goals.rows,
-    counts: counts.rows,
-    incidents: incidents.rows,
-  });
+  return {
+    ...buildMonthlyManagement({
+      month,
+      throughDate,
+      franchises: franchises.rows,
+      goals: goals.rows,
+      counts: counts.rows,
+      incidents: incidents.rows,
+    }),
+    cuentaGestiones: cuenta,
+  };
 }

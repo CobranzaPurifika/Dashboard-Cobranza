@@ -147,4 +147,7 @@ calendario usando el historial de `pagos`.
 En Gestión, las tres listas usan scroll interno y comparten el alto visible de la página. La fila
 de Prioridad no abre accidentalmente el detalle: la acción explícita es **Gestionar**. El panel
 lateral **Gestiones del mes** calcula clientes únicos por día hábil, limita el cumplimiento diario
-al 100%, excluye sábados y domingos y permite justificar un día mediante una incidencia.
+al 100%, excluye sábados y domingos y permite justificar un día mediante una incidencia. Solo
+cuentan las gestiones registradas por la cuenta de cobranza (`cobranza.ags@purifika.com`,
+configurable con `GESTIONES_MES_CUENTA`); las de otros gestores o administradores no suman, ni
+en el panel ni en el reporte Excel. El Dashboard sigue contando todas.

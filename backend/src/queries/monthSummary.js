@@ -1,15 +1,20 @@
 import { reportMonthRange } from "../domain/reportMonth.js";
+import { condicionCuentaGestiones } from "../domain/cuentaGestiones.js";
 import { queryLivePortfolioDetail, queryPortfolioDetail } from "./portfolioSnapshotDetail.js";
 
 // Explicit date parameters make these queries reusable for historical dashboards.
-export async function queryMonthActivity({ franchiseIds, desde, hasta }, db) {
+// cuentaGestiones (correo): solo las gestiones de esa cuenta, para Gestiones del mes; el
+// dashboard histórico no lo pasa y cuenta todas.
+export async function queryMonthActivity({ franchiseIds, desde, hasta, cuentaGestiones = null }, db) {
   db ??= (await import("../db/pool.js")).pool;
   const params = [franchiseIds, desde, hasta];
+  const filtroCuenta = cuentaGestiones ? ` and ${condicionCuentaGestiones("gt", "$4")}` : "";
   const [gestiones, pagos, catalog, fulfilled] = await Promise.all([
     db.query(`select gt.*, c.name, c.franchise_id, c.portfolio_status, s.label as status_label
       from gestion_timeline gt join clientes c on c.id = gt.cliente_id
       left join status_gestion s on s.value = gt.estatus_value
-      where c.franchise_id = any($1::text[]) and gt.fecha_iso between $2::date and $3::date`, params),
+      where c.franchise_id = any($1::text[]) and gt.fecha_iso between $2::date and $3::date${filtroCuenta}`,
+      cuentaGestiones ? [...params, cuentaGestiones] : params),
     db.query(`select p.*, coalesce(c.name, p.grupo_facturacion) as name,
       coalesce(p.franchise_id, c.franchise_id) as franchise_id
       from pagos p left join clientes c on c.id = p.cliente_id
@@ -56,9 +61,9 @@ export async function queryMonthPortfolio({ franchiseIds, hasta, isCurrent }, db
   return [...result.rows, total];
 }
 
-export async function queryMonthSummary({ month, franchiseIds, now = new Date() }, db) {
+export async function queryMonthSummary({ month, franchiseIds, now = new Date(), cuentaGestiones = null }, db) {
   const range = reportMonthRange(month, now);
-  const params = { ...range, franchiseIds };
+  const params = { ...range, franchiseIds, cuentaGestiones };
   const [activity, portfolio, detail] = await Promise.all([
     queryMonthActivity(params, db), queryMonthPortfolio(params, db),
     range.isCurrent ? queryLivePortfolioDetail(params, db)
