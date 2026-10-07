@@ -9,6 +9,7 @@ import { renderMonthlyWorkbook } from "../documents/monthlyWorkbook.js";
 import { buildMonthSummary } from "../domain/monthSummary.js";
 import { queryMonthSummary } from "../queries/monthSummary.js";
 import { queryMonthlyManagement } from "../queries/monthlyManagement.js";
+import { CUENTA_GESTIONES_MES } from "../domain/cuentaGestiones.js";
 
 export const monthlyManagementRouter = Router();
 
@@ -16,7 +17,8 @@ monthlyManagementRouter.get("/report.xlsx", requireRole("admin", "supervisor"), 
   try {
     const franchiseIds = resolveFranchiseScope(req.user, "todas");
     const now = new Date();
-    const source = await queryMonthSummary({ month: req.query.month, franchiseIds, now });
+    // El reporte de Gestiones del mes solo incluye las gestiones de la cuenta de cobranza.
+    const source = await queryMonthSummary({ month: req.query.month, franchiseIds, now, cuentaGestiones: CUENTA_GESTIONES_MES });
     const compliance = await queryMonthlyManagement({ month: source.month, throughDate: source.hasta, franchiseIds });
     const data = { ...buildMonthlyReportData(source), summary: buildMonthSummary(source), compliance, generatedAt: now };
     const buffer = await renderMonthlyWorkbook(data);

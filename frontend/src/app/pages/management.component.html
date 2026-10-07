@@ -473,7 +473,7 @@
   <button class="modal-backdrop" type="button" aria-label="Cerrar" (click)="closeMonthlyStats()"></button>
   <aside class="monthly-drawer" aria-label="Gestiones acumuladas del mes"
     (touchstart)="onDrawerTouchStart($event, 'left')" (touchmove)="onDrawerTouchMove($event)" (touchend)="onDrawerTouchEnd()">
-    <header><div><h2>Gestiones acumuladas del mes</h2><p>Acumulado de {{ monthlyData?.monthLabel || 'este mes' }} · sábados y domingos no cuentan</p></div><button type="button" aria-label="Cerrar" (click)="closeMonthlyStats()"><ion-icon name="close-outline"></ion-icon></button></header>
+    <header><div><h2>Gestiones acumuladas del mes</h2><p>Acumulado de {{ monthlyData?.monthLabel || 'este mes' }} · sábados y domingos no cuentan@if (monthlyData?.cuentaGestiones) { · solo gestiones de {{ monthlyData.cuentaGestiones }} }</p></div><button type="button" aria-label="Cerrar" (click)="closeMonthlyStats()"><ion-icon name="close-outline"></ion-icon></button></header>
     <div class="monthly-scroll">
       @if (monthlyLoading) { <div class="monthly-loading"><ion-spinner name="crescent"></ion-spinner><span>Calculando cumplimiento…</span></div> }
       @else if (monthlyError) { <div class="error-banner">{{ monthlyError }}</div> }
