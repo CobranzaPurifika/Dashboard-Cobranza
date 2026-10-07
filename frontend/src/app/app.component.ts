@@ -751,10 +751,11 @@ export class AppComponent implements OnInit {
     this.presentationFranchises = ids ? all.filter((option) => ids.includes(option.id)) : all;
   }
 
+  // Con franquicias asignadas (gestor) solo se listan esas, sin una opción que las agrupe;
+  // la franquicia inicial es la preferida si está asignada, si no la primera.
   private franchisesForUser(user: any): FranchiseOption[] {
     if (user.allFranchises) return FRANCHISES;
     const assigned = new Set(user.franchise_ids ?? []);
-    const choices = FRANCHISES.filter((item) => item.id !== 'todas' && assigned.has(item.id));
-    return choices.length ? [{ id: 'todas', label: 'Mis franquicias' }, ...choices] : [];
+    return FRANCHISES.filter((item) => item.id !== 'todas' && assigned.has(item.id));
   }
 }

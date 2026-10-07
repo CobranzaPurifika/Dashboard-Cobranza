@@ -263,9 +263,15 @@
         <button type="button" class="action-button" (click)="openInvoicesModal()">
           <ion-icon name="document-text-outline"></ion-icon>Ver facturas<span class="action-count">{{ detail.invoices.length }}</span>
         </button>
-        <button type="button" class="action-button document" [class.active]="documentMenuOpen" [attr.aria-expanded]="documentMenuOpen" (click)="toggleDocumentMenu()">
-          <ion-icon name="document-attach-outline"></ion-icon>Generar documento
-        </button>
+        @if (soloAvisoDeuda) {
+          <button type="button" class="action-button document" (click)="toggleDocumentMenu()">
+            <ion-icon name="receipt-outline"></ion-icon>Aviso de deuda
+          </button>
+        } @else {
+          <button type="button" class="action-button document" [class.active]="documentMenuOpen" [attr.aria-expanded]="documentMenuOpen" (click)="toggleDocumentMenu()">
+            <ion-icon name="document-attach-outline"></ion-icon>Generar documento
+          </button>
+        }
         <button type="button" class="action-button danger icon-only" [class.active]="blacklistPanelOpen" [attr.aria-expanded]="blacklistPanelOpen"
           aria-label="Lista negra" data-tooltip="Lista negra" (click)="toggleBlacklistPanel()">
           <ion-icon name="warning-outline"></ion-icon>

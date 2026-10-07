@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { requireClientAccess } from "../auth/authorization.js";
-import { buildDocumentData, DOCUMENT_TYPES, invoiceSchedule } from "../domain/documentos.js";
+import { buildDocumentData, DOCUMENT_TYPES, documentosPermitidos, invoiceSchedule } from "../domain/documentos.js";
 import { generateDocumentPdf } from "../documents/generate.js";
 
 export const documentosRouter = Router();
@@ -57,6 +57,9 @@ documentosRouter.post("/:id/documentos/:tipo", requireClientAccess(), async (req
   try {
     const { id, tipo } = req.params;
     if (!DOCUMENT_TYPES.includes(tipo)) return res.status(404).json({ error: "Tipo de documento desconocido" });
+    if (!documentosPermitidos(req.user?.role).includes(tipo)) {
+      return res.status(403).json({ error: "Tu rol solo puede generar el Aviso de deuda" });
+    }
 
     const cliente = await fetchCliente(id);
     const invoices = await fetchInvoices(cliente.id, cliente.franchise_id);

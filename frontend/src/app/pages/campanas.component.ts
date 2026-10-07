@@ -119,7 +119,13 @@ const FRANQUICIA_LABEL: Record<string, string> = {
 };
 
 const CORREOS_POR_LOTE = 20;
-const PESTANAS_SUPERVISOR: Pestana[] = ['plantillas', 'historial'];
+// Pestañas por rol (el backend aplica lo mismo en campanas/permisos.js). El administrador
+// ve todas; el gestor trabaja WhatsApp y el Directorio; el supervisor solo consulta.
+const TODAS_LAS_PESTANAS: Pestana[] = ['whatsapp', 'correo', 'sinCanal', 'escalamiento', 'directorio', 'plantillas', 'historial'];
+const PESTANAS_POR_ROL: Record<string, Pestana[]> = {
+  gestor: ['whatsapp', 'directorio', 'historial'],
+  supervisor: ['plantillas', 'historial'],
+};
 const ORDINAL_RECORDATORIO: Record<string, string> = { R1: '1er', R2: '2do', R3: '3er', R4: '4to', R5: '5to' };
 
 // Módulo independiente de Campañas: lote diario de recordatorios preventivos (al corriente,
@@ -191,8 +197,9 @@ export class CampanasComponent implements OnChanges {
   constructor(private readonly api: ApiService, private readonly cdr: ChangeDetectorRef) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    // El supervisor solo consulta: entra directo al Historial.
-    if (changes['user'] && this.soloLectura && !PESTANAS_SUPERVISOR.includes(this.pestana)) this.pestana = 'historial';
+    // Si la pestaña actual no está permitida para el rol (el supervisor no tiene WhatsApp),
+    // se entra a la primera permitida, o al Historial si es la única de consulta.
+    if (changes['user'] && !this.puedeVer(this.pestana)) this.pestana = this.soloLectura ? 'historial' : this.pestanas[0];
     if (changes['franchise']) {
       this.contactosCargados = false;
       this.historial = [];
@@ -205,6 +212,14 @@ export class CampanasComponent implements OnChanges {
   // Supervisor: ve Historial y Plantillas (con vista previa); no arma el lote ni envía.
   get soloLectura(): boolean {
     return this.user?.role === 'supervisor';
+  }
+
+  get pestanas(): Pestana[] {
+    return PESTANAS_POR_ROL[this.user?.role] ?? TODAS_LAS_PESTANAS;
+  }
+
+  puedeVer(pestana: Pestana): boolean {
+    return this.pestanas.includes(pestana);
   }
 
   get esAdmin(): boolean {
@@ -258,7 +273,7 @@ export class CampanasComponent implements OnChanges {
   }
 
   setPestana(pestana: Pestana): void {
-    if (this.soloLectura && !PESTANAS_SUPERVISOR.includes(pestana)) return;
+    if (!this.puedeVer(pestana)) return;
     this.pestana = pestana;
     if (pestana === 'directorio' && !this.contactosCargados) void this.cargarContactos();
     if (pestana === 'plantillas' && !this.plantillasCargadas) void this.cargarPlantillas();

@@ -10,6 +10,12 @@ import {
 
 export const DOCUMENT_TYPES = Object.freeze(Object.keys(TIPOS_DOCUMENTO));
 
+// El gestor solo emite el Aviso de deuda; retiro de equipos y acuerdo de pagos quedan para
+// administrador y supervisor.
+export function documentosPermitidos(role) {
+  return role === "gestor" ? ["aviso_deuda"] : [...DOCUMENT_TYPES];
+}
+
 const MAX_TEXT = 400;
 const MAX_PARCIALIDADES = 36;
 const MAX_CONDICIONES = 10;

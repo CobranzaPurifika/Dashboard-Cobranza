@@ -72,7 +72,7 @@ el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
 ## Campañas de cobranza
 
-La pestaña **Campañas** (admin y gestor; supervisor solo consulta Historial y Plantillas) arma el lote diario de recordatorios desde la BDD de
+La pestaña **Campañas** (admin completo; gestor: WhatsApp, Directorio e Historial; supervisor: solo consulta Historial y Plantillas) arma el lote diario de recordatorios desde la BDD de
 Drive:
 - preventivo a clientes al corriente cuya factura vence en 5 días o menos;
 - correctivo semanal a clientes de 1-30 días: días 7, 15, 21 y fin de mes;
@@ -92,7 +92,9 @@ skill `documentos-purifika` con el mismo formato de marca: aviso de deuda (carta
 retiro de equipos y acuerdo/propuesta de pagos (oficio, con campo de firma electrónica del
 cliente). El backend (`backend/src/documents/`) dibuja el PDF con `pdfkit` y compacta el
 espaciado hasta que cabe en una sola página; el nombre del archivo sigue el patrón
-`<Prefijo>_<Tipo>_<Cliente>_<AAAA-MM-DD>.pdf`.
+`<Prefijo>_<Tipo>_<Cliente>_<AAAA-MM-DD>.pdf`. El gestor solo emite el aviso de deuda: para
+ese rol el botón dice **Aviso de deuda** y abre directo su formulario (el backend también
+rechaza los otros dos tipos).
 
 Montos, folios y fechas de factura salen siempre de la base, no del navegador. Solo para los
 documentos, el vencimiento es la fecha de facturación más los días de crédito (columna K de la BDD

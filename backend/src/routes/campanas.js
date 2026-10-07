@@ -29,8 +29,8 @@ import { puedeUsarCampanas } from "../campanas/permisos.js";
 import { leerArchivoContactos, normalizarCorreos, normalizarTelefono, properCase, telefonoLegible } from "../campanas/contactos.js";
 
 export const campanasRouter = Router();
-// Administradores y gestores usan todo el módulo; el supervisor solo consulta el Historial
-// y las Plantillas (ver campanas/permisos.js).
+// El administrador usa todo el módulo; el gestor, WhatsApp, Directorio e Historial; el
+// supervisor solo consulta Historial y Plantillas (ver campanas/permisos.js).
 campanasRouter.use((req, res, next) => {
   if (!puedeUsarCampanas(req.user?.role, req.method, req.path)) {
     return res.status(403).json({ error: "No tienes permisos para realizar esta acción" });
