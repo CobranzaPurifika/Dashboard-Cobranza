@@ -2,6 +2,7 @@
 // cobranza. Los correos quedan también en la carpeta Enviados de esa cuenta, y las
 // respuestas con comprobante llegan al mismo buzón.
 import nodemailer from "nodemailer";
+import { CONTACTO_ESCALAMIENTO } from "./config.js";
 
 let transporte;
 
@@ -27,9 +28,17 @@ function obtenerTransporte() {
   return transporte;
 }
 
+// Nombre y dirección con los que llega el correo (también para la vista previa, aunque el
+// envío no esté configurado).
+export function remitenteVisible() {
+  return {
+    nombre: process.env.CAMPANAS_REMITENTE_NOMBRE ?? "Cobranza Purifika",
+    correo: process.env.CAMPANAS_SMTP_USER ?? CONTACTO_ESCALAMIENTO.correo,
+  };
+}
+
 export function remitente() {
-  const correo = process.env.CAMPANAS_SMTP_USER;
-  const nombre = process.env.CAMPANAS_REMITENTE_NOMBRE ?? "Cobranza Purifika";
+  const { nombre, correo } = remitenteVisible();
   return `"${nombre}" <${correo}>`;
 }
 

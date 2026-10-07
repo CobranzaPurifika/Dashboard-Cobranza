@@ -305,45 +305,56 @@
                     <ion-icon [name]="tarjeta.abierta ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
                   </button>
                   @if (tarjeta.abierta) {
-                    <div class="template-body">
-                      <div class="composer" [class.readonly]="!esAdmin">
-                        @if (tarjeta.asunto; as asunto) {
-                          <label class="composer-subject">
-                            <span>Asunto</span>
-                            <input type="text" [maxlength]="asunto.limite" [readonly]="!esAdmin" aria-label="Asunto del correo"
-                              [(ngModel)]="asunto.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'asunto', $event)" />
-                          </label>
+                    <div class="template-body" [class.side]="tarjeta.vista && tarjeta.canal === 'whatsapp'">
+                      <div class="template-editor">
+                        <div class="composer" [class.readonly]="!esAdmin">
+                          @if (tarjeta.asunto; as asunto) {
+                            <label class="composer-subject">
+                              <span>Asunto</span>
+                              <input type="text" [maxlength]="asunto.limite" [readonly]="!esAdmin" aria-label="Asunto del correo"
+                                [(ngModel)]="asunto.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'asunto', $event)" />
+                            </label>
+                          }
+                          <textarea [rows]="tarjeta.canal === 'correo' ? 14 : 10" [maxlength]="tarjeta.cuerpo.limite" [readonly]="!esAdmin"
+                            [attr.aria-label]="tarjeta.canal === 'correo' ? 'Cuerpo del correo' : 'Mensaje de WhatsApp'"
+                            [(ngModel)]="tarjeta.cuerpo.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'cuerpo', $event)"></textarea>
+                        </div>
+                        @if (esAdmin) {
+                          <div class="variable-chips" aria-label="Insertar variable">
+                            @for (variable of variables; track variable.clave) {
+                              <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (mousedown)="$event.preventDefault()" (click)="insertarVariable(tarjeta, variable.clave)">{{ '{' + variable.clave + '}' }}</button>
+                            }
+                          </div>
                         }
-                        <textarea [rows]="tarjeta.canal === 'correo' ? 14 : 10" [maxlength]="tarjeta.cuerpo.limite" [readonly]="!esAdmin"
-                          [attr.aria-label]="tarjeta.canal === 'correo' ? 'Cuerpo del correo' : 'Mensaje de WhatsApp'"
-                          [(ngModel)]="tarjeta.cuerpo.contenidoEdit" (ngModelChange)="marcarCambio(tarjeta)" (focus)="enfocar(tarjeta, 'cuerpo', $event)"></textarea>
-                      </div>
-                      @if (esAdmin) {
-                        <div class="variable-chips" aria-label="Insertar variable">
-                          @for (variable of variables; track variable.clave) {
-                            <button type="button" [title]="variable.descripcion + ' · ' + variable.ejemplo" (mousedown)="$event.preventDefault()" (click)="insertarVariable(tarjeta, variable.clave)">{{ '{' + variable.clave + '}' }}</button>
+                        @if (tarjeta.error) { <p class="row-error">{{ tarjeta.error }}</p> }
+                        <div class="editor-actions">
+                          <button type="button" class="ghost-button small" [disabled]="tarjeta.cargandoVista" [attr.aria-expanded]="!!tarjeta.vista" (click)="vistaPreviaTarjeta(tarjeta)">
+                            @if (tarjeta.cargandoVista) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon [name]="tarjeta.vista ? 'eye-off-outline' : 'eye-outline'"></ion-icon> }
+                            {{ tarjeta.vista ? 'Ocultar vista previa' : 'Vista previa' }}
+                          </button>
+                          @if (esAdmin) {
+                            @if (personalizada(tarjeta)) { <button type="button" class="ghost-button small" [disabled]="tarjeta.guardando" (click)="restablecerTarjeta(tarjeta)">Restablecer predeterminada</button> }
+                            @if (modificada(tarjeta)) { <button type="button" class="ghost-button small" (click)="descartarTarjeta(tarjeta)">Descartar cambios</button> }
+                            @if (tarjeta.guardado && !modificada(tarjeta)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
+                            <button type="button" class="primary-button small" [disabled]="!modificada(tarjeta) || tarjeta.guardando" (click)="guardarTarjeta(tarjeta)">
+                              @if (tarjeta.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
+                            </button>
                           }
                         </div>
-                      }
-                      @if (tarjeta.error) { <p class="row-error">{{ tarjeta.error }}</p> }
-                      <div class="editor-actions">
-                        <button type="button" class="ghost-button small" [disabled]="tarjeta.cargandoVista" (click)="vistaPreviaTarjeta(tarjeta)">
-                          @if (tarjeta.cargandoVista) { <ion-spinner name="crescent"></ion-spinner> } Vista previa
-                        </button>
-                        @if (esAdmin) {
-                          @if (personalizada(tarjeta)) { <button type="button" class="ghost-button small" [disabled]="tarjeta.guardando" (click)="restablecerTarjeta(tarjeta)">Restablecer predeterminada</button> }
-                          @if (modificada(tarjeta)) { <button type="button" class="ghost-button small" (click)="descartarTarjeta(tarjeta)">Descartar cambios</button> }
-                          @if (tarjeta.guardado && !modificada(tarjeta)) { <ion-icon name="checkmark-outline" class="ok-icon"></ion-icon> }
-                          <button type="button" class="primary-button small" [disabled]="!modificada(tarjeta) || tarjeta.guardando" (click)="guardarTarjeta(tarjeta)">
-                            @if (tarjeta.guardando) { <ion-spinner name="crescent"></ion-spinner> } Guardar
-                          </button>
-                        }
                       </div>
                       @if (tarjeta.vista; as vista) {
-                        <div class="message-preview">
-                          <span class="eyebrow">EJEMPLO CON UN CLIENTE FICTICIO · FECHAS REALES DE ESTE MES</span>
-                          @if (vista.asunto) { <strong>Asunto: {{ vista.asunto }}</strong> }
-                          <pre>{{ vista.texto }}</pre>
+                        <div class="simulated-preview">
+                          <header>
+                            <span class="eyebrow">{{ tarjeta.canal === 'correo' ? 'ASÍ LO VE EL CLIENTE EN SU CORREO' : 'ASÍ LO VE EL CLIENTE EN WHATSAPP' }}</span>
+                            <small>Cliente ficticio con las fechas reales de este mes</small>
+                            <button type="button" class="icon-button" aria-label="Cerrar vista previa" (click)="cerrarVista(tarjeta)"><ion-icon name="close-outline"></ion-icon></button>
+                          </header>
+                          @if (tarjeta.canal === 'correo') {
+                            <app-vista-correo [asunto]="vista.asunto ?? ''" [html]="vista.html ?? ''" [remitenteNombre]="vista.remitente.nombre"
+                              [remitenteCorreo]="vista.remitente.correo" [destinatario]="vista.cliente"></app-vista-correo>
+                          } @else {
+                            <app-vista-whatsapp [texto]="vista.texto" [contacto]="vista.franquicia"></app-vista-whatsapp>
+                          }
                         </div>
                       }
                     </div>
