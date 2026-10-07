@@ -72,7 +72,7 @@ el alta y el retiro se realizan únicamente desde la ficha del cliente.
 
 ## Campañas de cobranza
 
-La pestaña **Campañas** (admin y gestor) arma el lote diario de recordatorios desde la BDD de
+La pestaña **Campañas** (admin y gestor; supervisor solo consulta Historial y Plantillas) arma el lote diario de recordatorios desde la BDD de
 Drive:
 - preventivo a clientes al corriente cuya factura vence en 5 días o menos;
 - correctivo semanal a clientes de 1-30 días: días 7, 15, 21 y fin de mes;

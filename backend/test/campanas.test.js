@@ -14,6 +14,7 @@ import {
   sumarDiasHabiles,
   ventanas,
 } from "../src/campanas/reglas.js";
+import { puedeUsarCampanas } from "../src/campanas/permisos.js";
 import { PLANTILLAS, correoHtmlDesdeTexto, plantillasVigentes, validarPlantilla } from "../src/campanas/plantillas.js";
 
 // Fila de BDD con las posiciones de columna que usa la importación oficial.
@@ -389,4 +390,21 @@ test("rechaza .xls antiguo y otros formatos con mensaje claro", async () => {
   await assert.rejects(leerArchivoContactos(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]), "viejo.xls"), /\.xls/);
   await assert.rejects(leerArchivoContactos(Buffer.from("hola"), "notas.pdf"), /\.csv o \.xlsx/);
   await assert.rejects(leerArchivoContactos(Buffer.alloc(0), "vacio.csv"), /Selecciona un archivo/);
+});
+
+test("supervisor: solo consulta Historial y Plantillas (con vista previa)", () => {
+  for (const [metodo, ruta] of [["GET", "/envios"], ["GET", "/plantillas"], ["POST", "/plantillas/vista-previa"], ["GET", "/plantillas/"]]) {
+    assert.equal(puedeUsarCampanas("supervisor", metodo, ruta), true, `${metodo} ${ruta}`);
+  }
+  for (const [metodo, ruta] of [
+    ["GET", "/lote"], ["POST", "/envios"], ["DELETE", "/envios"], ["POST", "/correo/enviar"], ["GET", "/correo/vista-previa"],
+    ["PUT", "/plantillas/correctivo_r1_whatsapp"], ["DELETE", "/plantillas/correctivo_r1_whatsapp"],
+    ["GET", "/contactos"], ["PUT", "/contactos"], ["POST", "/contactos/importar"], ["GET", "/contactos/plantilla"],
+  ]) {
+    assert.equal(puedeUsarCampanas("supervisor", metodo, ruta), false, `${metodo} ${ruta}`);
+  }
+  assert.equal(puedeUsarCampanas("gestor", "POST", "/envios"), true);
+  assert.equal(puedeUsarCampanas("admin", "GET", "/lote"), true);
+  assert.equal(puedeUsarCampanas("lector", "GET", "/envios"), false);
+  assert.equal(puedeUsarCampanas(undefined, "GET", "/plantillas"), false);
 });

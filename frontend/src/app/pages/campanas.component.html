@@ -7,7 +7,11 @@
       <div>
         <span class="eyebrow">CAMPAÑAS</span>
         <h1>Cobranza preventiva y correctiva</h1>
-        <p>Lote del {{ lote ? shortDate(lote.hoyISO) : '…' }} · BDD leída directamente de Drive · los recordatorios no cuentan como gestión</p>
+        @if (soloLectura) {
+          <p>Consulta: historial de recordatorios enviados y plantillas de los mensajes, con su vista previa.</p>
+        } @else {
+          <p>Lote del {{ lote ? shortDate(lote.hoyISO) : '…' }} · BDD leída directamente de Drive · los recordatorios no cuentan como gestión</p>
+        }
       </div>
     </header>
 
@@ -36,17 +40,22 @@
     }
 
     <nav class="tabs" role="tablist" aria-label="Secciones de campañas">
-      <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button>
-      <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button>
-      <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
-      <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
-      <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
-      <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
-      <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
+      @if (soloLectura) {
+        <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
+        <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
+      } @else {
+        <button type="button" role="tab" [class.active]="pestana === 'whatsapp'" (click)="setPestana('whatsapp')">WhatsApp <i>{{ whatsapp.length }}</i></button>
+        <button type="button" role="tab" [class.active]="pestana === 'correo'" (click)="setPestana('correo')">Correo <i>{{ correo.length }}</i></button>
+        <button type="button" role="tab" [class.active]="pestana === 'sinCanal'" (click)="setPestana('sinCanal')">Sin canal <i>{{ sinCanal.length }}</i></button>
+        <button type="button" role="tab" [class.active]="pestana === 'escalamiento'" (click)="setPestana('escalamiento')">Escalamiento <i>{{ escalamiento.length }}</i></button>
+        <button type="button" role="tab" [class.active]="pestana === 'directorio'" (click)="setPestana('directorio')">Directorio</button>
+        <button type="button" role="tab" [class.active]="pestana === 'plantillas'" (click)="setPestana('plantillas')">Plantillas</button>
+        <button type="button" role="tab" [class.active]="pestana === 'historial'" (click)="setPestana('historial')">Historial</button>
+      }
     </nav>
 
     <div class="tab-body">
-      @if (cargando && !lote) {
+      @if (cargando && !lote && !soloLectura) {
         <div class="skeleton" aria-label="Armando el lote"><i></i><i></i><i></i><i></i></div>
       } @else {
       @switch (pestana) {
@@ -289,7 +298,7 @@
           <p class="tab-hint">
             Un mensaje preventivo y uno por cada recordatorio correctivo de la semana. Las variables entre llaves se llenan con los datos de cada
             cliente y de su franquicia (nombre, facturas pendientes, monto, fecha límite y datos de transferencia). Toca un mensaje para abrirlo.
-            @if (esAdmin) { Al guardar, el lote se recalcula con la nueva versión. } @else { Solo un administrador puede modificarlas; puedes editar cada mensaje antes de enviarlo. }
+            @if (esAdmin) { Al guardar, el lote se recalcula con la nueva versión. } @else if (soloLectura) { Solo consulta: puedes abrir cada mensaje y ver su vista previa. } @else { Solo un administrador puede modificarlas; puedes editar cada mensaje antes de enviarlo. }
           </p>
           @if (cargandoPlantillas && !plantillasCargadas) {
             <div class="skeleton"><i></i><i></i><i></i></div>
