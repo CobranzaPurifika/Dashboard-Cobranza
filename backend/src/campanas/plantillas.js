@@ -1,92 +1,151 @@
 // Plantillas editables de los recordatorios. Cada plantilla es texto con variables entre
 // llaves ({nombre}, {detalle_facturas}…) que se sustituyen con los datos de cada cliente y
-// de su franquicia. Las predeterminadas siguen la skill "cobranza-purifika": tono amable
-// (mora temprana), datos bancarios de la franquicia correcta, contacto de escalamiento y,
-// en correo, el eslogan como última línea.
+// de su franquicia. Hay un mensaje preventivo y uno por cada recordatorio correctivo semanal
+// (R1-R4). Las predeterminadas siguen la skill "cobranza-purifika": tono de mora temprana,
+// datos bancarios de la franquicia correcta, contacto de escalamiento y, en correo, el
+// eslogan como última línea.
 //
 // Los administradores pueden reemplazarlas desde la pestaña Plantillas (tabla
 // campana_plantillas); si no hay una guardada, se usa la predeterminada.
 import { fechaLarga, listaFolios, montoTotalTexto } from "../documents/format.js";
 import { CONTACTO_ESCALAMIENTO, ESLOGAN, FRANQUICIAS } from "./config.js";
 
-export const PLANTILLAS = Object.freeze({
-  preventivo_whatsapp: {
-    titulo: "Preventivo · WhatsApp",
-    regla: "preventivo",
-    canal: "whatsapp",
-    tipo: "cuerpo",
-    predeterminada: [
+const CIERRE_CORREO = [
+  "Datos para transferencia:\n{datos_transferencia}",
+  "Si prefieres domiciliar el pago en tarjeta, con gusto te hacemos llegar el formato de alta.",
+  "Para cualquier duda o aclaración:\n{contacto}",
+  "Gracias por tu confianza en {franquicia}.",
+  "{eslogan}",
+];
+
+function correo({ intro, cierre, etiquetaFecha = "Fecha límite de regularización" }) {
+  return [
+    "Hola, {nombre}:",
+    intro,
+    "{detalle_facturas}",
+    `Monto pendiente: {monto}\n${etiquetaFecha}: {fecha_limite}`,
+    cierre,
+    ...CIERRE_CORREO,
+  ].join("\n\n");
+}
+
+// Un mensaje por recordatorio. Preventivo: uno por factura antes de vencer. Correctivo (mora
+// temprana, 1-30 días): uno por semana, del recordatorio amable (posible olvido) a pedir una
+// acción concreta con contacto, sin mencionar consecuencias (la skill las reserva para mora
+// alta y nunca habla de suspender el servicio).
+const MENSAJES = {
+  preventivo: {
+    etiqueta: "Preventivo",
+    descripcion: "Al corriente, factura por vencer en 5 días o menos",
+    whatsapp: [
       "Hola, {nombre}. Te saludamos de {franquicia} 💧",
       "Te recordamos que el pago de {facturas} por {monto} vence el {fecha_limite}.",
       "Datos para transferencia:\n{datos_transferencia}",
       "Si ya realizaste tu pago, te agradeceremos compartirnos tu comprobante por este medio para aplicarlo a tu cuenta.",
       "¡Gracias por tu preferencia!",
-    ].join("\n\n"),
-  },
-  correctivo_whatsapp: {
-    titulo: "Correctivo · WhatsApp",
-    regla: "correctivo",
-    canal: "whatsapp",
-    tipo: "cuerpo",
-    predeterminada: [
-      "Hola, {nombre}. Te saludamos de {franquicia}.",
-      "Tu cuenta presenta un saldo pendiente de {monto}:\n{detalle_facturas}",
-      "Te pedimos tu apoyo para ponerte al corriente a más tardar el {fecha_limite} y así mantener el mantenimiento continuo de tu servicio de purificación.",
-      "Datos para transferencia:\n{datos_transferencia}",
-      "Si ya realizaste tu pago, compártenos tu comprobante por este medio para aplicarlo a tu cuenta.",
-    ].join("\n\n"),
-  },
-  preventivo_correo_asunto: {
-    titulo: "Preventivo · Asunto del correo",
-    regla: "preventivo",
-    canal: "correo",
-    tipo: "asunto",
-    predeterminada: "Recordatorio de pago — {referencia} {franquicia}",
-  },
-  preventivo_correo: {
-    titulo: "Preventivo · Correo",
-    regla: "preventivo",
-    canal: "correo",
-    tipo: "cuerpo",
-    predeterminada: [
+    ],
+    asunto: "Recordatorio de pago — {referencia} {franquicia}",
+    correo: [
       "Hola, {nombre}:",
       "Te recordamos que el pago de {facturas}, por concepto de renta y mantenimiento de tu equipo purificador, vence el {fecha_limite}:",
       "{detalle_facturas}",
       "Monto pendiente: {monto}\nFecha de vencimiento: {fecha_limite}",
       "Si ya realizaste el pago, te agradeceremos responder a este correo con tu comprobante para aplicarlo a tu cuenta.",
-      "Datos para transferencia:\n{datos_transferencia}",
-      "Si prefieres domiciliar el pago en tarjeta, con gusto te hacemos llegar el formato de alta.",
-      "Para cualquier duda o aclaración:\n{contacto}",
-      "Gracias por tu confianza en {franquicia}.",
-      "{eslogan}",
+      ...CIERRE_CORREO,
     ].join("\n\n"),
   },
-  correctivo_correo_asunto: {
-    titulo: "Correctivo · Asunto del correo",
-    regla: "correctivo",
-    canal: "correo",
-    tipo: "asunto",
-    predeterminada: "Saldo pendiente — {referencia} {franquicia}",
-  },
-  correctivo_correo: {
-    titulo: "Correctivo · Correo",
-    regla: "correctivo",
-    canal: "correo",
-    tipo: "cuerpo",
-    predeterminada: [
-      "Hola, {nombre}:",
-      "Te informamos que tu cuenta presenta un saldo pendiente de {monto}, correspondiente a {facturas}, por concepto de renta y mantenimiento de tu equipo purificador:",
-      "{detalle_facturas}",
-      "Monto pendiente: {monto}\nFecha límite de regularización: {fecha_limite}",
-      "Para mantener la continuidad operativa de tu servicio de purificación y su mantenimiento preventivo, te pedimos regularizar tu cuenta antes de la fecha indicada. Si ya realizaste el pago, responde a este correo con tu comprobante para registrarlo.",
+  correctivo_r1: {
+    etiqueta: "Correctivo · 1er recordatorio",
+    descripcion: "A partir del día 7",
+    whatsapp: [
+      "Hola, {nombre}. Te saludamos de {franquicia}.",
+      "Te recordamos que tu cuenta tiene un saldo pendiente de {monto}; es posible que se haya pasado por alto:\n{detalle_facturas}",
+      "Te agradeceremos ponerte al corriente a más tardar el {fecha_limite} para mantener el mantenimiento continuo de tu servicio de purificación.",
       "Datos para transferencia:\n{datos_transferencia}",
-      "Si prefieres domiciliar el pago en tarjeta, con gusto te hacemos llegar el formato de alta.",
-      "Para cualquier duda o aclaración:\n{contacto}",
-      "Gracias por tu confianza en {franquicia}.",
-      "{eslogan}",
-    ].join("\n\n"),
+      "Si ya realizaste tu pago, compártenos tu comprobante por este medio para aplicarlo a tu cuenta.",
+    ],
+    asunto: "Recordatorio de pago — {referencia} {franquicia}",
+    correo: correo({
+      intro: "Te recordamos que tu cuenta presenta un saldo pendiente de {monto}, correspondiente a {facturas}, por concepto de renta y mantenimiento de tu equipo purificador. Es posible que se haya pasado por alto:",
+      cierre: "Te agradeceremos regularizarla antes de la fecha indicada. Si ya realizaste el pago, responde a este correo con tu comprobante para registrarlo.",
+    }),
   },
-});
+  correctivo_r2: {
+    etiqueta: "Correctivo · 2do recordatorio",
+    descripcion: "A partir del día 15",
+    whatsapp: [
+      "Hola, {nombre}. Te saludamos nuevamente de {franquicia}.",
+      "Aún no vemos reflejado el pago de tu cuenta. El saldo pendiente es de {monto}:\n{detalle_facturas}",
+      "Te pedimos tu apoyo para regularizarla a más tardar el {fecha_limite}.",
+      "Datos para transferencia:\n{datos_transferencia}",
+      "Si ya pagaste, compártenos tu comprobante por este medio. Si prefieres domiciliar el pago en tarjeta, con gusto te enviamos el formato de alta.",
+    ],
+    asunto: "Segundo recordatorio de pago — {referencia} {franquicia}",
+    correo: correo({
+      intro: "Te escribimos nuevamente porque aún no vemos reflejado el pago de {facturas}, por concepto de renta y mantenimiento de tu equipo purificador:",
+      cierre: "Para mantener el mantenimiento continuo de tu servicio de purificación, te pedimos regularizar tu cuenta antes de la fecha indicada. Si ya realizaste el pago, responde a este correo con tu comprobante para registrarlo.",
+    }),
+  },
+  correctivo_r3: {
+    etiqueta: "Correctivo · 3er recordatorio",
+    descripcion: "A partir del día 21",
+    whatsapp: [
+      "Hola, {nombre}. Te contactamos de {franquicia} respecto al saldo pendiente de tu cuenta.",
+      "Saldo pendiente: {monto}\n{detalle_facturas}\nFecha límite de regularización: {fecha_limite}",
+      "Para mantener la continuidad de tu servicio de purificación y su mantenimiento preventivo, es importante regularizar tu cuenta antes de esa fecha. Si necesitas acordar una fecha de pago, respóndenos por este medio y lo revisamos contigo.",
+      "Datos para transferencia:\n{datos_transferencia}",
+    ],
+    asunto: "Saldo pendiente — {referencia} {franquicia}",
+    correo: correo({
+      intro: "Te contactamos respecto al saldo pendiente de tu cuenta por {monto}, correspondiente a {facturas}, por concepto de renta y mantenimiento de tu equipo purificador:",
+      cierre: "Para mantener la continuidad operativa de tu servicio de purificación y su mantenimiento preventivo, es importante regularizar tu cuenta antes de la fecha indicada. Si necesitas acordar un compromiso de pago, responde a este correo y lo revisamos contigo.",
+    }),
+  },
+  correctivo_r4: {
+    etiqueta: "Correctivo · 4to recordatorio (fin de mes)",
+    descripcion: "Último día hábil del mes",
+    whatsapp: [
+      "Hola, {nombre}. Cerramos el mes en {franquicia} y tu cuenta aún presenta un saldo pendiente.",
+      "Saldo pendiente: {monto}\n{detalle_facturas}\nFecha límite de regularización: {fecha_limite}",
+      "Te pedimos realizar tu pago antes de esa fecha o confirmarnos por este medio un compromiso de pago, para que tu cuenta se mantenga al corriente y tu servicio con su mantenimiento continuo.",
+      "Datos para transferencia:\n{datos_transferencia}",
+      "Para cualquier duda o aclaración: {contacto}",
+    ],
+    asunto: "Regularización pendiente — {referencia} {franquicia}",
+    correo: correo({
+      intro: "Al cierre de mes, tu cuenta aún presenta un saldo pendiente de {monto}, correspondiente a {facturas}, por concepto de renta y mantenimiento de tu equipo purificador:",
+      cierre: "Te pedimos realizar el pago antes de la fecha indicada o, si lo necesitas, responder a este correo para acordar un compromiso de pago. Así tu cuenta se mantiene al corriente y tu servicio con su mantenimiento continuo. Si ya realizaste el pago, responde con tu comprobante para registrarlo.",
+    }),
+  },
+};
+
+// Grupos de mensaje en el orden en que se muestran: { clave, etiqueta, descripcion, regla, recordatorio }.
+export const MENSAJES_RECORDATORIO = Object.freeze(Object.entries(MENSAJES).map(([clave, mensaje]) => ({
+  clave,
+  etiqueta: mensaje.etiqueta,
+  descripcion: mensaje.descripcion,
+  regla: clave === "preventivo" ? "preventivo" : "correctivo",
+  recordatorio: clave === "preventivo" ? null : clave.slice(-2).toUpperCase(),
+})));
+
+// Una plantilla por mensaje y canal; el correo lleva asunto y cuerpo. Claves:
+// "<mensaje>_whatsapp", "<mensaje>_correo_asunto", "<mensaje>_correo".
+export const PLANTILLAS = Object.freeze(Object.fromEntries(Object.entries(MENSAJES).flatMap(([clave, mensaje]) => {
+  const base = { mensaje: clave, regla: clave === "preventivo" ? "preventivo" : "correctivo" };
+  return [
+    [`${clave}_whatsapp`, { ...base, titulo: `${mensaje.etiqueta} · WhatsApp`, canal: "whatsapp", tipo: "cuerpo", predeterminada: mensaje.whatsapp.join("\n\n") }],
+    [`${clave}_correo_asunto`, { ...base, titulo: `${mensaje.etiqueta} · Asunto del correo`, canal: "correo", tipo: "asunto", predeterminada: mensaje.asunto }],
+    [`${clave}_correo`, { ...base, titulo: `${mensaje.etiqueta} · Correo`, canal: "correo", tipo: "cuerpo", predeterminada: mensaje.correo }],
+  ];
+})));
+
+// Mensaje que corresponde a un item del lote: preventivo, o el correctivo de su recordatorio
+// (R1-R4; si el calendario llegara a tener más, se usa el último).
+export function mensajeDeItem(item) {
+  if (item.regla === "preventivo") return "preventivo";
+  const numero = Math.min(Math.max(Number.parseInt(String(item.recordatorio ?? "R1").slice(1), 10) || 1, 1), 4);
+  return `correctivo_r${numero}`;
+}
 
 export const VARIABLES = Object.freeze([
   { clave: "nombre", descripcion: "Nombre del cliente (Grupo De Facturación)", ejemplo: "María López" },

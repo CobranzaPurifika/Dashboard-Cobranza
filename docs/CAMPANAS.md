@@ -31,13 +31,20 @@ franquicia, como el Aviso de deuda: nombre, facturas pendientes (folio, saldo y
 vencimiento), monto, fecha límite y los datos de transferencia de la franquicia correcta
 (beneficiario, banco, cuenta y CLABE; nunca se mezclan cuentas).
 
-- **Pestaña Plantillas**: seis plantillas (preventivo y correctivo × WhatsApp, asunto de correo
-  y correo). Todos las ven; solo un administrador las edita. Las variables se insertan con un
-  clic (`{nombre}`, `{franquicia}`, `{facturas}`, `{detalle_facturas}`, `{monto}`,
-  `{fecha_limite}`, `{datos_transferencia}`, `{contacto}`, `{eslogan}`, entre otras); una
-  variable desconocida no se deja guardar. *Vista previa* muestra el resultado con un cliente
-  ficticio y *Restablecer predeterminada* vuelve al texto original. Al guardar, el lote se
-  recalcula.
+- **Cinco mensajes**: preventivo y un correctivo por cada recordatorio semanal (1er, 2do, 3er y
+  4to/fin de mes), cada uno con su WhatsApp y su correo (asunto + cuerpo). Los cuatro
+  correctivos suben de tono poco a poco dentro de la mora temprana: del posible olvido (R1) a
+  pedir el pago o un compromiso de pago con contacto (R4). Ninguno menciona suspensión ni
+  retiro del equipo, que la skill reserva para mora alta.
+- **Pestaña Plantillas**: cada mensaje aparece contraído (canal, primera línea y si está editado);
+  al abrirlo, el correo se edita en un solo recuadro con el asunto arriba y el cuerpo abajo, y
+  se guarda junto. Todos la ven; solo un administrador la edita. Las variables se insertan con
+  un clic en el último campo usado (`{nombre}`, `{franquicia}`, `{facturas}`,
+  `{detalle_facturas}`, `{monto}`, `{fecha_limite}`, `{datos_transferencia}`, `{contacto}`,
+  `{eslogan}`, entre otras); una variable desconocida no se deja guardar. *Vista previa* usa un
+  cliente ficticio con las fechas reales del mes (la fecha límite se calcula igual que en el
+  lote: día del recordatorio + 5 días hábiles) y *Restablecer predeterminada* vuelve al texto
+  original. Al guardar, el lote se recalcula.
 - En correo, `{detalle_facturas}` y `{datos_transferencia}` en su propia línea salen como
   tabla y recuadro, y `{eslogan}` en su propio párrafo sale con el estilo de marca.
 - Las predeterminadas siguen la skill `cobranza-purifika`: tono amable (mora temprana), datos
@@ -115,6 +122,8 @@ clientes vigentes ya listados, con su contacto actual si existe.
 Sin las variables SMTP la pestaña funciona y el correo se muestra deshabilitado.
 
 La migración `supabase/migrations/20261002090000_campanas_cobranza.sql` crea las dos tablas.
+`20261007090000_campanas_plantillas_correctivos.sql` cambia las claves de las plantillas
+correctivas a una por recordatorio (`correctivo_r1_*` … `correctivo_r4_*`).
 `20261005090000_campanas_plantillas.sql` agrega `campana_plantillas` y las columnas `mensaje`,
 `asunto` y `editado` de `campana_envios`; debe aplicarse antes de desplegar el backend que
 las usa (sin ella el lote funciona con las plantillas predeterminadas, pero registrar un

@@ -7,13 +7,15 @@ import { pool } from "../db/pool.js";
 import { requireRole } from "../auth/authorization.js";
 import { FRANCHISE_IDS, resolveFranchiseScope } from "../auth/franchiseScope.js";
 import { normalizeBusinessKey } from "../imports/consolidation.js";
-import { mexicoTodayISO } from "../domain/dates.js";
+import { addCalendarDays, mexicoTodayISO } from "../domain/dates.js";
 import { cargarPlantillas, contactosPorGrupo, leerBdd, obtenerLote, plantillasGuardadas, registrarEnvio } from "../campanas/service.js";
-import { correoDeItem, ultimoDiaDelMes } from "../campanas/reglas.js";
+import { calendarioCorrectivo, correoDeItem, sumarDiasHabiles } from "../campanas/reglas.js";
+import { REGLAS } from "../campanas/config.js";
 import { asuntoCorreo, correoHtml, correoTexto, mensajeWhatsApp } from "../campanas/mensajes.js";
 import {
   LIMITE_ASUNTO,
   LIMITE_CUERPO,
+  MENSAJES_RECORDATORIO,
   PLANTILLAS,
   VARIABLES,
   correoHtmlDesdeTexto,
@@ -198,6 +200,7 @@ function describirPlantillas(guardadas) {
   return Object.entries(PLANTILLAS).map(([clave, plantilla]) => ({
     clave,
     titulo: plantilla.titulo,
+    mensaje: plantilla.mensaje,
     regla: plantilla.regla,
     canal: plantilla.canal,
     tipo: plantilla.tipo,
@@ -210,10 +213,16 @@ function describirPlantillas(guardadas) {
   }));
 }
 
-// GET /api/campanas/plantillas -> plantillas vigentes y variables disponibles
+// GET /api/campanas/plantillas -> mensajes (preventivo y R1-R4), sus plantillas y las variables
 campanasRouter.get("/plantillas", async (_req, res, next) => {
   try {
-    res.json({ plantillas: describirPlantillas(await plantillasGuardadas(pool)), variables: VARIABLES });
+    const hoyISO = mexicoTodayISO();
+    const calendario = calendarioCorrectivo(hoyISO.slice(0, 7));
+    const mensajes = MENSAJES_RECORDATORIO.map((mensaje) => ({
+      ...mensaje,
+      desdeISO: calendario.find((ventana) => ventana.recordatorio === mensaje.recordatorio)?.desdeISO ?? null,
+    }));
+    res.json({ mensajes, plantillas: describirPlantillas(await plantillasGuardadas(pool)), variables: VARIABLES });
   } catch (err) {
     next(err);
   }
@@ -255,25 +264,40 @@ campanasRouter.delete("/plantillas/:clave", requireRole("admin"), async (req, re
   }
 });
 
-// Cliente de ejemplo para la vista previa de una plantilla: dos facturas, con vencimientos
-// coherentes con la regla, en la franquicia elegida.
-function itemDeEjemplo(regla, franchiseId) {
-  const mes = mexicoTodayISO().slice(0, 7);
-  const dia = (numero) => `${mes}-${String(Math.min(numero, ultimoDiaDelMes(mes))).padStart(2, "0")}`;
+// Cliente de ejemplo para la vista previa de una plantilla, con las fechas reales del mes: el
+// correctivo se "envía" el día de su recordatorio y su fecha límite se calcula igual que en el
+// lote (+5 días hábiles); el preventivo, con una factura que vence en 3 días.
+function itemDeEjemplo(plantilla, franchiseId) {
+  const hoyISO = mexicoTodayISO();
   const prefijo = PREFIJO_FRANQUICIA[franchiseId];
-  const correctivo = regla === "correctivo";
+  if (plantilla.regla === "preventivo") {
+    const vencimientoISO = addCalendarDays(hoyISO, 3);
+    return {
+      regla: "preventivo",
+      recordatorio: null,
+      franchiseId,
+      nombre: "María López",
+      facturas: [{ folio: `${prefijo}-1101`, saldo: 850, vencimientoISO, diasAtraso: -3 }],
+      monto: 850,
+      fechaLimiteISO: vencimientoISO,
+      atrasoMaximo: 0,
+    };
+  }
+  const recordatorio = plantilla.mensaje.slice(-2).toUpperCase();
+  const envioISO = calendarioCorrectivo(hoyISO.slice(0, 7)).find((ventana) => ventana.recordatorio === recordatorio)?.desdeISO ?? hoyISO;
   const facturas = [
-    { folio: `${prefijo}-1024`, saldo: 1250, vencimientoISO: correctivo ? dia(1) : dia(28), diasAtraso: correctivo ? 21 : -3 },
-    { folio: `${prefijo}-1101`, saldo: 850, vencimientoISO: correctivo ? dia(8) : dia(28), diasAtraso: correctivo ? 14 : -3 },
+    { folio: `${prefijo}-1024`, saldo: 1250, vencimientoISO: addCalendarDays(envioISO, -20), diasAtraso: 20 },
+    { folio: `${prefijo}-1101`, saldo: 850, vencimientoISO: addCalendarDays(envioISO, -5), diasAtraso: 5 },
   ];
   return {
-    regla,
+    regla: "correctivo",
+    recordatorio,
     franchiseId,
     nombre: "María López",
     facturas,
     monto: 2100,
-    fechaLimiteISO: correctivo ? dia(22) : dia(28),
-    atrasoMaximo: correctivo ? 21 : 0,
+    fechaLimiteISO: sumarDiasHabiles(envioISO, REGLAS.correctivoPlazoDiasHabiles),
+    atrasoMaximo: 20,
   };
 }
 
@@ -288,7 +312,7 @@ campanasRouter.post("/plantillas/vista-previa", async (req, res, next) => {
       : resolveFranchiseScope(req.user, "todas")[0];
     const plantilla = PLANTILLAS[clave];
     const plantillas = { ...plantillasVigentes(), [clave]: texto };
-    const item = itemDeEjemplo(plantilla.regla, franchiseId);
+    const item = itemDeEjemplo(plantilla, franchiseId);
     if (plantilla.canal === "whatsapp") return res.json({ texto: mensajeWhatsApp(item, plantillas) });
     if (plantilla.tipo === "asunto") return res.json({ texto: asuntoCorreo(item, plantillas) });
     res.json({ texto: correoTexto(item, plantillas), html: correoHtml(item, plantillas) });
@@ -543,6 +567,10 @@ campanasRouter.use((err, _req, _res, next) => {
     err.statusCode = 503;
     err.expose = true;
     err.message = "Falta aplicar en la base de datos la migración del módulo Campañas (20261002090000_campanas_cobranza.sql)";
+  } else if (err?.code === "23514" && /campana_plantillas/.test(String(err.message))) {
+    err.statusCode = 503;
+    err.expose = true;
+    err.message = "Falta aplicar en la base de datos la migración de los cuatro correctivos (20261007090000_campanas_plantillas_correctivos.sql)";
   } else if (err?.code === "42703" && /mensaje|asunto|editado/.test(String(err.message))) {
     err.statusCode = 503;
     err.expose = true;

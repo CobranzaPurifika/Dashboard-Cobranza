@@ -14,6 +14,7 @@ interface ItemLote {
   nombre: string;
   segment: string;
   regla: 'preventivo' | 'correctivo';
+  recordatorio: string | null;
   tramo: string;
   atrasoMaximo: number;
   monto: number;
@@ -40,6 +41,7 @@ interface CorreoPrevio {
 interface PlantillaMensaje {
   clave: string;
   titulo: string;
+  mensaje: string;
   regla: 'preventivo' | 'correctivo';
   canal: 'whatsapp' | 'correo';
   tipo: 'asunto' | 'cuerpo';
@@ -51,7 +53,28 @@ interface PlantillaMensaje {
   actualizadoPor: string | null;
   // Edición en pantalla
   contenidoEdit: string;
-  vista?: string;
+}
+
+interface MensajeRecordatorio {
+  clave: string;
+  etiqueta: string;
+  descripcion: string;
+  regla: 'preventivo' | 'correctivo';
+  recordatorio: string | null;
+  desdeISO: string | null;
+}
+
+// Una tarjeta por mensaje y canal. En correo, asunto y cuerpo se editan y guardan juntos.
+interface TarjetaPlantilla {
+  id: string;
+  canal: 'whatsapp' | 'correo';
+  cuerpo: PlantillaMensaje;
+  asunto: PlantillaMensaje | null;
+  abierta: boolean;
+  // Último campo enfocado, para insertar ahí las variables.
+  campoActivo: 'asunto' | 'cuerpo';
+  elementoActivo?: HTMLInputElement | HTMLTextAreaElement;
+  vista?: { asunto?: string; texto: string };
   cargandoVista?: boolean;
   guardando?: boolean;
   error?: string;
@@ -129,7 +152,8 @@ export class CampanasComponent implements OnChanges {
   edicionesCorreo = new Map<string, { asunto: string; texto: string }>();
 
   // Plantillas de los mensajes
-  plantillas: PlantillaMensaje[] = [];
+  mensajes: MensajeRecordatorio[] = [];
+  tarjetas: TarjetaPlantilla[] = [];
   variables: { clave: string; descripcion: string; ejemplo: string }[] = [];
   plantillasCargadas = false;
   cargandoPlantillas = false;
@@ -553,8 +577,21 @@ export class CampanasComponent implements OnChanges {
   async cargarPlantillas(): Promise<void> {
     this.cargandoPlantillas = true;
     try {
-      const { plantillas, variables } = await this.api.campanasPlantillasMensaje();
-      this.plantillas = plantillas.map((plantilla: any) => ({ ...plantilla, contenidoEdit: plantilla.contenido }));
+      const { mensajes, plantillas, variables } = await this.api.campanasPlantillasMensaje();
+      const abiertas = new Set(this.tarjetas.filter((tarjeta) => tarjeta.abierta).map((tarjeta) => tarjeta.id));
+      const porClave = new Map<string, PlantillaMensaje>(plantillas.map((plantilla: any) => [plantilla.clave, { ...plantilla, contenidoEdit: plantilla.contenido }]));
+      this.mensajes = mensajes;
+      this.tarjetas = mensajes.flatMap((mensaje: MensajeRecordatorio) => (['whatsapp', 'correo'] as const).map((canal) => {
+        const id = `${mensaje.clave}_${canal}`;
+        return {
+          id,
+          canal,
+          cuerpo: porClave.get(id)!,
+          asunto: canal === 'correo' ? porClave.get(`${mensaje.clave}_correo_asunto`) ?? null : null,
+          abierta: abiertas.has(id),
+          campoActivo: 'cuerpo' as const,
+        };
+      })).filter((tarjeta: TarjetaPlantilla) => tarjeta.cuerpo);
       this.variables = variables;
       this.plantillasCargadas = true;
     } catch (error: any) {
@@ -565,76 +602,131 @@ export class CampanasComponent implements OnChanges {
     }
   }
 
-  plantillasDe(canal: 'whatsapp' | 'correo'): PlantillaMensaje[] {
-    return this.plantillas.filter((plantilla) => plantilla.canal === canal);
+  tarjetasDe(mensaje: MensajeRecordatorio): TarjetaPlantilla[] {
+    return this.tarjetas.filter((tarjeta) => tarjeta.cuerpo.mensaje === mensaje.clave);
   }
 
-  plantillaModificada(plantilla: PlantillaMensaje): boolean {
-    return plantilla.contenidoEdit.trim() !== plantilla.contenido;
+  private camposDe(tarjeta: TarjetaPlantilla): PlantillaMensaje[] {
+    return tarjeta.asunto ? [tarjeta.asunto, tarjeta.cuerpo] : [tarjeta.cuerpo];
   }
 
-  // Inserta la variable donde está el cursor del campo de esa plantilla.
-  insertarVariable(plantilla: PlantillaMensaje, clave: string, campo: HTMLTextAreaElement | HTMLInputElement): void {
+  modificada(tarjeta: TarjetaPlantilla): boolean {
+    return this.camposDe(tarjeta).some((campo) => campo.contenidoEdit.trim() !== campo.contenido);
+  }
+
+  personalizada(tarjeta: TarjetaPlantilla): boolean {
+    return this.camposDe(tarjeta).some((campo) => campo.personalizada);
+  }
+
+  estadoTarjeta(tarjeta: TarjetaPlantilla): string {
+    if (this.modificada(tarjeta)) return 'Cambios sin guardar';
+    const editada = this.camposDe(tarjeta).filter((campo) => campo.personalizada)
+      .sort((a, b) => String(b.actualizado).localeCompare(String(a.actualizado)))[0];
+    if (!editada) return 'Predeterminada';
+    return `Editada${editada.actualizadoPor ? ' por ' + editada.actualizadoPor : ''}${editada.actualizado ? ' · ' + this.fechaHora(editada.actualizado) : ''}`;
+  }
+
+  // Primera línea con texto del mensaje, para reconocerlo con la tarjeta contraída.
+  resumenTarjeta(tarjeta: TarjetaPlantilla): string {
+    if (tarjeta.asunto) return tarjeta.asunto.contenidoEdit;
+    return tarjeta.cuerpo.contenidoEdit.split('\n').find((linea) => linea.trim())?.trim() ?? '';
+  }
+
+  toggleTarjeta(tarjeta: TarjetaPlantilla): void {
+    tarjeta.abierta = !tarjeta.abierta;
+    if (!tarjeta.abierta) tarjeta.elementoActivo = undefined;
+  }
+
+  marcarCambio(tarjeta: TarjetaPlantilla): void {
+    tarjeta.guardado = false;
+    tarjeta.vista = undefined;
+  }
+
+  enfocar(tarjeta: TarjetaPlantilla, campo: 'asunto' | 'cuerpo', event: FocusEvent): void {
+    tarjeta.campoActivo = campo;
+    tarjeta.elementoActivo = event.target as HTMLInputElement | HTMLTextAreaElement;
+  }
+
+  // Inserta la variable donde está el cursor del último campo usado (asunto o cuerpo); si no
+  // se ha tocado ninguno, al final del cuerpo.
+  insertarVariable(tarjeta: TarjetaPlantilla, clave: string): void {
+    const plantilla = tarjeta.campoActivo === 'asunto' && tarjeta.asunto ? tarjeta.asunto : tarjeta.cuerpo;
+    const campo = tarjeta.elementoActivo;
     const token = `{${clave}}`;
-    const inicio = campo.selectionStart ?? plantilla.contenidoEdit.length;
-    const fin = campo.selectionEnd ?? inicio;
+    const inicio = campo?.selectionStart ?? plantilla.contenidoEdit.length;
+    const fin = campo?.selectionEnd ?? inicio;
     plantilla.contenidoEdit = plantilla.contenidoEdit.slice(0, inicio) + token + plantilla.contenidoEdit.slice(fin);
-    plantilla.guardado = false;
-    setTimeout(() => {
-      campo.focus();
-      campo.setSelectionRange(inicio + token.length, inicio + token.length);
+    this.marcarCambio(tarjeta);
+    if (campo) {
+      setTimeout(() => {
+        campo.focus();
+        campo.setSelectionRange(inicio + token.length, inicio + token.length);
+      });
+    }
+  }
+
+  async vistaPreviaTarjeta(tarjeta: TarjetaPlantilla): Promise<void> {
+    tarjeta.cargandoVista = true;
+    tarjeta.error = '';
+    const franquicia = this.franchise !== 'todas' ? { franchiseId: this.franchise } : {};
+    try {
+      const [asunto, cuerpo] = await Promise.all([
+        tarjeta.asunto
+          ? this.api.campanasVistaPreviaPlantillaMensaje({ clave: tarjeta.asunto.clave, contenido: tarjeta.asunto.contenidoEdit, ...franquicia })
+          : Promise.resolve(null),
+        this.api.campanasVistaPreviaPlantillaMensaje({ clave: tarjeta.cuerpo.clave, contenido: tarjeta.cuerpo.contenidoEdit, ...franquicia }),
+      ]);
+      tarjeta.vista = { asunto: asunto?.texto, texto: cuerpo.texto };
+    } catch (error: any) {
+      tarjeta.error = error.message;
+    } finally {
+      tarjeta.cargandoVista = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async guardarTarjeta(tarjeta: TarjetaPlantilla): Promise<void> {
+    await this.actualizarTarjeta(tarjeta, async (campo) => {
+      if (campo.contenidoEdit.trim() === campo.contenido) return null;
+      return this.api.campanasGuardarPlantillaMensaje(campo.clave, campo.contenidoEdit);
     });
   }
 
-  async vistaPreviaPlantilla(plantilla: PlantillaMensaje): Promise<void> {
-    plantilla.cargandoVista = true;
-    plantilla.error = '';
-    try {
-      const { texto } = await this.api.campanasVistaPreviaPlantillaMensaje({
-        clave: plantilla.clave,
-        contenido: plantilla.contenidoEdit,
-        ...(this.franchise !== 'todas' ? { franchiseId: this.franchise } : {}),
-      });
-      plantilla.vista = texto;
-    } catch (error: any) {
-      plantilla.error = error.message;
-    } finally {
-      plantilla.cargandoVista = false;
-      this.cdr.markForCheck();
-    }
+  async restablecerTarjeta(tarjeta: TarjetaPlantilla): Promise<void> {
+    const nombre = `${this.mensajes.find((mensaje) => mensaje.clave === tarjeta.cuerpo.mensaje)?.etiqueta ?? ''} · ${tarjeta.canal === 'correo' ? 'Correo' : 'WhatsApp'}`;
+    if (!window.confirm(`¿Volver al texto predeterminado de "${nombre}"? Se pierde la versión editada.`)) return;
+    await this.actualizarTarjeta(tarjeta, async (campo) => (campo.personalizada ? this.api.campanasRestablecerPlantillaMensaje(campo.clave) : null));
   }
 
-  async guardarPlantilla(plantilla: PlantillaMensaje): Promise<void> {
-    plantilla.guardando = true;
-    plantilla.error = '';
-    try {
-      this.aplicarPlantilla(plantilla, await this.api.campanasGuardarPlantillaMensaje(plantilla.clave, plantilla.contenidoEdit));
-    } catch (error: any) {
-      plantilla.error = error.message;
-    } finally {
-      plantilla.guardando = false;
-      this.cdr.markForCheck();
-    }
+  descartarTarjeta(tarjeta: TarjetaPlantilla): void {
+    for (const campo of this.camposDe(tarjeta)) campo.contenidoEdit = campo.contenido;
+    this.marcarCambio(tarjeta);
   }
 
-  async restablecerPlantilla(plantilla: PlantillaMensaje): Promise<void> {
-    if (!window.confirm(`¿Volver a la plantilla predeterminada de "${plantilla.titulo}"? Se pierde la versión editada.`)) return;
-    plantilla.guardando = true;
-    plantilla.error = '';
+  // Guarda o restablece asunto y cuerpo uno tras otro; si uno falla, el otro ya quedó
+  // aplicado y el error se muestra en la tarjeta. Al terminar se recalcula el lote para que
+  // los mensajes pendientes usen la nueva versión.
+  private async actualizarTarjeta(tarjeta: TarjetaPlantilla, accion: (campo: PlantillaMensaje) => Promise<any>): Promise<void> {
+    tarjeta.guardando = true;
+    tarjeta.error = '';
+    let cambio = false;
     try {
-      this.aplicarPlantilla(plantilla, await this.api.campanasRestablecerPlantillaMensaje(plantilla.clave));
+      for (const campo of this.camposDe(tarjeta)) {
+        const fila = await accion(campo);
+        if (fila) {
+          Object.assign(campo, { ...fila, contenidoEdit: fila.contenido });
+          cambio = true;
+        }
+      }
+      tarjeta.guardado = true;
+      tarjeta.vista = undefined;
     } catch (error: any) {
-      plantilla.error = error.message;
+      tarjeta.error = error.message;
     } finally {
-      plantilla.guardando = false;
+      tarjeta.guardando = false;
+      if (cambio) void this.cargar();
       this.cdr.markForCheck();
     }
-  }
-
-  // Los mensajes del lote se arman con las plantillas: se recalcula para verlos ya con el cambio.
-  private aplicarPlantilla(plantilla: PlantillaMensaje, fila: any): void {
-    Object.assign(plantilla, { ...fila, contenidoEdit: fila.contenido, guardado: true, vista: undefined });
-    void this.cargar();
   }
 
   // ---- Historial ----
@@ -669,6 +761,10 @@ export class CampanasComponent implements OnChanges {
 
   ordinal(recordatorio: string): string {
     return ORDINAL_RECORDATORIO[recordatorio] ?? recordatorio;
+  }
+
+  etiquetaRegla(item: ItemLote): string {
+    return item.regla === 'preventivo' ? 'Preventivo' : `Correctivo ${this.ordinal(item.recordatorio ?? 'R1')} recordatorio`;
   }
 
   etiquetaEnvio(envio: { regla: string; periodo: string }): string {

@@ -14,7 +14,7 @@ import {
   sumarDiasHabiles,
   ventanas,
 } from "../src/campanas/reglas.js";
-import { correoHtmlDesdeTexto, plantillasVigentes, validarPlantilla } from "../src/campanas/plantillas.js";
+import { PLANTILLAS, correoHtmlDesdeTexto, plantillasVigentes, validarPlantilla } from "../src/campanas/plantillas.js";
 
 // Fila de BDD con las posiciones de columna que usa la importación oficial.
 function filaBdd({ grupo, rfc = "XAXX010101000", folio, fecha, credito = "15", diasBdd = "0", saldo, estatus = "Facturada", ejecutivo = "" }) {
@@ -171,7 +171,7 @@ test("correctivo personalizado: nombre, franquicia, detalle de facturas y datos 
 
 test("usa la plantilla editada por el administrador", () => {
   const filas = [filaBdd({ grupo: "Ana Ruiz", folio: "MID-1", fecha: "01/09/2026", saldo: "300" })];
-  const plantillas = plantillasVigentes({ correctivo_whatsapp: "Hola {nombre}, debes {monto} ({folios}) a {franquicia}. CLABE {clabe}" });
+  const plantillas = plantillasVigentes({ correctivo_r1_whatsapp: "Hola {nombre}, debes {monto} ({folios}) a {franquicia}. CLABE {clabe}" });
   const lote = construirLote({
     hoyISO: "2026-10-07",
     franchiseId: "merida",
@@ -183,11 +183,30 @@ test("usa la plantilla editada por el administrador", () => {
   assert.match(lote.pendientes[0].whatsappUrl, /Hola%20Ana%20Ruiz/);
 });
 
+test("cada recordatorio correctivo usa su propio mensaje", () => {
+  const filas = [filaBdd({ grupo: "Ana Ruiz", folio: "AGS2-60", fecha: "05/10/2026", credito: "1", saldo: "300" })];
+  const contactos = new Map([["ana ruiz", { telefono: "524491234567", correo: "ana@ruiz.mx", recibe_correo: true }]]);
+  // Octubre 2026: R1 el 7, R2 el 15, R3 el 21 y R4 el 30.
+  const esperado = { "2026-10-07": "R1", "2026-10-15": "R2", "2026-10-21": "R3", "2026-10-30": "R4" };
+  const textos = new Set();
+  for (const [hoyISO, recordatorio] of Object.entries(esperado)) {
+    const [item] = construirLote({ hoyISO, franchiseId: "aguascalientes", clientes: clientesDe(filas), contactos }).pendientes;
+    assert.equal(item.recordatorio, recordatorio);
+    const clave = `correctivo_${recordatorio.toLowerCase()}`;
+    assert.equal(item.correoAsunto, PLANTILLAS[`${clave}_correo_asunto`].predeterminada.replace("{referencia}", "Factura AGS2-60").replace("{franquicia}", "Purifika Aguascalientes"));
+    assert.match(item.whatsappTexto, /CLABE: 014010655092237775/);
+    assert.doesNotMatch(item.whatsappTexto, /suspend|interrump|corte|retiro/i);
+    textos.add(item.whatsappTexto.split("\n")[0]);
+  }
+  assert.equal(textos.size, 4);
+});
+
 test("valida las plantillas antes de guardarlas", () => {
-  assert.equal(validarPlantilla("correctivo_whatsapp", "  Hola {nombre}\r\n\r\n{detalle_facturas}  "), "Hola {nombre}\n\n{detalle_facturas}");
-  assert.equal(validarPlantilla("correctivo_correo_asunto", "Saldo\n  {referencia}"), "Saldo {referencia}");
-  assert.throws(() => validarPlantilla("correctivo_whatsapp", "Hola {cliente} {saldo}"), /Variables desconocidas: \{cliente\}, \{saldo\}/);
-  assert.throws(() => validarPlantilla("correctivo_whatsapp", "   "), /vacía/);
+  assert.equal(validarPlantilla("correctivo_r1_whatsapp", "  Hola {nombre}\r\n\r\n{detalle_facturas}  "), "Hola {nombre}\n\n{detalle_facturas}");
+  assert.equal(validarPlantilla("correctivo_r2_correo_asunto", "Saldo\n  {referencia}"), "Saldo {referencia}");
+  assert.throws(() => validarPlantilla("correctivo_r3_whatsapp", "Hola {cliente} {saldo}"), /Variables desconocidas: \{cliente\}, \{saldo\}/);
+  assert.throws(() => validarPlantilla("correctivo_r4_whatsapp", "   "), /vacía/);
+  assert.throws(() => validarPlantilla("correctivo_whatsapp", "Hola"), /desconocida/);
   assert.throws(() => validarPlantilla("otra", "Hola"), /desconocida/);
   assert.throws(() => validarPlantilla("preventivo_correo_asunto", "x".repeat(201)), /200 caracteres/);
 });
